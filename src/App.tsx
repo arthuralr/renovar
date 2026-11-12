@@ -40,7 +40,6 @@ import { gerarLaudoTecnicoAbntFallback } from './utils/abntEngine';
 import { diagnosticarImagemClient } from './services/geminiService';
 import { enviarOrcamentoWebhook } from './services/webhookService';
 import {
-  carregarOrcamentosSalvos,
   salvarOrcamentosNoStorage,
 } from './utils/orcamentoKanbanUtils';
 import {
@@ -172,11 +171,10 @@ export default function App() {
   const [registrosVistoria, setRegistrosVistoria] = useState<HistoricoInspecao[]>([]);
 
   // Histórico e Kanban de Orçamentos Gerados (sincronizado com Google Sheets Cloud)
-  const [orcamentosSalvos, setOrcamentosSalvos] = useState<OrcamentoSalvo[]>(() =>
-    carregarOrcamentosSalvos()
-  );
+  const [orcamentosSalvos, setOrcamentosSalvos] = useState<OrcamentoSalvo[]>([]);
   const [activeOrcamentoId, setActiveOrcamentoId] = useState<string | null>(null);
   const [isSyncingCloud, setIsSyncingCloud] = useState<boolean>(false);
+  const [cloudError, setCloudError] = useState<string | null>(null);
 
   // Busca os orçamentos salvos na planilha do Google Sheets via GET e sincroniza em tempo real
   const sincronizarOrcamentosDaNuvem = async (hidratarSeVazio = false) => {
@@ -184,6 +182,7 @@ export default function App() {
     try {
       const listaNuvem = await carregarOrcamentosDaNuvem();
       setOrcamentosSalvos(listaNuvem);
+      setCloudError(null);
 
       // Se aberto em guia anônima ou novo dispositivo (sem cliente preenchido no formulário),
       // restaura automaticamente o último orçamento/cadastro salvo na planilha
@@ -210,6 +209,9 @@ export default function App() {
       }
     } catch (e) {
       console.warn('Erro ao sincronizar orçamentos da nuvem (Google Sheets):', e);
+      setCloudError(
+        e instanceof Error ? e.message : 'Não foi possível sincronizar com o Google Sheets.'
+      );
     } finally {
       setIsSyncingCloud(false);
     }
@@ -472,10 +474,10 @@ export default function App() {
   }, [registrosVistoria, diagnostico]);
 
   // Salva (ou atualiza) o orçamento e dados do cliente na planilha do Google Sheets e retorna o registro salvo
-  const salvarOrcamentoNoHistorico = (
+  const salvarOrcamentoNoHistorico = async (
     forcarNovoId = false,
     etapaFormulario: WizardStep = currentStep
-  ): OrcamentoSalvo => {
+  ): Promise<OrcamentoSalvo | null> => {
     const agora = new Date().toISOString();
     const idGerado =
       activeOrcamentoId && !forcarNovoId
@@ -502,31 +504,33 @@ export default function App() {
       selectedImage,
     };
 
-    setOrcamentosSalvos((prev) => {
-      const semDuplicata = prev.filter((o) => o.id !== idGerado);
-      const atualizados = [novoRegistro, ...semDuplicata];
-      salvarOrcamentosNoStorage(atualizados);
-      return atualizados;
-    });
-
-    setActiveOrcamentoId(idGerado);
-
-    // Envia via POST para gravar/atualizar na planilha do Google Sheets na nuvem
-    void salvarOrcamentoNaNuvem(novoRegistro, etapaFormulario);
-
-    return novoRegistro;
+    try {
+      await salvarOrcamentoNaNuvem(novoRegistro, etapaFormulario);
+      setOrcamentosSalvos((prev) => {
+        const semDuplicata = prev.filter((o) => o.id !== idGerado);
+        const atualizados = [novoRegistro, ...semDuplicata];
+        salvarOrcamentosNoStorage(atualizados);
+        return atualizados;
+      });
+      setActiveOrcamentoId(idGerado);
+      setCloudError(null);
+      return novoRegistro;
+    } catch (error) {
+      console.error('Erro ao salvar orçamento no Google Sheets:', error);
+      setCloudError(
+        error instanceof Error
+          ? error.message
+          : 'Não foi possível salvar o orçamento no Google Sheets.'
+      );
+      return null;
+    }
   };
 
   // Avança ou navega entre as etapas do formulário, persistindo automaticamente os dados na planilha do Google Sheets
-  const handleMudarEtapaFormulario = (proximaEtapa: WizardStep) => {
-    if (
-      dadosCliente.nomeCondominio.trim() ||
-      dadosCliente.nomeSindico.trim() ||
-      dadosCliente.endereco.trim() ||
-      activeOrcamentoId
-    ) {
-      salvarOrcamentoNoHistorico(false, proximaEtapa);
-    }
+  const handleMudarEtapaFormulario = async (proximaEtapa: WizardStep) => {
+    if (proximaEtapa === currentStep) return;
+    const salvo = await salvarOrcamentoNoHistorico(false, proximaEtapa);
+    if (!salvo) return;
     setCurrentStep(proximaEtapa);
   };
 
@@ -632,8 +636,9 @@ export default function App() {
   };
 
   // Acionado no momento em que o orçamento é gerado no Passo 4 (salva automaticamente na planilha Google Sheets, abre o PDF e envia POST JSON para o webhook n8n)
-  const handleGerarOrcamento = () => {
-    const registroSalvo = salvarOrcamentoNoHistorico(false, 4);
+  const handleGerarOrcamento = async () => {
+    const registroSalvo = await salvarOrcamentoNoHistorico(false, 4);
+    if (!registroSalvo) return;
     setIsOrcamentoPdfOpen(true);
     void enviarOrcamentoWebhook({
       orcamentoId: registroSalvo.id,
@@ -682,6 +687,21 @@ export default function App() {
 
         {/* Main Container */}
         <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+        {cloudError && (
+          <div className="p-4 rounded-xl bg-red-950/60 border border-red-800 text-red-200 text-sm flex items-start gap-3 shadow-lg">
+            <AlertTriangle className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <strong className="block font-semibold">Falha na sincronização com a nuvem</strong>
+              <p className="text-xs text-red-300 mt-0.5">{cloudError}</p>
+            </div>
+            <button
+              onClick={() => void sincronizarOrcamentosDaNuvem(false)}
+              className="px-3 py-1 bg-red-900/60 hover:bg-red-800 text-xs text-white rounded-lg transition cursor-pointer"
+            >
+              Tentar novamente
+            </button>
+          </div>
+        )}
         {/* Wizard Stepper Bar */}
         <WizardStepper
           currentStep={currentStep}
@@ -923,7 +943,7 @@ export default function App() {
               onLoadOrcamento={handleLoadOrcamento}
               onDeleteOrcamento={handleDeleteOrcamento}
               onClearAllOrcamentos={handleClearAllOrcamentos}
-              onSaveCurrentOrcamento={() => salvarOrcamentoNoHistorico(false, 4)}
+              onSaveCurrentOrcamento={() => void salvarOrcamentoNoHistorico(false, 4)}
               onRefreshCloud={() => sincronizarOrcamentosDaNuvem(false)}
               isSyncingCloud={isSyncingCloud}
             />
@@ -994,7 +1014,9 @@ export default function App() {
           onLoadOrcamento={handleLoadOrcamento}
           onDeleteOrcamento={handleDeleteOrcamento}
           onClearAllOrcamentos={handleClearAllOrcamentos}
-          onSaveCurrentOrcamento={() => salvarOrcamentoNoHistorico(false, currentStep)}
+          onSaveCurrentOrcamento={() =>
+            void salvarOrcamentoNoHistorico(false, currentStep)
+          }
           onRefreshCloud={() => sincronizarOrcamentosDaNuvem(false)}
           isSyncingCloud={isSyncingCloud}
           isModal={true}

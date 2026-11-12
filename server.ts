@@ -464,13 +464,31 @@ const writeServerCloudStore = (store: CloudCacheStore): void => {
 const extractRowsFromSheetsResponse = (parsed: any): any[] => {
   if (!parsed) return [];
   if (Array.isArray(parsed)) return parsed;
-  if (Array.isArray(parsed.data)) return parsed.data;
-  if (Array.isArray(parsed.values)) return parsed.values;
-  if (Array.isArray(parsed.orcamentos)) return parsed.orcamentos;
-  if (Array.isArray(parsed.items)) return parsed.items;
-  if (Array.isArray(parsed.rows)) return parsed.rows;
-  if (Array.isArray(parsed.result)) return parsed.result;
-  if (Array.isArray(parsed.records)) return parsed.records;
+  if (typeof parsed === 'object') {
+    const keys = [
+      'data',
+      'dados',
+      'orcamentos',
+      'propostas',
+      'values',
+      'rows',
+      'items',
+      'result',
+      'records',
+      'historico',
+      'lista',
+      'clientes',
+      'planilha',
+    ];
+    for (const k of keys) {
+      if (Array.isArray(parsed[k])) return parsed[k];
+    }
+    for (const [k, val] of Object.entries(parsed)) {
+      if (k !== 'deletedIds' && k !== 'serverItems' && Array.isArray(val)) {
+        return val;
+      }
+    }
+  }
   return [];
 };
 
@@ -483,18 +501,25 @@ const handleGetOrcamentosSheets = async (_req: express.Request, res: express.Res
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 15000);
     try {
-      const response = await fetch(`${GOOGLE_SHEETS_API_URL}?action=list&t=${Date.now()}`, {
+      const response = await fetch(GOOGLE_SHEETS_API_URL, {
         method: 'GET',
         redirect: 'follow',
         signal: controller.signal,
       });
       const text = await response.text();
       let sheetsRows: any[] = [];
+      let sheetsWarning: string | undefined;
       try {
         const parsed = JSON.parse(text);
         sheetsRows = extractRowsFromSheetsResponse(parsed);
+        if (parsed?.ok === false || parsed?.success === false || parsed?.error) {
+          sheetsWarning = String(parsed.error || 'A API do Google Sheets informou uma falha.');
+        }
       } catch {
         sheetsRows = [];
+        if (text.trim()) {
+          sheetsWarning = 'A resposta do Google Sheets não contém JSON válido.';
+        }
       }
 
       return res.status(200).json({
@@ -502,6 +527,11 @@ const handleGetOrcamentosSheets = async (_req: express.Request, res: express.Res
         data: sheetsRows,
         serverItems,
         deletedIds: store.deletedIds,
+        ...(!response.ok
+          ? { warning: `Google Sheets respondeu com status ${response.status}.` }
+          : sheetsWarning
+            ? { warning: sheetsWarning }
+            : {}),
       });
     } finally {
       clearTimeout(timeoutId);
@@ -587,9 +617,17 @@ const handlePostOrcamentosSheets = async (req: express.Request, res: express.Res
         signal: controller.signal,
       });
       const text = await response.text().catch(() => '');
+      let apiIndicatesFailure = false;
+      try {
+        const result = JSON.parse(text);
+        apiIndicatesFailure =
+          result?.ok === false || result?.success === false || Boolean(result?.error);
+      } catch {
+        // Respostas não JSON são aceitas quando o Apps Script retorna HTTP 2xx.
+      }
       return res.status(200).json({
         ok: true,
-        sheetsOk: response.ok,
+        sheetsOk: response.ok && !apiIndicatesFailure,
         status: response.status,
         response: text,
       });

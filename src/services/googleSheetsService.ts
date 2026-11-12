@@ -26,6 +26,20 @@ export const GOOGLE_SHEETS_API_URL =
     (import.meta as any)?.env?.VITE_GOOGLE_SHEETS_API_URL) ||
   'https://script.google.com/macros/s/AKfycbwEJsdwH7Rrb3rhb1Ytd7IvyqHTQvpFcfmS5Yof6Zs7DXTBmsC4LPYAl3jP2SjN7krw2g/exec';
 
+async function respostaSheetsConfirmouGravacao(response: Response): Promise<boolean> {
+  if (!response.ok) return false;
+
+  const text = await response.clone().text();
+  if (!text.trim()) return true;
+
+  try {
+    const body = JSON.parse(text);
+    return body?.ok !== false && body?.success !== false && !body?.error;
+  } catch {
+    return true;
+  }
+}
+
 const DELETED_IDS_STORAGE_KEY = 'patologias_orcamentos_excluidos_v1';
 
 function obterIdsExcluidosLocalmente(): Set<string> {
@@ -62,6 +76,22 @@ function removerIdExcluidoLocalmente(id: string): void {
 }
 
 /**
+ * Retorna a primeira string não vazia dentre os candidatos passados.
+ * Evita que strings vazias ("") retornadas por células em branco do Google Sheets bloqueiem fallbacks.
+ */
+function primeiroTextoNaoVazio(...valores: any[]): string {
+  for (const v of valores) {
+    if (v !== undefined && v !== null && typeof v !== 'object') {
+      const s = String(v).trim();
+      if (s !== '' && s !== 'undefined' && s !== 'null') {
+        return s;
+      }
+    }
+  }
+  return '';
+}
+
+/**
  * Normaliza chaves de colunas da planilha (remove acentos, espaços, símbolos e converte para minúsculas)
  * para busca insensível a formatação de cabeçalhos no Google Sheets.
  */
@@ -75,25 +105,55 @@ function normalizarChaveColuna(chave: string): string {
 }
 
 /**
- * Busca um valor em um objeto de linha da planilha testando múltiplos nomes de colunas possíveis.
+ * Busca um valor não vazio em um objeto de linha da planilha testando múltiplos nomes de colunas possíveis.
  */
 function obterCampoFlexivel(row: Record<string, any>, candidatos: string[]): any {
   if (!row || typeof row !== 'object') return undefined;
 
   for (const cand of candidatos) {
-    if (row[cand] !== undefined && row[cand] !== null && row[cand] !== '') {
-      return row[cand];
+    const val = row[cand];
+    if (val !== undefined && val !== null && String(val).trim() !== '') {
+      return val;
     }
   }
 
   const alvosNormalizados = new Set(candidatos.map(normalizarChaveColuna));
   for (const [k, v] of Object.entries(row)) {
-    if (v !== undefined && v !== null && v !== '' && alvosNormalizados.has(normalizarChaveColuna(k))) {
+    if (k === '_rawCells') continue;
+    if (
+      v !== undefined &&
+      v !== null &&
+      String(v).trim() !== '' &&
+      alvosNormalizados.has(normalizarChaveColuna(k))
+    ) {
       return v;
     }
   }
 
   return undefined;
+}
+
+/**
+ * Verifica se uma string corresponde explicitamente a um status/etapa do Kanban.
+ */
+function pareceStatusKanbanExplicito(valorBruto: any): boolean {
+  if (!valorBruto || typeof valorBruto !== 'string') return false;
+  const limpo = valorBruto
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+
+  return (
+    limpo === 'em_elaboracao' ||
+    limpo === 'em elaboracao' ||
+    limpo === 'enviado_sindico' ||
+    limpo === 'enviado ao sindico' ||
+    limpo === 'aguardando_aprovacao' ||
+    limpo === 'aguardando aprovacao' ||
+    limpo === 'aprovado' ||
+    limpo === 'recusado'
+  );
 }
 
 /**
@@ -146,7 +206,16 @@ function parseNumeroMonetario(val: any): number {
   if (typeof val === 'string') {
     const trimmed = val.trim();
     if (!trimmed) return 0;
-    // Se contiver vírgula decimal (formato BR "R$ 145.200,50")
+    // Ignora códigos PROP- ou datas ou telefones
+    if (
+      /^PROP-/i.test(trimmed) ||
+      /^\d{2}\/\d{2}\/\d{4}/.test(trimmed) ||
+      /^\d{4}-\d{2}-\d{2}/.test(trimmed) ||
+      /^\(\d{2}\)/.test(trimmed) ||
+      /^\d{2}\.\d{3}\.\d{3}\//.test(trimmed)
+    ) {
+      return 0;
+    }
     if (trimmed.includes(',')) {
       const limpo = trimmed
         .replace(/[R$\s]/g, '')
@@ -161,6 +230,49 @@ function parseNumeroMonetario(val: any): number {
     }
   }
   return 0;
+}
+
+function primeiroNumeroPositivo(...valores: any[]): number {
+  for (const v of valores) {
+    const n = parseNumeroMonetario(v);
+    if (n > 0) return n;
+  }
+  return 0;
+}
+
+/**
+ * Faz o parse de datas vindas do Google Sheets (ISO 8601, Date serial ou formato brasileiro DD/MM/YYYY HH:mm:ss).
+ */
+function parseDataPlanilhaIso(valorBruto: any): string | null {
+  if (!valorBruto) return null;
+  if (valorBruto instanceof Date && !Number.isNaN(valorBruto.getTime())) {
+    return valorBruto.toISOString();
+  }
+  const str = String(valorBruto).trim();
+  if (!str) return null;
+
+  // Formato brasileiro: DD/MM/YYYY ou DD/MM/YYYY, HH:mm:ss
+  const matchBr = str.match(
+    /^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:[,\s]+(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?)?/
+  );
+  if (matchBr) {
+    const dia = Number(matchBr[1]);
+    const mes = Number(matchBr[2]) - 1;
+    const ano = Number(matchBr[3]);
+    const hora = Number(matchBr[4] || 12);
+    const min = Number(matchBr[5] || 0);
+    const seg = Number(matchBr[6] || 0);
+    const dt = new Date(ano, mes, dia, hora, min, seg);
+    if (!Number.isNaN(dt.getTime())) {
+      return dt.toISOString();
+    }
+  }
+
+  const parsed = new Date(str);
+  if (!Number.isNaN(parsed.getTime())) {
+    return parsed.toISOString();
+  }
+  return null;
 }
 
 /**
@@ -312,73 +424,99 @@ export function montarPayloadPlanilha(
 }
 
 /**
- * Converte uma matriz 2D (ex: retorno de `sheet.getDataRange().getValues()` ou `values` da API Google Sheets)
- * em uma lista de objetos indexados pelo cabeçalho ou pelas células.
+ * Converte uma matriz 2D (ex: retorno de `sheet.getDataRange().getValues()`) ou objetos mal indexados
+ * em uma lista uniforme de objetos de linha com `_rawCells`.
  */
 function converterLinhasBrutasPlanilha(listaBruta: any[]): any[] {
   if (!Array.isArray(listaBruta) || listaBruta.length === 0) return [];
 
-  // Se os elementos não forem arrays, já são objetos de linha
-  if (!Array.isArray(listaBruta[0])) {
-    return listaBruta;
-  }
+  // Caso 1: Matriz 2D (Array de Arrays)
+  if (Array.isArray(listaBruta[0])) {
+    const primeiraLinha = listaBruta[0] as any[];
+    const palavrasCabecalho = new Set([
+      'id',
+      'codigo',
+      'proposta',
+      'orcamentoid',
+      'data',
+      'datacriacao',
+      'timestamp',
+      'cliente',
+      'condominio',
+      'nomedocondominio',
+      'nomecondominio',
+      'nomedocliente',
+      'sindico',
+      'nomesindico',
+      'telefone',
+      'whatsapp',
+      'email',
+      'cnpj',
+      'endereco',
+      'valor',
+      'valorglobal',
+      'valortotal',
+      'status',
+      'fase',
+      'etapa',
+      'detalhes',
+      'json',
+      'dados',
+    ]);
 
-  const primeiraLinha = listaBruta[0] as any[];
-  const palavrasCabecalho = new Set([
-    'id',
-    'codigo',
-    'proposta',
-    'orcamentoid',
-    'data',
-    'datacriacao',
-    'timestamp',
-    'cliente',
-    'condominio',
-    'nomedocondominio',
-    'nomecondominio',
-    'sindico',
-    'nomesindico',
-    'telefone',
-    'whatsapp',
-    'email',
-    'cnpj',
-    'endereco',
-    'valor',
-    'valorglobal',
-    'valortotal',
-    'status',
-    'fase',
-    'etapa',
-    'detalhes',
-    'json',
-    'dados',
-  ]);
-
-  const pareceCabecalho = primeiraLinha.some(
-    (cell) =>
-      typeof cell === 'string' &&
-      palavrasCabecalho.has(normalizarChaveColuna(cell)) &&
-      !cell.trim().startsWith('{') &&
-      !cell.trim().startsWith('PROP-')
-  );
-
-  if (pareceCabecalho) {
-    const cabecalhos = primeiraLinha.map((cell, idx) =>
-      String(cell || `col_${idx}`).trim()
+    const pareceCabecalho = primeiraLinha.some(
+      (cell) =>
+        typeof cell === 'string' &&
+        palavrasCabecalho.has(normalizarChaveColuna(cell)) &&
+        !cell.trim().startsWith('{') &&
+        !cell.trim().toUpperCase().startsWith('PROP-')
     );
-    return listaBruta.slice(1).map((linha) => {
-      if (!Array.isArray(linha)) return linha;
-      const obj: Record<string, any> = { _rawCells: linha };
-      cabecalhos.forEach((h, idx) => {
-        obj[h] = linha[idx];
+
+    if (pareceCabecalho) {
+      const cabecalhos = primeiraLinha.map((cell, idx) =>
+        String(cell || `col_${idx}`).trim()
+      );
+      return listaBruta.slice(1).map((linha) => {
+        if (!Array.isArray(linha)) return linha;
+        const obj: Record<string, any> = { _rawCells: linha };
+        cabecalhos.forEach((h, idx) => {
+          obj[h] = linha[idx];
+        });
+        return obj;
       });
-      return obj;
-    });
+    }
+
+    return listaBruta.map((linha) =>
+      Array.isArray(linha) ? { _rawCells: linha } : linha
+    );
   }
 
-  return listaBruta.map((linha) =>
-    Array.isArray(linha) ? { _rawCells: linha } : linha
-  );
+  // Caso 2: Array de Objetos — verifica se a 1ª linha de dados foi usada acidentalmente como chave pelo Apps Script
+  const primeiroObj = listaBruta[0];
+  if (primeiroObj && typeof primeiroObj === 'object') {
+    const chaves = Object.keys(primeiroObj);
+    const chavePareceDado = chaves.some(
+      (k) => k.trim().toUpperCase().startsWith('PROP-') || k.trim().startsWith('{')
+    );
+
+    if (chavePareceDado) {
+      const resultado: any[] = [{ _rawCells: chaves }];
+      for (const item of listaBruta) {
+        if (item && typeof item === 'object') {
+          resultado.push({ ...item, _rawCells: Object.values(item) });
+        }
+      }
+      return resultado;
+    }
+
+    return listaBruta.map((item) =>
+      item && typeof item === 'object'
+        ? { ...item, _rawCells: Array.isArray(item._rawCells) ? item._rawCells : Object.values(item) }
+        : item
+    );
+  }
+
+  return listaBruta;
 }
 
 /**
@@ -416,6 +554,7 @@ function extrairSnapshotJsonDaLinha(row: any): Partial<OrcamentoSalvo> | null {
     'dados',
     'orcamento',
     'snapshot',
+    'resumo',
   ]);
   const direto = tentarParsear(campoDireto);
   if (direto) return direto;
@@ -427,12 +566,107 @@ function extrairSnapshotJsonDaLinha(row: any): Partial<OrcamentoSalvo> | null {
     }
   }
 
-  for (const val of Object.values(row)) {
+  for (const [k, val] of Object.entries(row)) {
+    if (k === '_rawCells') continue;
     const p = tentarParsear(val);
     if (p) return p;
   }
 
   return null;
+}
+
+/**
+ * Analisa células posicionais da linha quando os cabeçalhos da planilha são personalizados ou ausentes.
+ */
+function analisarCelulasDaLinha(cells: any[]) {
+  let idDetectado = '';
+  let statusDetectado = '';
+  let valorDetectado = 0;
+  let dataDetectada = '';
+  let emailDetectado = '';
+  let cnpjDetectado = '';
+  let telefoneDetectado = '';
+  const textosLivres: string[] = [];
+
+  for (const raw of cells) {
+    if (raw === undefined || raw === null) continue;
+    if (typeof raw === 'number' && !Number.isNaN(raw)) {
+      // Ignora números pequenos ou anos (ex: 4 meses, 20%, 2026) se já houver valor maior
+      if (raw > 2100 || (raw > 50 && valorDetectado === 0 && (raw < 1900 || raw > 2100))) {
+        if (raw > valorDetectado) valorDetectado = raw;
+      }
+      continue;
+    }
+    if (typeof raw !== 'string') continue;
+    const str = raw.trim();
+    if (!str || str.startsWith('{')) continue;
+
+    if (/^PROP-[A-Z0-9-]+/i.test(str)) {
+      if (!idDetectado) idDetectado = str;
+      continue;
+    }
+    if (pareceStatusKanbanExplicito(str)) {
+      if (!statusDetectado) statusDetectado = str;
+      continue;
+    }
+    if (/^R\$\s*[\d.,]+/i.test(str) || /^\d{1,3}(\.\d{3})+,\d{2}$/.test(str)) {
+      const v = parseNumeroMonetario(str);
+      if (v > valorDetectado) valorDetectado = v;
+      continue;
+    }
+    const iso = parseDataPlanilhaIso(str);
+    if (iso && (/^\d{4}-\d{2}-\d{2}/.test(str) || /^\d{1,2}\/\d{1,2}\/\d{4}/.test(str))) {
+      if (!dataDetectada) dataDetectada = iso;
+      continue;
+    }
+    if (str.includes('@') && str.includes('.') && !str.includes(' ')) {
+      if (!emailDetectado) emailDetectado = str;
+      continue;
+    }
+    if (/^\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}$/.test(str)) {
+      if (!cnpjDetectado) cnpjDetectado = str;
+      continue;
+    }
+    if (/^\(?\d{2}\)?\s*\d{4,5}-?\d{4}$/.test(str)) {
+      if (!telefoneDetectado) telefoneDetectado = str;
+      continue;
+    }
+
+    // Se for string puramente numérica grande (ex: "145200.50")
+    if (/^\d+(\.\d+)?$/.test(str)) {
+      const n = Number(str);
+      if (n > 2100 && n > valorDetectado) {
+        valorDetectado = n;
+        continue;
+      }
+    }
+
+    // Se contiver resumo formatado "Condomínio: X | Síndico: Y"
+    if (str.includes('Condomínio:') && str.includes('|')) {
+      const partes = str.split('|').map((p) => p.trim());
+      for (const p of partes) {
+        if (p.toLowerCase().startsWith('condomínio:') || p.toLowerCase().startsWith('condominio:')) {
+          const nome = p.split(':').slice(1).join(':').trim();
+          if (nome && !textosLivres.includes(nome)) textosLivres.unshift(nome);
+        }
+      }
+      continue;
+    }
+
+    textosLivres.push(str);
+  }
+
+  return {
+    idDetectado,
+    statusDetectado,
+    valorDetectado,
+    dataDetectada,
+    emailDetectado,
+    cnpjDetectado,
+    telefoneDetectado,
+    clienteDetectado: textosLivres[0] || '',
+    sindicoDetectado: textosLivres[1] || '',
+  };
 }
 
 /**
@@ -447,10 +681,13 @@ export function normalizarLinhaPlanilhaParaOrcamento(
   if (!row || typeof row !== 'object') return null;
 
   const parsedDetalhes = extrairSnapshotJsonDaLinha(row);
-  const rawCells: any[] = Array.isArray(row._rawCells) ? row._rawCells : [];
+  const rawCells: any[] = Array.isArray(row._rawCells)
+    ? row._rawCells
+    : Object.values(row);
+  const scan = analisarCelulasDaLinha(rawCells);
 
   // Ignora linhas marcadas como excluídas na planilha
-  const rawStatus =
+  const rawStatus = primeiroTextoNaoVazio(
     obterCampoFlexivel(row, [
       'status',
       'fase',
@@ -458,10 +695,14 @@ export function normalizarLinhaPlanilhaParaOrcamento(
       'statusTitulo',
       'situacao',
       'estagio',
-    ]) ?? '';
+      'status/fase',
+      'statusFase',
+    ]),
+    scan.statusDetectado
+  );
 
   if (
-    typeof rawStatus === 'string' &&
+    rawStatus &&
     (rawStatus.toLowerCase() === 'deleted' ||
       rawStatus.toLowerCase() === 'excluido' ||
       rawStatus.toLowerCase() === 'excluído')
@@ -469,23 +710,20 @@ export function normalizarLinhaPlanilhaParaOrcamento(
     return null;
   }
 
-  let idCandidato =
+  const idExtraido = primeiroTextoNaoVazio(
     obterCampoFlexivel(row, [
       'id',
       'orcamentoId',
       'codigo',
       'proposta',
       'numeroProposta',
-    ]) ?? parsedDetalhes?.id;
+      'idOrcamento',
+    ]),
+    parsedDetalhes?.id,
+    scan.idDetectado,
+    `PROP-CLOUD-${index + 1}`
+  );
 
-  if (!idCandidato && rawCells.length > 0) {
-    const cellProp = rawCells.find(
-      (c) => typeof c === 'string' && c.trim().toUpperCase().startsWith('PROP-')
-    );
-    if (cellProp) idCandidato = cellProp.trim();
-  }
-
-  const idExtraido = String(idCandidato || `PROP-CLOUD-${index + 1}`).trim();
   if (!idExtraido) return null;
 
   const itemLocal = cacheLocalMap?.get(idExtraido);
@@ -497,69 +735,73 @@ export function normalizarLinhaPlanilhaParaOrcamento(
       ? normalizarStatusKanban(parsedDetalhes.status)
       : itemLocal?.status || 'em_elaboracao';
 
-  const nomeCondominio = String(
+  const nomeCondominio = primeiroTextoNaoVazio(
     obterCampoFlexivel(row, [
       'nomeCondominio',
       'condominio',
       'cliente',
       'nomeDoCondominio',
+      'nomeDoCliente',
+      'nomeCliente',
+      'nome',
       'edificio',
       'nomeEdificio',
-    ]) ??
-      parsedDetalhes?.dadosCliente?.nomeCondominio ??
-      itemLocal?.dadosCliente?.nomeCondominio ??
-      (rawCells.length > 2 && typeof rawCells[2] === 'string' ? rawCells[2] : '') ??
-      ''
-  ).trim();
+      'contratante',
+      'empresa',
+      'razaoSocial',
+    ]),
+    parsedDetalhes?.dadosCliente?.nomeCondominio,
+    itemLocal?.dadosCliente?.nomeCondominio,
+    scan.clienteDetectado
+  );
 
-  const nomeSindico = String(
+  const nomeSindico = primeiroTextoNaoVazio(
     obterCampoFlexivel(row, [
       'nomeSindico',
       'sindico',
       'nomeDoSindico',
       'gestor',
       'responsavel',
-    ]) ??
-      parsedDetalhes?.dadosCliente?.nomeSindico ??
-      itemLocal?.dadosCliente?.nomeSindico ??
-      ''
-  ).trim();
+    ]),
+    parsedDetalhes?.dadosCliente?.nomeSindico,
+    itemLocal?.dadosCliente?.nomeSindico,
+    scan.sindicoDetectado
+  );
 
-  const telefone = String(
+  const telefone = primeiroTextoNaoVazio(
     obterCampoFlexivel(row, [
       'telefone',
       'celular',
       'whatsapp',
       'fone',
       'contato',
-    ]) ??
-      parsedDetalhes?.dadosCliente?.telefone ??
-      itemLocal?.dadosCliente?.telefone ??
-      ''
-  ).trim();
+    ]),
+    parsedDetalhes?.dadosCliente?.telefone,
+    itemLocal?.dadosCliente?.telefone,
+    scan.telefoneDetectado
+  );
 
-  const email = String(
-    obterCampoFlexivel(row, ['email', 'e-mail', 'correio']) ??
-      parsedDetalhes?.dadosCliente?.email ??
-      itemLocal?.dadosCliente?.email ??
-      ''
-  ).trim();
+  const email = primeiroTextoNaoVazio(
+    obterCampoFlexivel(row, ['email', 'e-mail', 'correio']),
+    parsedDetalhes?.dadosCliente?.email,
+    itemLocal?.dadosCliente?.email,
+    scan.emailDetectado
+  );
 
-  const cnpj = String(
-    obterCampoFlexivel(row, ['cnpj', 'documento']) ??
-      parsedDetalhes?.dadosCliente?.cnpj ??
-      itemLocal?.dadosCliente?.cnpj ??
-      ''
-  ).trim();
+  const cnpj = primeiroTextoNaoVazio(
+    obterCampoFlexivel(row, ['cnpj', 'documento']),
+    parsedDetalhes?.dadosCliente?.cnpj,
+    itemLocal?.dadosCliente?.cnpj,
+    scan.cnpjDetectado
+  );
 
-  const endereco = String(
-    obterCampoFlexivel(row, ['endereco', 'localizacao', 'logradouro', 'enderecoObra']) ??
-      parsedDetalhes?.dadosCliente?.endereco ??
-      itemLocal?.dadosCliente?.endereco ??
-      ''
-  ).trim();
+  const endereco = primeiroTextoNaoVazio(
+    obterCampoFlexivel(row, ['endereco', 'localizacao', 'logradouro', 'enderecoObra']),
+    parsedDetalhes?.dadosCliente?.endereco,
+    itemLocal?.dadosCliente?.endereco
+  );
 
-  const valorBruto =
+  const valorGlobal = primeiroNumeroPositivo(
     obterCampoFlexivel(row, [
       'valorGlobal',
       'valor_global',
@@ -568,39 +810,41 @@ export function normalizarLinhaPlanilhaParaOrcamento(
       'valorFormatado',
       'preco',
       'total',
-    ]) ??
-    parsedDetalhes?.calculos?.valorGlobal ??
-    itemLocal?.calculos?.valorGlobal ??
-    0;
+      'orcamento',
+    ]),
+    parsedDetalhes?.calculos?.valorGlobal,
+    itemLocal?.calculos?.valorGlobal,
+    scan.valorDetectado
+  );
 
-  const valorGlobal = parseNumeroMonetario(valorBruto);
-
-  // Ignora linhas totalmente vazias ou de cabeçalho da planilha
+  // Ignora linhas totalmente vazias ou que sejam literalmente a linha de cabeçalho da planilha
+  const chaveCond = normalizarChaveColuna(nomeCondominio);
+  const chaveId = normalizarChaveColuna(idExtraido);
   if (
-    (!nomeCondominio && !valorGlobal && !parsedDetalhes) ||
-    normalizarChaveColuna(nomeCondominio) === 'cliente' ||
-    normalizarChaveColuna(nomeCondominio) === 'condominio' ||
-    normalizarChaveColuna(idExtraido) === 'id'
+    (!nomeCondominio && !valorGlobal && !parsedDetalhes && !scan.idDetectado) ||
+    chaveCond === 'cliente' ||
+    chaveCond === 'condominio' ||
+    chaveCond === 'nomedocondominio' ||
+    chaveId === 'id' ||
+    chaveId === 'codigo'
   ) {
     return null;
   }
 
   const dadosCliente: DadosCliente = {
-    nomeCondominio: nomeCondominio || 'Condomínio',
+    nomeCondominio: nomeCondominio || 'Condomínio Cadastrado',
     cnpj,
     endereco,
     nomeSindico,
-    anoConstrucao: String(
-      obterCampoFlexivel(row, ['anoConstrucao', 'idade', 'ano']) ??
-        parsedDetalhes?.dadosCliente?.anoConstrucao ??
-        itemLocal?.dadosCliente?.anoConstrucao ??
-        ''
+    anoConstrucao: primeiroTextoNaoVazio(
+      obterCampoFlexivel(row, ['anoConstrucao', 'idade', 'ano']),
+      parsedDetalhes?.dadosCliente?.anoConstrucao,
+      itemLocal?.dadosCliente?.anoConstrucao
     ),
-    pavimentos: String(
-      obterCampoFlexivel(row, ['pavimentos', 'andares', 'numeroDePavimentos']) ??
-        parsedDetalhes?.dadosCliente?.pavimentos ??
-        itemLocal?.dadosCliente?.pavimentos ??
-        ''
+    pavimentos: primeiroTextoNaoVazio(
+      obterCampoFlexivel(row, ['pavimentos', 'andares', 'numeroDePavimentos']),
+      parsedDetalhes?.dadosCliente?.pavimentos,
+      itemLocal?.dadosCliente?.pavimentos
     ),
     telefone,
     email,
@@ -649,32 +893,20 @@ export function normalizarLinhaPlanilhaParaOrcamento(
   const diagnostico: DiagnosticoResponse | null =
     parsedDetalhes?.diagnostico || itemLocal?.diagnostico || null;
 
-  const dataCriacaoBruta =
-    obterCampoFlexivel(row, ['dataCriacao', 'data_criacao', 'data', 'timestamp']) ??
-    parsedDetalhes?.dataCriacao ??
-    itemLocal?.dataCriacao;
+  const dataCriacaoIso =
+    parseDataPlanilhaIso(
+      obterCampoFlexivel(row, ['dataCriacao', 'data_criacao', 'data', 'timestamp'])
+    ) ||
+    parseDataPlanilhaIso(parsedDetalhes?.dataCriacao) ||
+    parseDataPlanilhaIso(scan.dataDetectada) ||
+    parseDataPlanilhaIso(itemLocal?.dataCriacao) ||
+    new Date().toISOString();
 
-  let dataCriacaoIso = new Date().toISOString();
-  if (dataCriacaoBruta) {
-    const parsedDate = new Date(dataCriacaoBruta);
-    if (!Number.isNaN(parsedDate.getTime())) {
-      dataCriacaoIso = parsedDate.toISOString();
-    }
-  }
-
-  const dataAtualizacaoBruta =
-    obterCampoFlexivel(row, ['dataAtualizacao', 'updatedAt']) ??
-    parsedDetalhes?.dataAtualizacao ??
-    itemLocal?.dataAtualizacao ??
+  const dataAtualizacaoIso =
+    parseDataPlanilhaIso(obterCampoFlexivel(row, ['dataAtualizacao', 'updatedAt'])) ||
+    parseDataPlanilhaIso(parsedDetalhes?.dataAtualizacao) ||
+    parseDataPlanilhaIso(itemLocal?.dataAtualizacao) ||
     dataCriacaoIso;
-
-  let dataAtualizacaoIso = dataCriacaoIso;
-  if (dataAtualizacaoBruta) {
-    const parsedUpd = new Date(dataAtualizacaoBruta);
-    if (!Number.isNaN(parsedUpd.getTime())) {
-      dataAtualizacaoIso = parsedUpd.toISOString();
-    }
-  }
 
   return {
     id: idExtraido,
@@ -716,8 +948,8 @@ function montarUrlComQueryParamsPlanilha(payload: Record<string, any>): string {
 }
 
 /**
- * 1. SALVAR (POST): Envia o orçamento ou avanço de etapa para a planilha do Google Sheets
- * e para o endpoint sincronizado `/api/sheets/orcamentos`.
+ * 1. SALVAR (POST): Envia o orçamento para o Web App do Google Sheets
+ * e sincroniza com o espelho `/api/sheets/orcamentos`.
  */
 export async function salvarOrcamentoNaNuvem(
   orcamento: OrcamentoSalvo,
@@ -726,25 +958,9 @@ export async function salvarOrcamentoNaNuvem(
   removerIdExcluidoLocalmente(orcamento.id);
   const payload = montarPayloadPlanilha(orcamento, 'save', etapaFormulario);
 
-  // Caminho 1 (Preferencial): Envia via servidor `/api/sheets/orcamentos`, que grava no espelho em nuvem
-  // e encaminha o POST ao Google Sheets sem bloqueios de CORS do navegador
-  try {
-    const proxyRes = await fetch('/api/sheets/orcamentos', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
-    if (proxyRes.ok) {
-      return true;
-    }
-  } catch (proxyErr) {
-    console.warn(
-      '[Google Sheets] Endpoint /api/sheets/orcamentos indisponível, enviando diretamente ao Google Apps Script:',
-      proxyErr
-    );
-  }
+  let salvouDireto = false;
 
-  // Caminho 2 (Fallback Direto Browser -> Google Apps Script):
+  // 1. Envia diretamente do Front-End para o Web App do Google Sheets (text/plain evita preflight CORS)
   try {
     const targetUrl = montarUrlComQueryParamsPlanilha(payload);
     const response = await fetch(targetUrl, {
@@ -754,34 +970,140 @@ export async function salvarOrcamentoNaNuvem(
       },
       body: JSON.stringify(payload),
       redirect: 'follow',
+      credentials: 'omit',
     });
 
-    return response.ok;
+    salvouDireto = await respostaSheetsConfirmouGravacao(response);
   } catch (directErr) {
-    console.warn('[Google Sheets] Erro ao salvar orçamento diretamente na nuvem:', directErr);
-    return false;
+    console.warn('[Google Sheets] Aviso no POST direto ao Apps Script:', directErr);
   }
+
+  // 2. Sincroniza também com o espelho do backend (/api/sheets/orcamentos) caso disponível
+  try {
+    const proxyRes = await fetch('/api/sheets/orcamentos', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (proxyRes.ok) {
+      const resultado = await proxyRes.json();
+      if (resultado?.sheetsOk === true) return true;
+    }
+  } catch (proxyErr) {
+    console.warn('[Google Sheets] Aviso no POST pelo servidor:', proxyErr);
+  }
+
+  if (salvouDireto) return true;
+  throw new Error('A API do Google Sheets não confirmou a gravação do orçamento.');
 }
 
 /**
- * Extrai a lista de linhas de qualquer formato de resposta JSON do Google Sheets.
+ * Extrai a lista de linhas de qualquer formato de resposta JSON do Web App do Google Sheets.
  */
-function extrairListaBrutaDeResposta(rawData: any): any[] {
+export function extrairListaBrutaDeResposta(rawData: any): any[] {
   if (!rawData) return [];
   if (Array.isArray(rawData)) return rawData;
-  if (Array.isArray(rawData.data)) return rawData.data;
-  if (Array.isArray(rawData.values)) return rawData.values;
-  if (Array.isArray(rawData.orcamentos)) return rawData.orcamentos;
-  if (Array.isArray(rawData.items)) return rawData.items;
-  if (Array.isArray(rawData.rows)) return rawData.rows;
-  if (Array.isArray(rawData.result)) return rawData.result;
-  if (Array.isArray(rawData.records)) return rawData.records;
+
+  if (typeof rawData === 'object') {
+    const chavesConhecidas = [
+      'data',
+      'dados',
+      'orcamentos',
+      'propostas',
+      'values',
+      'rows',
+      'items',
+      'result',
+      'records',
+      'historico',
+      'lista',
+      'clientes',
+      'planilha',
+      'sheet',
+    ];
+
+    for (const chave of chavesConhecidas) {
+      if (Array.isArray(rawData[chave])) {
+        return rawData[chave];
+      }
+      if (rawData[chave] && typeof rawData[chave] === 'object') {
+        for (const subChave of chavesConhecidas) {
+          if (Array.isArray(rawData[chave][subChave])) {
+            return rawData[chave][subChave];
+          }
+        }
+      }
+    }
+
+    // Procura qualquer propriedade que seja um Array dentro do objeto retornado pelo Apps Script
+    for (const [k, val] of Object.entries(rawData)) {
+      if (k === 'deletedIds' || k === 'serverItems') continue;
+      if (Array.isArray(val)) {
+        return val;
+      }
+    }
+
+    // Se o próprio objeto for um único orçamento retornado
+    if (rawData.id || rawData.cliente || rawData.nomeCondominio || rawData.dadosCliente) {
+      return [rawData];
+    }
+  }
+
   return [];
 }
 
 /**
- * 2. CARREGAR (GET): Busca todos os orçamentos diretamente da planilha do Google Sheets na nuvem
- * (e do espelho sincronizado do servidor), garantindo acesso universal em abas anônimas e outros dispositivos.
+ * Faz o fetch GET diretamente no Web App do Google Sheets (`GOOGLE_SHEETS_API_URL`)
+ * e retorna as linhas brutas da planilha.
+ */
+async function buscarLinhasDiretoDoGoogleSheetsWebApp(): Promise<any[] | null> {
+  const urlsCandidatas = [
+    GOOGLE_SHEETS_API_URL,
+    `${GOOGLE_SHEETS_API_URL}?t=${Date.now()}`,
+  ];
+
+  for (const url of urlsCandidatas) {
+    try {
+      const response = await fetch(url, {
+        method: 'GET',
+        redirect: 'follow',
+        credentials: 'omit',
+      });
+
+      if (response.ok) {
+        const text = await response.text();
+        if (text && text.trim()) {
+          try {
+            const parsed = JSON.parse(text);
+            const extraidos = extrairListaBrutaDeResposta(parsed);
+            if (
+              Array.isArray(parsed) ||
+              extraidos.length > 0 ||
+              (typeof parsed === 'object' &&
+                parsed !== null &&
+                ['data', 'dados', 'orcamentos', 'values', 'rows', 'items'].some(
+                  (key) => Array.isArray(parsed[key])
+                ))
+            ) {
+              return extraidos;
+            }
+          } catch {
+            // Caso não seja JSON válido, tenta próxima URL candidata
+          }
+        }
+      }
+    } catch (err) {
+      console.warn(`[Google Sheets GET] Tentativa falhou para ${url}:`, err);
+    }
+  }
+
+  return null;
+}
+
+/**
+ * 2. CARREGAR (GET): Consome os dados diretamente do Web App do Google Sheets via método GET
+ * para preencher dinamicamente o painel Kanban e as telas de consulta de orçamentos em qualquer
+ * nova guia, aba anônima ou outro dispositivo.
  */
 export async function carregarOrcamentosDaNuvem(): Promise<OrcamentoSalvo[]> {
   const cacheLocal = carregarOrcamentosSalvos();
@@ -790,56 +1112,45 @@ export async function carregarOrcamentosDaNuvem(): Promise<OrcamentoSalvo[]> {
   );
   const excluidosSet = obterIdsExcluidosLocalmente();
 
-  let linhasPlanilhaBrutas: any[] = [];
-  let itensEspelhoServidor: any[] = [];
-  let conectouComSucesso = false;
+  // 1. Chamada GET direta do Front-End ao Web App do Google Sheets (GOOGLE_SHEETS_API_URL)
+  let linhasPlanilhaBrutas = await buscarLinhasDiretoDoGoogleSheetsWebApp();
+  let consultaServidorConcluida = false;
 
-  // 1. Consulta o endpoint unificado `/api/sheets/orcamentos` (que busca no Google Sheets + espelho do servidor)
+  // 2. Consulta complementar ao endpoint `/api/sheets/orcamentos` para contornar CORS.
   try {
-    const proxyRes = await fetch(`/api/sheets/orcamentos?t=${Date.now()}`, {
-      cache: 'no-store',
-    });
-    if (proxyRes.ok) {
+    const proxyRes = await fetch(`/api/sheets/orcamentos?t=${Date.now()}`);
+    const contentType = proxyRes.headers.get('content-type') || '';
+    if (proxyRes.ok && contentType.includes('application/json')) {
       const json = await proxyRes.json();
-      conectouComSucesso = true;
-      linhasPlanilhaBrutas = extrairListaBrutaDeResposta(json);
-      if (Array.isArray(json?.serverItems)) {
-        itensEspelhoServidor = json.serverItems;
+      if (json?.warning && linhasPlanilhaBrutas === null) {
+        throw new Error(String(json.warning));
+      }
+      if (linhasPlanilhaBrutas === null || linhasPlanilhaBrutas.length === 0) {
+        linhasPlanilhaBrutas = extrairListaBrutaDeResposta(json);
       }
       if (Array.isArray(json?.deletedIds)) {
         json.deletedIds.forEach((id: string) => excluidosSet.add(String(id)));
       }
+      consultaServidorConcluida = true;
     }
-  } catch (proxyErr) {
-    console.warn('[Google Sheets] Buscando diretamente da URL do Google Apps Script:', proxyErr);
-  }
-
-  // 2. Se o servidor não retornou linhas da planilha (ou em ambiente puramente estático), consulta direto a URL do Google Sheets
-  if (linhasPlanilhaBrutas.length === 0) {
-    try {
-      const urlComTimestamp = `${GOOGLE_SHEETS_API_URL}?action=list&t=${Date.now()}`;
-      const response = await fetch(urlComTimestamp, {
-        method: 'GET',
-        redirect: 'follow',
-        cache: 'no-store',
-      });
-
-      if (response.ok) {
-        const text = await response.text();
-        if (text && text.trim()) {
-          const parsed = JSON.parse(text);
-          conectouComSucesso = true;
-          linhasPlanilhaBrutas = extrairListaBrutaDeResposta(parsed);
-        }
-      }
-    } catch (directErr) {
-      console.warn('[Google Sheets] Aviso ao consultar planilha diretamente:', directErr);
+  } catch (error) {
+    if (linhasPlanilhaBrutas === null) {
+      throw new Error(
+        `Não foi possível consultar os orçamentos no Google Sheets: ${
+          error instanceof Error ? error.message : String(error)
+        }`
+      );
     }
   }
+
+  if (linhasPlanilhaBrutas === null && !consultaServidorConcluida) {
+    throw new Error('Não foi possível conectar à API do Google Sheets.');
+  }
+  if (linhasPlanilhaBrutas === null) linhasPlanilhaBrutas = [];
 
   const mapaUnico = new Map<string, OrcamentoSalvo>();
 
-  // 3. Processa as linhas vindas da planilha Google Sheets (suporta tanto objetos quanto arrays 2D)
+  // 3. Processa todas as linhas vindas diretamente da planilha do Google Sheets
   const linhasConvertidas = converterLinhasBrutasPlanilha(linhasPlanilhaBrutas);
   for (let i = 0; i < linhasConvertidas.length; i++) {
     const normalizado = normalizarLinhaPlanilhaParaOrcamento(
@@ -852,47 +1163,14 @@ export async function carregarOrcamentosDaNuvem(): Promise<OrcamentoSalvo[]> {
     }
   }
 
-  // 4. Mescla com os itens sincronizados no servidor (garante sincronização em tempo real mesmo se o Google Apps Script tiver delay)
-  for (let i = 0; i < itensEspelhoServidor.length; i++) {
-    const normalizadoServidor = normalizarLinhaPlanilhaParaOrcamento(
-      itensEspelhoServidor[i],
-      i,
-      cacheLocalMap
-    );
-    if (normalizadoServidor && !excluidosSet.has(normalizadoServidor.id)) {
-      const existenteNaPlanilha = mapaUnico.get(normalizadoServidor.id);
-      if (!existenteNaPlanilha) {
-        mapaUnico.set(normalizadoServidor.id, normalizadoServidor);
-      } else {
-        const tServidor = new Date(normalizadoServidor.dataAtualizacao || normalizadoServidor.dataCriacao).getTime();
-        const tPlanilha = new Date(existenteNaPlanilha.dataAtualizacao || existenteNaPlanilha.dataCriacao).getTime();
-        if (tServidor >= tPlanilha) {
-          mapaUnico.set(normalizadoServidor.id, normalizadoServidor);
-        }
-      }
-    }
-  }
-
   const listaNuvem = Array.from(mapaUnico.values()).sort(
     (a, b) =>
       new Date(b.dataAtualizacao || b.dataCriacao).getTime() -
       new Date(a.dataAtualizacao || a.dataCriacao).getTime()
   );
 
-  if (listaNuvem.length > 0) {
-    salvarOrcamentosNoStorage(listaNuvem);
-    return listaNuvem;
-  }
-
-  // Se houver registros locais ainda não sincronizados (ex: criados antes da conexão), envia-os para a nuvem
-  const locaisValidos = cacheLocal.filter((o) => !excluidosSet.has(o.id));
-  if (conectouComSucesso && locaisValidos.length > 0) {
-    locaisValidos.forEach((orcLocal) => {
-      void salvarOrcamentoNaNuvem(orcLocal);
-    });
-  }
-
-  return locaisValidos;
+  salvarOrcamentosNoStorage(listaNuvem);
+  return listaNuvem;
 }
 
 /**
@@ -909,17 +1187,7 @@ export async function atualizarStatusOrcamentoNaNuvem(
   };
   const payload = montarPayloadPlanilha(atualizado, 'updateStatus');
 
-  try {
-    const proxyRes = await fetch('/api/sheets/orcamentos', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
-    if (proxyRes.ok) return true;
-  } catch (err) {
-    console.warn('[Google Sheets] Fallback direto ao atualizar status:', err);
-  }
-
+  let okDireto = false;
   try {
     const url = montarUrlComQueryParamsPlanilha(payload);
     const response = await fetch(url, {
@@ -929,11 +1197,28 @@ export async function atualizarStatusOrcamentoNaNuvem(
       },
       body: JSON.stringify(payload),
       redirect: 'follow',
+      credentials: 'omit',
     });
-    return response.ok;
-  } catch {
-    return false;
+    okDireto = await respostaSheetsConfirmouGravacao(response);
+  } catch (err) {
+    console.warn('[Google Sheets] Aviso ao atualizar status diretamente:', err);
   }
+
+  try {
+    const proxyRes = await fetch('/api/sheets/orcamentos', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (proxyRes.ok) {
+      const resultado = await proxyRes.json();
+      if (resultado?.sheetsOk === true) return true;
+    }
+  } catch {
+    // Ignora caso backend não esteja presente
+  }
+
+  return okDireto;
 }
 
 /**
@@ -955,17 +1240,7 @@ export async function excluirOrcamentoNaNuvem(id: string): Promise<boolean> {
     fase: 'deleted',
   };
 
-  try {
-    const proxyRes = await fetch('/api/sheets/orcamentos', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
-    if (proxyRes.ok) return true;
-  } catch (err) {
-    console.warn('[Google Sheets] Fallback direto ao excluir orçamento:', err);
-  }
-
+  let okDireto = false;
   try {
     const url = `${GOOGLE_SHEETS_API_URL}?action=delete&acao=excluir&id=${encodeURIComponent(id)}`;
     const response = await fetch(url, {
@@ -975,9 +1250,26 @@ export async function excluirOrcamentoNaNuvem(id: string): Promise<boolean> {
       },
       body: JSON.stringify(payload),
       redirect: 'follow',
+      credentials: 'omit',
     });
-    return response.ok;
-  } catch {
-    return false;
+    okDireto = await respostaSheetsConfirmouGravacao(response);
+  } catch (err) {
+    console.warn('[Google Sheets] Aviso ao excluir orçamento diretamente:', err);
   }
+
+  try {
+    const proxyRes = await fetch('/api/sheets/orcamentos', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (proxyRes.ok) {
+      const resultado = await proxyRes.json();
+      if (resultado?.sheetsOk === true) return true;
+    }
+  } catch {
+    // Ignora caso backend não esteja presente
+  }
+
+  return okDireto;
 }
