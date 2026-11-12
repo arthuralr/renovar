@@ -27,6 +27,7 @@ interface UploadSectionProps {
   hasSelectedImage: boolean;
   registrosVistoria?: HistoricoInspecao[];
   selectedImage?: string | null;
+  selectedRegistroId?: string | null;
   onSelectRegistro?: (item: HistoricoInspecao) => void;
   onRemoveRegistro?: (id: string) => void;
 }
@@ -40,6 +41,7 @@ export const UploadSection: React.FC<UploadSectionProps> = ({
   hasSelectedImage,
   registrosVistoria = [],
   selectedImage,
+  selectedRegistroId,
   onSelectRegistro,
   onRemoveRegistro,
 }) => {
@@ -251,7 +253,8 @@ export const UploadSection: React.FC<UploadSectionProps> = ({
 
             <div className="flex items-center gap-3 overflow-x-auto pb-1">
               {registrosVistoria.map((reg, idx) => {
-                const isSelected = selectedImage === reg.imagemUrl;
+                const isSelected =
+                  selectedRegistroId === reg.id || selectedImage === reg.imagemUrl;
                 const anomPrincipal =
                   reg.resultado?.anomalias?.[0] || reg.resultado?.patologias?.[0];
 

@@ -423,6 +423,26 @@ const GOOGLE_SHEETS_API_URL =
   process.env.VITE_GOOGLE_SHEETS_API_URL ||
   'https://script.google.com/macros/s/AKfycbwEJsdwH7Rrb3rhb1Ytd7IvyqHTQvpFcfmS5Yof6Zs7DXTBmsC4LPYAl3jP2SjN7krw2g/exec';
 
+const createAppsScriptUrl = (params: Record<string, string> = {}): string => {
+  let url: URL;
+  try {
+    url = new URL(GOOGLE_SHEETS_API_URL);
+  } catch {
+    throw new Error('GOOGLE_SHEETS_API_URL não contém uma URL válida do Apps Script.');
+  }
+  if (
+    url.protocol !== 'https:' ||
+    url.hostname !== 'script.google.com' ||
+    !/^\/macros\/s\/[^/]+\/exec\/?$/.test(url.pathname)
+  ) {
+    throw new Error(
+      'GOOGLE_SHEETS_API_URL deve ser a URL HTTPS de implantação do Apps Script terminada em /exec.'
+    );
+  }
+  Object.entries(params).forEach(([key, value]) => url.searchParams.set(key, value));
+  return url.toString();
+};
+
 const CLOUD_CACHE_DIR = path.resolve(__dirname, 'data');
 const CLOUD_CACHE_FILE = path.resolve(CLOUD_CACHE_DIR, 'orcamentos-nuvem.json');
 
@@ -504,8 +524,7 @@ const handleGetOrcamentosSheets = async (_req: express.Request, res: express.Res
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 15000);
     try {
-      const separator = GOOGLE_SHEETS_API_URL.includes('?') ? '&' : '?';
-      const response = await fetch(`${GOOGLE_SHEETS_API_URL}${separator}t=${Date.now()}`, {
+      const response = await fetch(createAppsScriptUrl({ t: String(Date.now()) }), {
         method: 'GET',
         redirect: 'follow',
         signal: controller.signal,
@@ -527,8 +546,9 @@ const handleGetOrcamentosSheets = async (_req: express.Request, res: express.Res
         }
       }
 
-      return res.status(200).json({
-        ok: true,
+      const requestOk = response.ok && !sheetsWarning;
+      return res.status(requestOk ? 200 : 502).json({
+        ok: requestOk,
         data: sheetsRows,
         serverItems,
         deletedIds: store.deletedIds,
@@ -542,13 +562,69 @@ const handleGetOrcamentosSheets = async (_req: express.Request, res: express.Res
       clearTimeout(timeoutId);
     }
   } catch (error: any) {
-    console.warn('Erro ao buscar orçamentos no Google Sheets (retornando espelho sincronizado):', error?.message || error);
-    return res.status(200).json({
-      ok: true,
-      data: [],
+    console.warn('Erro ao buscar orçamentos no Google Sheets:', error?.message || error);
+    return res.status(502).json({
+      ok: false,
+      error: error?.message || 'Não foi possível conectar ao Google Sheets.',
       serverItems,
       deletedIds: store.deletedIds,
-      warning: error?.message,
+    });
+  }
+};
+
+const handlePostImagemDrive = async (req: express.Request, res: express.Response) => {
+  res.setHeader('Content-Type', 'application/json');
+  res.setHeader('Cache-Control', 'no-store');
+  const payload = req.body || {};
+  if (
+    payload.action !== 'uploadImage' ||
+    !payload.uploadId ||
+    !payload.imageBase64 ||
+    !payload.mimeType ||
+    String(payload.uploadId).length > 80 ||
+    !['image/jpeg', 'image/png', 'image/webp'].includes(String(payload.mimeType).toLowerCase()) ||
+    String(payload.imageBase64).length > 15000000
+  ) {
+    return res.status(400).json({
+      ok: false,
+      error: 'Imagem inválida, formato não suportado ou tamanho superior ao limite permitido.',
+    });
+  }
+
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000);
+    try {
+      const response = await fetch(createAppsScriptUrl(), {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify(payload),
+        redirect: 'follow',
+        signal: controller.signal,
+      });
+      const text = await response.text();
+      let result: any;
+      try {
+        result = JSON.parse(text);
+      } catch {
+        throw new Error(
+          /<(?:!doctype|html|head|body)\b/i.test(text)
+            ? 'O Apps Script retornou HTML. Verifique a implantação Web App e o acesso "Qualquer pessoa".'
+            : 'O Apps Script retornou uma resposta JSON inválida.'
+        );
+      }
+      if (!response.ok || result?.ok === false || result?.error || !result?.imageUrl) {
+        throw new Error(String(result?.error || `Falha no Apps Script (HTTP ${response.status}).`));
+      }
+      return res.status(200).json(result);
+    } finally {
+      clearTimeout(timeoutId);
+    }
+  } catch (error: any) {
+    console.error('Erro ao enviar fotografia ao Google Drive:', error?.message || error);
+    return res.status(502).json({
+      ok: false,
+      error: error?.message || 'Não foi possível enviar a imagem ao Google Drive.',
     });
   }
 };
@@ -602,9 +678,11 @@ const handlePostOrcamentosSheets = async (req: express.Request, res: express.Res
     if (payload.valor !== undefined) queryParams.set('valor', String(payload.valor));
     if (payload.sheet) queryParams.set('sheet', String(payload.sheet));
 
-    const targetUrl = queryParams.toString()
-      ? `${GOOGLE_SHEETS_API_URL}?${queryParams.toString()}`
-      : GOOGLE_SHEETS_API_URL;
+    const queryValues: Record<string, string> = {};
+    queryParams.forEach((value, key) => {
+      queryValues[key] = value;
+    });
+    const targetUrl = createAppsScriptUrl(queryValues);
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 15000);
@@ -674,6 +752,8 @@ app.get('/api/sheets/orcamentos', handleGetOrcamentosSheets);
 app.get('/api/sheets/orcamentos/', handleGetOrcamentosSheets);
 app.post('/api/sheets/orcamentos', handlePostOrcamentosSheets);
 app.post('/api/sheets/orcamentos/', handlePostOrcamentosSheets);
+app.post('/api/sheets/imagens', handlePostImagemDrive);
+app.post('/api/sheets/imagens/', handlePostImagemDrive);
 
 // Explicit error handler for all /api routes to GUARANTEE json response, never HTML
 app.use('/api', (err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {

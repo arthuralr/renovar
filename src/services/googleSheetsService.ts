@@ -274,16 +274,18 @@ function parseDataPlanilhaIso(valorBruto: any): string | null {
 }
 
 /**
- * Remove strings base64 pesadas (>50k caracteres) antes de enviar para o Google Sheets
- * (o limite máximo de uma célula no Google Sheets é de 50.000 caracteres).
+ * Remove imagens Base64 do snapshot e mantém as URLs remotas do Google Drive.
  */
 export function compactarOrcamentoParaNuvem(orcamento: OrcamentoSalvo): OrcamentoSalvo {
+  const limparImagem = (imagemUrl?: string | null) =>
+    imagemUrl?.startsWith('data:image/') ? '' : imagemUrl || '';
+
   return {
     ...orcamento,
-    selectedImage: null,
+    selectedImage: limparImagem(orcamento.selectedImage),
     registrosVistoria: (orcamento.registrosVistoria || []).map((reg) => ({
       ...reg,
-      imagemUrl: '',
+      imagemUrl: limparImagem(reg.imagemUrl),
     })),
   };
 }
@@ -315,6 +317,9 @@ export function montarPayloadPlanilha(
   const valorFormatado = formatarMoeda(valorGlobal);
   const dataFormatada = new Date(orcamento.dataCriacao).toLocaleString('pt-BR');
   const detalhesJson = JSON.stringify(orcamentoCompacto);
+  const imagens = (orcamentoCompacto.registrosVistoria || [])
+    .filter((registro) => registro.imagemUrl)
+    .map(({ id, imagemUrl, nomeArquivo }) => ({ id, url: imagemUrl, nomeArquivo }));
 
   const resumoDetalhesTexto = [
     `Condomínio: ${nomeCondominio}`,
@@ -397,6 +402,7 @@ export function montarPayloadPlanilha(
     Prazo: `${orcamento.calculos.mesesObra} meses`,
     margemLucroPercentual: orcamento.calculos.margemLucroPercentual,
     resumoDetalhes: resumoDetalhesTexto,
+    imagens,
     detalhes: detalhesJson,
     Detalhes: detalhesJson,
     DETALHES: detalhesJson,
@@ -988,6 +994,114 @@ export async function salvarOrcamentoNaNuvem(
   throw new Error('A API do Google Sheets não confirmou a gravação do orçamento.');
 }
 
+export interface ImagemDrive {
+  imageUrl: string;
+  fileId: string;
+  fileName: string;
+}
+
+function parseRespostaAppsScript(text: string): any {
+  if (!text.trim() || /<(?:!doctype|html|head|body)\b/i.test(text)) {
+    throw new Error(
+      'O Apps Script retornou uma página HTML ou resposta vazia. Verifique a implantação como Web App e o acesso "Qualquer pessoa".'
+    );
+  }
+  let result: any;
+  try {
+    result = JSON.parse(text);
+  } catch {
+    throw new Error('O Apps Script retornou uma resposta JSON inválida.');
+  }
+  if (result?.ok === false || result?.success === false || result?.error) {
+    throw new Error(String(result.error || 'O Apps Script recusou a solicitação.'));
+  }
+  return result;
+}
+
+async function postarUploadImagem(
+  url: string,
+  payload: Record<string, string>
+): Promise<ImagemDrive> {
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify(payload),
+    redirect: 'follow',
+    credentials: 'omit',
+  });
+  const resultado = parseRespostaAppsScript(await response.text());
+  if (!response.ok || !resultado.imageUrl || !resultado.fileId) {
+    throw new Error(
+      resultado.error ||
+        `Não foi possível salvar a imagem no Google Drive (HTTP ${response.status}).`
+    );
+  }
+  return {
+    imageUrl: String(resultado.imageUrl),
+    fileId: String(resultado.fileId),
+    fileName: String(resultado.fileName || payload.fileName),
+  };
+}
+
+export async function uploadImagemParaDrive(
+  dataUrl: string,
+  fileName: string,
+  mimeType: string,
+  uploadId: string
+): Promise<ImagemDrive> {
+  if (!/^data:image\/[a-zA-Z0-9.+-]+;base64,/.test(dataUrl)) {
+    throw new Error('O arquivo selecionado não contém uma imagem Base64 válida.');
+  }
+  if (dataUrl.length > 15 * 1024 * 1024) {
+    throw new Error('A imagem excede o limite de 11 MB permitido para upload.');
+  }
+  const payload = {
+    action: 'uploadImage',
+    uploadId,
+    fileName,
+    mimeType,
+    imageBase64: dataUrl.slice(dataUrl.indexOf(',') + 1),
+  };
+  const separador = GOOGLE_SHEETS_API_URL.includes('?') ? '&' : '?';
+  const targetUrl = `${GOOGLE_SHEETS_API_URL}${separador}t=${Date.now()}`;
+  let directError: unknown;
+
+  try {
+    return await postarUploadImagem(targetUrl, payload);
+  } catch (error) {
+    directError = error;
+    console.warn('[Google Drive] Upload direto falhou; tentando o relay do servidor:', error);
+  }
+
+  try {
+    const response = await fetch('/api/sheets/imagens', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const resultado = parseRespostaAppsScript(await response.text());
+    if (!response.ok || !resultado.imageUrl || !resultado.fileId) {
+      throw new Error(
+        resultado.error ||
+          `O relay não confirmou o upload da imagem (HTTP ${response.status}).`
+      );
+    }
+    return {
+      imageUrl: String(resultado.imageUrl),
+      fileId: String(resultado.fileId),
+      fileName: String(resultado.fileName || fileName),
+    };
+  } catch (relayError) {
+    const relayMessage =
+      relayError instanceof Error ? relayError.message : String(relayError);
+    const directMessage =
+      directError instanceof Error ? directError.message : String(directError);
+    throw new Error(
+      `Falha ao armazenar a imagem no Google Drive. Apps Script: ${directMessage}. Relay: ${relayMessage}`
+    );
+  }
+}
+
 /**
  * Extrai a lista de linhas de qualquer formato de resposta JSON do Web App do Google Sheets.
  */
@@ -1050,6 +1164,8 @@ export function extrairListaBrutaDeResposta(rawData: any): any[] {
 async function buscarLinhasDiretoDoGoogleSheetsWebApp(): Promise<any[] | null> {
   const separador = GOOGLE_SHEETS_API_URL.includes('?') ? '&' : '?';
   const url = `${GOOGLE_SHEETS_API_URL}${separador}t=${Date.now()}`;
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 15000);
 
   try {
     const response = await fetch(url, {
@@ -1057,7 +1173,7 @@ async function buscarLinhasDiretoDoGoogleSheetsWebApp(): Promise<any[] | null> {
       redirect: 'follow',
       credentials: 'omit',
       cache: 'no-store',
-      headers: { 'Cache-Control': 'no-cache', Pragma: 'no-cache' },
+      signal: controller.signal,
     });
 
     if (response.ok) {
@@ -1084,6 +1200,8 @@ async function buscarLinhasDiretoDoGoogleSheetsWebApp(): Promise<any[] | null> {
     }
   } catch (err) {
     console.warn(`[Google Sheets GET] Tentativa falhou para ${url}:`, err);
+  } finally {
+    clearTimeout(timeoutId);
   }
 
   return null;
@@ -1108,18 +1226,34 @@ export async function carregarOrcamentosDaNuvem(): Promise<OrcamentoSalvo[]> {
       headers: { 'Cache-Control': 'no-cache', Pragma: 'no-cache' },
     });
     const contentType = proxyRes.headers.get('content-type') || '';
-    if (proxyRes.ok && contentType.includes('application/json')) {
+    if (contentType.includes('application/json')) {
       const json = await proxyRes.json();
-      if (json?.warning && linhasPlanilhaBrutas === null) {
-        throw new Error(String(json.warning));
+      if ((!proxyRes.ok || json?.ok === false) && linhasPlanilhaBrutas === null) {
+        throw new Error(
+          String(
+            json?.error ||
+              json?.warning ||
+              `O relay do Google Sheets respondeu com status ${proxyRes.status}.`
+          )
+        );
       }
-      if (linhasPlanilhaBrutas === null) {
-        linhasPlanilhaBrutas = extrairListaBrutaDeResposta(json);
+      if (!proxyRes.ok || json?.ok === false) {
+        console.warn(
+          '[Google Sheets] O relay falhou, mas a consulta direta ao Apps Script foi concluída:',
+          json?.error || json?.warning
+        );
+      } else {
+        if (json?.warning && linhasPlanilhaBrutas === null) {
+          throw new Error(String(json.warning));
+        }
+        if (linhasPlanilhaBrutas === null) {
+          linhasPlanilhaBrutas = extrairListaBrutaDeResposta(json);
+        }
+        if (Array.isArray(json?.deletedIds)) {
+          json.deletedIds.forEach((id: string) => excluidosSet.add(String(id)));
+        }
+        consultaServidorConcluida = true;
       }
-      if (Array.isArray(json?.deletedIds)) {
-        json.deletedIds.forEach((id: string) => excluidosSet.add(String(id)));
-      }
-      consultaServidorConcluida = true;
     }
   } catch (error) {
     if (linhasPlanilhaBrutas === null) {

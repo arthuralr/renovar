@@ -27,6 +27,12 @@ Budgets are saved to and loaded from the Google Sheets Web App configured by
 relay also accepts `GOOGLE_SHEETS_API_URL`; it is used when the browser cannot
 read the Apps Script response because of CORS.
 
+For Vercel deployments, configure both `VITE_GOOGLE_SHEETS_API_URL` (frontend,
+then redeploy) and `GOOGLE_SHEETS_API_URL` (server/API runtime) with the same
+Apps Script `/exec` URL. The server rejects malformed URLs and returns explicit
+HTTP errors when the Apps Script is unavailable. The UI keeps running and shows
+a retry action instead of replacing cloud data with a local fallback.
+
 The app confirms a cloud save before advancing to the next wizard step. The
 Kanban and budget list refresh from the cloud when opened and periodically while
 visible; a failed cloud request is shown in the app rather than silently
@@ -39,3 +45,19 @@ to the new deployment URL. The script reads and writes the `Página1` tab; for a
 standalone script, set the `SPREADSHEET_ID` Script Property before deployment.
 Deletion is permanent: the script removes every row whose proposal ID exactly
 matches in the detected ID/code column (first column when no ID header exists).
+
+### Pathology photos in Google Drive
+
+The Step 2 upload sends optimized JPG/PNG/WEBP photos to the Apps Script, which
+stores them in Drive and adds their URLs to the budget's `imagens` column and
+JSON details in `Página1`. Configure the optional `DRIVE_FOLDER_ID` Script
+Property to choose a Drive folder; without it, files are created in the script
+owner's Drive root. Image upload failures are shown in Step 2 and can be retried;
+the budget is not saved until pending photos have uploaded successfully.
+
+The script must be redeployed as a Web App with **Execute as: Me** and access
+set to **Anyone**. In the Apps Script project, authorize the Sheets and Drive
+permissions and verify the deployment at `<exec-url>?health=1`. Photos are
+shared as **Anyone with the link / Viewer** so they can be displayed on other
+devices without Google sign-in. Anyone who obtains an image URL can view that
+photo; do not upload sensitive images unless this sharing policy is acceptable.
