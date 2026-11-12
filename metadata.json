@@ -1,0 +1,6 @@
+{
+  "name": "Engenharia Diagnóstica - Perícia de Patologias Prediais",
+  "description": "Diagnóstico pericial e laudos técnicos de manifestações patológicas em fachadas prediais, estruturas e alvenarias conforme normas ABNT.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
