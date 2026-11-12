@@ -417,49 +417,158 @@ const handleWebhookRenovarProposta = async (req: express.Request, res: express.R
 app.post('/api/webhook/renovar-proposta', handleWebhookRenovarProposta);
 app.post('/api/webhook/renovar-proposta/', handleWebhookRenovarProposta);
 
-// Google Sheets Web App API Relay (GET & POST para persistência na nuvem)
+// Google Sheets Web App API Relay + Persistência Sincronizada (GET & POST para acesso universal em nuvem / guias anônimas)
 const GOOGLE_SHEETS_API_URL =
+  process.env.GOOGLE_SHEETS_API_URL ||
+  process.env.VITE_GOOGLE_SHEETS_API_URL ||
   'https://script.google.com/macros/s/AKfycbwEJsdwH7Rrb3rhb1Ytd7IvyqHTQvpFcfmS5Yof6Zs7DXTBmsC4LPYAl3jP2SjN7krw2g/exec';
+
+const CLOUD_CACHE_DIR = path.resolve(__dirname, 'data');
+const CLOUD_CACHE_FILE = path.resolve(CLOUD_CACHE_DIR, 'orcamentos-nuvem.json');
+
+interface CloudCacheStore {
+  orcamentos: Record<string, any>;
+  deletedIds: string[];
+  updatedAt: string;
+}
+
+const readServerCloudStore = (): CloudCacheStore => {
+  try {
+    if (fs.existsSync(CLOUD_CACHE_FILE)) {
+      const raw = fs.readFileSync(CLOUD_CACHE_FILE, 'utf-8');
+      const parsed = JSON.parse(raw);
+      return {
+        orcamentos: parsed?.orcamentos && typeof parsed.orcamentos === 'object' ? parsed.orcamentos : {},
+        deletedIds: Array.isArray(parsed?.deletedIds) ? parsed.deletedIds : [],
+        updatedAt: parsed?.updatedAt || new Date().toISOString(),
+      };
+    }
+  } catch (err) {
+    console.warn('Aviso ao ler store local de sincronização:', err);
+  }
+  return { orcamentos: {}, deletedIds: [], updatedAt: new Date().toISOString() };
+};
+
+const writeServerCloudStore = (store: CloudCacheStore): void => {
+  try {
+    if (!fs.existsSync(CLOUD_CACHE_DIR)) {
+      fs.mkdirSync(CLOUD_CACHE_DIR, { recursive: true });
+    }
+    store.updatedAt = new Date().toISOString();
+    fs.writeFileSync(CLOUD_CACHE_FILE, JSON.stringify(store, null, 2), 'utf-8');
+  } catch (err) {
+    console.warn('Aviso ao gravar store local de sincronização:', err);
+  }
+};
+
+const extractRowsFromSheetsResponse = (parsed: any): any[] => {
+  if (!parsed) return [];
+  if (Array.isArray(parsed)) return parsed;
+  if (Array.isArray(parsed.data)) return parsed.data;
+  if (Array.isArray(parsed.values)) return parsed.values;
+  if (Array.isArray(parsed.orcamentos)) return parsed.orcamentos;
+  if (Array.isArray(parsed.items)) return parsed.items;
+  if (Array.isArray(parsed.rows)) return parsed.rows;
+  if (Array.isArray(parsed.result)) return parsed.result;
+  if (Array.isArray(parsed.records)) return parsed.records;
+  return [];
+};
 
 const handleGetOrcamentosSheets = async (_req: express.Request, res: express.Response) => {
   res.setHeader('Content-Type', 'application/json');
+  const store = readServerCloudStore();
+  const serverItems = Object.values(store.orcamentos);
+
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 15000);
     try {
-      const response = await fetch(`${GOOGLE_SHEETS_API_URL}?t=${Date.now()}`, {
+      const response = await fetch(`${GOOGLE_SHEETS_API_URL}?action=list&t=${Date.now()}`, {
         method: 'GET',
         redirect: 'follow',
         signal: controller.signal,
       });
       const text = await response.text();
+      let sheetsRows: any[] = [];
       try {
         const parsed = JSON.parse(text);
-        return res.status(200).json(parsed);
+        sheetsRows = extractRowsFromSheetsResponse(parsed);
       } catch {
-        return res.status(200).json({ ok: response.ok, raw: text, data: [] });
+        sheetsRows = [];
       }
+
+      return res.status(200).json({
+        ok: true,
+        data: sheetsRows,
+        serverItems,
+        deletedIds: store.deletedIds,
+      });
     } finally {
       clearTimeout(timeoutId);
     }
   } catch (error: any) {
-    console.warn('Erro ao buscar orçamentos no Google Sheets:', error?.message || error);
-    return res.status(200).json({ ok: false, data: [], error: error?.message });
+    console.warn('Erro ao buscar orçamentos no Google Sheets (retornando espelho sincronizado):', error?.message || error);
+    return res.status(200).json({
+      ok: true,
+      data: [],
+      serverItems,
+      deletedIds: store.deletedIds,
+      warning: error?.message,
+    });
   }
 };
 
 const handlePostOrcamentosSheets = async (req: express.Request, res: express.Response) => {
   res.setHeader('Content-Type', 'application/json');
-  try {
-    const payload = req.body || {};
-    const action = payload.action || 'save';
-    const id = payload.id || payload.orcamentoId || '';
-    const status = payload.status || '';
+  const payload = req.body || {};
+  const action = String(payload.action || 'save');
+  const id = String(payload.id || payload.orcamentoId || '').trim();
+  const status = String(payload.status || '');
 
+  // 1. Atualiza imediatamente o espelho em nuvem do servidor para garantir consistência instantânea em abas anônimas e outros dispositivos
+  if (id) {
+    const store = readServerCloudStore();
+    if (action === 'delete' || status === 'deleted') {
+      delete store.orcamentos[id];
+      if (!store.deletedIds.includes(id)) {
+        store.deletedIds.push(id);
+      }
+    } else if (action === 'updateStatus') {
+      store.deletedIds = store.deletedIds.filter((delId) => delId !== id);
+      const existing = store.orcamentos[id] || {};
+      store.orcamentos[id] = {
+        ...existing,
+        ...payload,
+        id,
+        status: status || existing.status || 'em_elaboracao',
+        dataAtualizacao: new Date().toISOString(),
+      };
+    } else {
+      store.deletedIds = store.deletedIds.filter((delId) => delId !== id);
+      store.orcamentos[id] = {
+        ...payload,
+        id,
+        dataAtualizacao: payload.dataAtualizacao || new Date().toISOString(),
+      };
+    }
+    writeServerCloudStore(store);
+  }
+
+  // 2. Dispara a persistência na planilha Google Sheets via Google Apps Script (query params + JSON body)
+  try {
     const queryParams = new URLSearchParams();
-    if (action) queryParams.set('action', String(action));
-    if (id) queryParams.set('id', String(id));
-    if (status) queryParams.set('status', String(status));
+    if (action) queryParams.set('action', action);
+    if (payload.acao) queryParams.set('acao', String(payload.acao));
+    if (id) queryParams.set('id', id);
+    if (status) queryParams.set('status', status);
+    if (payload.fase) queryParams.set('fase', String(payload.fase));
+    if (payload.cliente) queryParams.set('cliente', String(payload.cliente));
+    if (payload.sindico) queryParams.set('sindico', String(payload.sindico));
+    if (payload.telefone) queryParams.set('telefone', String(payload.telefone));
+    if (payload.email) queryParams.set('email', String(payload.email));
+    if (payload.cnpj) queryParams.set('cnpj', String(payload.cnpj));
+    if (payload.valor !== undefined) queryParams.set('valor', String(payload.valor));
+    if (payload.sheet) queryParams.set('sheet', String(payload.sheet));
 
     const targetUrl = queryParams.toString()
       ? `${GOOGLE_SHEETS_API_URL}?${queryParams.toString()}`
@@ -479,7 +588,8 @@ const handlePostOrcamentosSheets = async (req: express.Request, res: express.Res
       });
       const text = await response.text().catch(() => '');
       return res.status(200).json({
-        ok: response.ok,
+        ok: true,
+        sheetsOk: response.ok,
         status: response.status,
         response: text,
       });
@@ -487,8 +597,12 @@ const handlePostOrcamentosSheets = async (req: express.Request, res: express.Res
       clearTimeout(timeoutId);
     }
   } catch (error: any) {
-    console.warn('Erro ao gravar orçamento no Google Sheets:', error?.message || error);
-    return res.status(200).json({ ok: false, error: error?.message });
+    console.warn('Aviso ao gravar no Google Sheets externo (salvo no espelho do servidor):', error?.message || error);
+    return res.status(200).json({
+      ok: true,
+      sheetsOk: false,
+      error: error?.message,
+    });
   }
 };
 

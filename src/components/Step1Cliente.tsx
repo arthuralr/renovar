@@ -1,14 +1,24 @@
 import React from 'react';
-import { Building2, FileText, MapPin, User, Calendar, Layers, Phone, Mail, ArrowRight, ShieldCheck } from 'lucide-react';
+import { Building2, FileText, MapPin, User, Calendar, Layers, Phone, Mail, ArrowRight, ShieldCheck, Cloud, PlusCircle } from 'lucide-react';
 import { DadosCliente } from '../types';
 
 interface Step1ClienteProps {
   dados: DadosCliente;
   onChange: (novosDados: Partial<DadosCliente>) => void;
   onNext: () => void;
+  activeOrcamentoId?: string | null;
+  onNovoOrcamento?: () => void;
+  isSyncingCloud?: boolean;
 }
 
-export const Step1Cliente: React.FC<Step1ClienteProps> = ({ dados, onChange, onNext }) => {
+export const Step1Cliente: React.FC<Step1ClienteProps> = ({
+  dados,
+  onChange,
+  onNext,
+  activeOrcamentoId,
+  onNovoOrcamento,
+  isSyncingCloud = false,
+}) => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onNext();
@@ -33,18 +43,43 @@ export const Step1Cliente: React.FC<Step1ClienteProps> = ({ dados, onChange, onN
   return (
     <div className="space-y-6">
       <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-6 sm:p-8 shadow-xl">
-        <div className="flex items-center gap-3 pb-5 border-b border-slate-800 mb-6">
-          <div className="w-11 h-11 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400">
-            <Building2 className="w-6 h-6" />
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-slate-800 mb-6">
+          <div className="flex items-center gap-3">
+            <div className="w-11 h-11 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 shrink-0">
+              <Building2 className="w-6 h-6" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h2 className="text-lg sm:text-xl font-bold text-white tracking-tight">
+                  Dados Cadastrais do Cliente & Edificação
+                </h2>
+                <span className="text-[10px] font-mono px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 flex items-center gap-1">
+                  <Cloud className="w-3 h-3 text-emerald-400" />
+                  {isSyncingCloud ? 'Sincronizando Planilha...' : 'Google Sheets Cloud'}
+                </span>
+                {activeOrcamentoId && (
+                  <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-md bg-slate-950 text-amber-400 border border-slate-800">
+                    {activeOrcamentoId}
+                  </span>
+                )}
+              </div>
+              <p className="text-xs sm:text-sm text-slate-400">
+                Identificação formal do condomínio para emissão do diagnóstico pericial e proposta orçamentária (salvo automaticamente na nuvem ao avançar).
+              </p>
+            </div>
           </div>
-          <div>
-            <h2 className="text-lg sm:text-xl font-bold text-white tracking-tight">
-              Dados Cadastrais do Cliente & Edificação
-            </h2>
-            <p className="text-xs sm:text-sm text-slate-400">
-              Identificação formal do condomínio para emissão do diagnóstico pericial e proposta orçamentária.
-            </p>
-          </div>
+
+          {onNovoOrcamento && (dados.nomeCondominio || activeOrcamentoId) && (
+            <button
+              type="button"
+              onClick={onNovoOrcamento}
+              className="self-start sm:self-auto px-3.5 py-2 rounded-xl bg-slate-950 hover:bg-slate-800 text-amber-300 border border-slate-700 text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer shrink-0"
+              title="Limpar formulário para iniciar o orçamento de um novo cliente"
+            >
+              <PlusCircle className="w-3.5 h-3.5 text-amber-400" />
+              <span>Novo Orçamento / Cliente</span>
+            </button>
+          )}
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">

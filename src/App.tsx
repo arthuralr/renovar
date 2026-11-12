@@ -178,12 +178,36 @@ export default function App() {
   const [activeOrcamentoId, setActiveOrcamentoId] = useState<string | null>(null);
   const [isSyncingCloud, setIsSyncingCloud] = useState<boolean>(false);
 
-  // Busca os orçamentos salvos na planilha do Google Sheets via GET
-  const sincronizarOrcamentosDaNuvem = async () => {
+  // Busca os orçamentos salvos na planilha do Google Sheets via GET e sincroniza em tempo real
+  const sincronizarOrcamentosDaNuvem = async (hidratarSeVazio = false) => {
     setIsSyncingCloud(true);
     try {
       const listaNuvem = await carregarOrcamentosDaNuvem();
       setOrcamentosSalvos(listaNuvem);
+
+      // Se aberto em guia anônima ou novo dispositivo (sem cliente preenchido no formulário),
+      // restaura automaticamente o último orçamento/cadastro salvo na planilha
+      if (hidratarSeVazio && listaNuvem.length > 0) {
+        const maisRecente = listaNuvem[0];
+        setDadosCliente((prev) => {
+          if (prev.nomeCondominio.trim()) return prev;
+          setActiveOrcamentoId(maisRecente.id);
+          setMateriais(maisRecente.materiais || MATERIAIS_PADRAO);
+          setEquipe(maisRecente.equipe || PROFISSIONAIS_PADRAO);
+          setMesesObra(maisRecente.mesesObra || 4);
+          setMargemLucroPercentual(maisRecente.margemLucroPercentual ?? 20);
+          setCondicoesComerciais(
+            maisRecente.condicoesComerciais || CONDICOES_COMERCIAIS_PADRAO
+          );
+          if (maisRecente.diagnostico) {
+            setDiagnostico(maisRecente.diagnostico);
+          }
+          if (maisRecente.registrosVistoria && maisRecente.registrosVistoria.length > 0) {
+            setRegistrosVistoria(maisRecente.registrosVistoria);
+          }
+          return maisRecente.dadosCliente;
+        });
+      }
     } catch (e) {
       console.warn('Erro ao sincronizar orçamentos da nuvem (Google Sheets):', e);
     } finally {
@@ -191,14 +215,25 @@ export default function App() {
     }
   };
 
-  // Carrega dados da nuvem ao iniciar a aplicação e sempre que abrir o Kanban ou o Passo 4
+  // Carrega dados da nuvem ao iniciar a aplicação (hidratando em abas anônimas / novos dispositivos)
   useEffect(() => {
-    void sincronizarOrcamentosDaNuvem();
+    void sincronizarOrcamentosDaNuvem(true);
+
+    const handleWindowFocus = () => {
+      void sincronizarOrcamentosDaNuvem(false);
+    };
+    window.addEventListener('focus', handleWindowFocus);
+    return () => window.removeEventListener('focus', handleWindowFocus);
   }, []);
 
+  // Sincronização em tempo real ao abrir o Kanban ou Passo 4 (com atualização periódica automática)
   useEffect(() => {
     if (isKanbanModalOpen || currentStep === 4) {
-      void sincronizarOrcamentosDaNuvem();
+      void sincronizarOrcamentosDaNuvem(false);
+      const timer = setInterval(() => {
+        void sincronizarOrcamentosDaNuvem(false);
+      }, 15000);
+      return () => clearInterval(timer);
     }
   }, [isKanbanModalOpen, currentStep]);
 
@@ -436,11 +471,14 @@ export default function App() {
     return diagnostico;
   }, [registrosVistoria, diagnostico]);
 
-  // Salva (ou atualiza) o orçamento atual no histórico persistente e retorna o registro salvo
-  const salvarOrcamentoNoHistorico = (criarNovoSeNaoAtivo = true): OrcamentoSalvo => {
+  // Salva (ou atualiza) o orçamento e dados do cliente na planilha do Google Sheets e retorna o registro salvo
+  const salvarOrcamentoNoHistorico = (
+    forcarNovoId = false,
+    etapaFormulario: WizardStep = currentStep
+  ): OrcamentoSalvo => {
     const agora = new Date().toISOString();
     const idGerado =
-      activeOrcamentoId && !criarNovoSeNaoAtivo
+      activeOrcamentoId && !forcarNovoId
         ? activeOrcamentoId
         : `PROP-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
 
@@ -473,10 +511,54 @@ export default function App() {
 
     setActiveOrcamentoId(idGerado);
 
-    // Envia via POST para gravar na planilha do Google Sheets na nuvem
-    void salvarOrcamentoNaNuvem(novoRegistro);
+    // Envia via POST para gravar/atualizar na planilha do Google Sheets na nuvem
+    void salvarOrcamentoNaNuvem(novoRegistro, etapaFormulario);
 
     return novoRegistro;
+  };
+
+  // Avança ou navega entre as etapas do formulário, persistindo automaticamente os dados na planilha do Google Sheets
+  const handleMudarEtapaFormulario = (proximaEtapa: WizardStep) => {
+    if (
+      dadosCliente.nomeCondominio.trim() ||
+      dadosCliente.nomeSindico.trim() ||
+      dadosCliente.endereco.trim() ||
+      activeOrcamentoId
+    ) {
+      salvarOrcamentoNoHistorico(false, proximaEtapa);
+    }
+    setCurrentStep(proximaEtapa);
+  };
+
+  // Limpa o formulário para iniciar o cadastro de um novo orçamento / cliente
+  const handleNovoOrcamento = () => {
+    setActiveOrcamentoId(null);
+    const clienteVazio: DadosCliente = {
+      nomeCondominio: '',
+      cnpj: '',
+      endereco: '',
+      nomeSindico: '',
+      anoConstrucao: '',
+      pavimentos: '',
+      telefone: '',
+      email: '',
+    };
+    setDadosCliente(clienteVazio);
+    try {
+      localStorage.removeItem(CLIENTE_STORAGE_KEY);
+    } catch {
+      // Ignora erro de storage
+    }
+    setSelectedImage(null);
+    setImageName('');
+    setDiagnostico(null);
+    setRegistrosVistoria([]);
+    setMateriais(MATERIAIS_PADRAO);
+    setEquipe(PROFISSIONAIS_PADRAO);
+    setMesesObra(4);
+    setMargemLucroPercentual(20);
+    setCondicoesComerciais(CONDICOES_COMERCIAIS_PADRAO);
+    setCurrentStep(1);
   };
 
   // Atualiza a etapa Kanban de um orçamento salvo (local + Google Sheets Cloud)
@@ -549,9 +631,9 @@ export default function App() {
     setIsOrcamentoPdfOpen(true);
   };
 
-  // Acionado no momento em que o orçamento é gerado no Passo 4 (salva automaticamente no histórico, abre o PDF e envia POST JSON para o webhook n8n)
+  // Acionado no momento em que o orçamento é gerado no Passo 4 (salva automaticamente na planilha Google Sheets, abre o PDF e envia POST JSON para o webhook n8n)
   const handleGerarOrcamento = () => {
-    const registroSalvo = salvarOrcamentoNoHistorico(true);
+    const registroSalvo = salvarOrcamentoNoHistorico(false, 4);
     setIsOrcamentoPdfOpen(true);
     void enviarOrcamentoWebhook({
       orcamentoId: registroSalvo.id,
@@ -603,7 +685,7 @@ export default function App() {
         {/* Wizard Stepper Bar */}
         <WizardStepper
           currentStep={currentStep}
-          onSelectStep={(step) => setCurrentStep(step)}
+          onSelectStep={(step) => handleMudarEtapaFormulario(step)}
           isStepComplete={isStepComplete}
         />
 
@@ -613,7 +695,10 @@ export default function App() {
             <Step1Cliente
               dados={dadosCliente}
               onChange={handleUpdateCliente}
-              onNext={() => setCurrentStep(2)}
+              onNext={() => handleMudarEtapaFormulario(2)}
+              activeOrcamentoId={activeOrcamentoId}
+              onNovoOrcamento={handleNovoOrcamento}
+              isSyncingCloud={isSyncingCloud}
             />
           </div>
         )}
@@ -646,7 +731,7 @@ export default function App() {
               <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
                 <button
                   type="button"
-                  onClick={() => setCurrentStep(1)}
+                  onClick={() => handleMudarEtapaFormulario(1)}
                   className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer"
                 >
                   <ArrowLeft className="w-3.5 h-3.5" />
@@ -654,7 +739,7 @@ export default function App() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setCurrentStep(3)}
+                  onClick={() => handleMudarEtapaFormulario(3)}
                   className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold flex items-center gap-1.5 shadow-md shadow-amber-500/20 transition cursor-pointer"
                 >
                   <span>Avançar: Materiais & Custos</span>
@@ -764,7 +849,7 @@ export default function App() {
                         </span>
                       </div>
                       <button
-                        onClick={() => setCurrentStep(3)}
+                        onClick={() => handleMudarEtapaFormulario(3)}
                         className="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs rounded-lg transition shrink-0 cursor-pointer flex items-center gap-1.5 shadow-md"
                       >
                         <span>Avançar para Passo 3</span>
@@ -788,7 +873,7 @@ export default function App() {
                       para processar a análise pericial completa com IA.
                     </p>
                     <button
-                      onClick={() => setCurrentStep(3)}
+                      onClick={() => handleMudarEtapaFormulario(3)}
                       className="text-xs text-slate-400 hover:text-amber-400 underline transition cursor-pointer"
                     >
                       Ou pule direto para o Passo 3 (Materiais e Custos) →
@@ -813,8 +898,8 @@ export default function App() {
               calculos={calculos}
               condicoesComerciais={condicoesComerciais}
               onUpdateCondicoesComerciais={handleUpdateCondicoesComerciais}
-              onPrev={() => setCurrentStep(2)}
-              onNext={() => setCurrentStep(4)}
+              onPrev={() => handleMudarEtapaFormulario(2)}
+              onNext={() => handleMudarEtapaFormulario(4)}
             />
           </div>
         )}
@@ -830,7 +915,7 @@ export default function App() {
               onUpdateCondicoesComerciais={handleUpdateCondicoesComerciais}
               setMargemLucroPercentual={setMargemLucroPercentual}
               onOpenPdf={handleGerarOrcamento}
-              onPrev={() => setCurrentStep(3)}
+              onPrev={() => handleMudarEtapaFormulario(3)}
               orcamentosSalvos={orcamentosSalvos}
               activeOrcamentoId={activeOrcamentoId}
               onUpdateStatusOrcamento={handleUpdateStatusOrcamento}
@@ -838,8 +923,8 @@ export default function App() {
               onLoadOrcamento={handleLoadOrcamento}
               onDeleteOrcamento={handleDeleteOrcamento}
               onClearAllOrcamentos={handleClearAllOrcamentos}
-              onSaveCurrentOrcamento={() => salvarOrcamentoNoHistorico(true)}
-              onRefreshCloud={sincronizarOrcamentosDaNuvem}
+              onSaveCurrentOrcamento={() => salvarOrcamentoNoHistorico(false, 4)}
+              onRefreshCloud={() => sincronizarOrcamentosDaNuvem(false)}
               isSyncingCloud={isSyncingCloud}
             />
           </div>
@@ -909,8 +994,8 @@ export default function App() {
           onLoadOrcamento={handleLoadOrcamento}
           onDeleteOrcamento={handleDeleteOrcamento}
           onClearAllOrcamentos={handleClearAllOrcamentos}
-          onSaveCurrentOrcamento={() => salvarOrcamentoNoHistorico(true)}
-          onRefreshCloud={sincronizarOrcamentosDaNuvem}
+          onSaveCurrentOrcamento={() => salvarOrcamentoNoHistorico(false, currentStep)}
+          onRefreshCloud={() => sincronizarOrcamentosDaNuvem(false)}
           isSyncingCloud={isSyncingCloud}
           isModal={true}
           onCloseModal={() => setIsKanbanModalOpen(false)}
