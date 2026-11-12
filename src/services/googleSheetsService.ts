@@ -1299,6 +1299,17 @@ export async function carregarOrcamentosDaNuvem(): Promise<OrcamentoSalvo[]> {
   return listaNuvem;
 }
 
+export async function carregarOrcamentoDaNuvemPorId(
+  proposalId: string
+): Promise<OrcamentoSalvo | null> {
+  const id = proposalId.trim();
+  if (!id) {
+    throw new Error('O ID da proposta é obrigatório para carregar o orçamento.');
+  }
+  const orcamentos = await carregarOrcamentosDaNuvem();
+  return orcamentos.find((orcamento) => orcamento.id === id) || null;
+}
+
 /**
  * 3. ATUALIZAR STATUS / FASE (POST): Atualiza o estágio Kanban do orçamento na planilha.
  */

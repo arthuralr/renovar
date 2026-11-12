@@ -37,8 +37,8 @@ interface OrcamentosKanbanBoardProps {
   orcamentos: OrcamentoSalvo[];
   activeOrcamentoId?: string | null;
   onUpdateStatus: (id: string, novoStatus: StatusOrcamentoKanban) => void;
-  onViewOrcamentoPdf: (orcamento: OrcamentoSalvo) => void;
-  onLoadOrcamento: (orcamento: OrcamentoSalvo) => void;
+  onViewOrcamentoPdf: (proposalId: string) => void;
+  onLoadOrcamento: (proposalId: string) => Promise<boolean>;
   onDeleteOrcamento: (id: string) => void;
   onClearAllOrcamentos?: () => void;
   onSaveCurrentOrcamento?: () => void;
@@ -142,20 +142,22 @@ export const OrcamentosKanbanBoard: React.FC<OrcamentosKanbanBoardProps> = ({
     window.open(url, '_blank', 'noopener,noreferrer');
 
     // 2. Simultaneamente carrega os dados deste orçamento no template #pdf-content e dispara o download do arquivo PDF
-    onLoadOrcamento(orcamento);
     const cleanCondo = (orcamento.dadosCliente.nomeCondominio || 'Condominio')
       .replace(/[/\\?%*:|"<>]/g, '')
       .trim();
     const safeName = cleanCondo ? cleanCondo.replace(/\s+/g, '-') : 'Condominio';
 
-    setTimeout(() => {
-      void downloadProposalPdf({
-        elementId: 'pdf-content',
-        filename: `Orcamento-Renovar-${safeName}.pdf`,
-      }).catch((err) => {
-        console.error('Erro ao baixar PDF ao compartilhar no WhatsApp:', err);
-      });
-    }, 150);
+    void onLoadOrcamento(orcamento.id).then((loaded) => {
+      if (!loaded) return;
+      setTimeout(() => {
+        void downloadProposalPdf({
+          elementId: 'pdf-content',
+          filename: `Orcamento-Renovar-${safeName}.pdf`,
+        }).catch((err) => {
+          console.error('Erro ao baixar PDF ao compartilhar no WhatsApp:', err);
+        });
+      }, 150);
+    });
   };
 
   const renderCardOrcamento = (orc: OrcamentoSalvo) => {
@@ -305,7 +307,7 @@ export const OrcamentosKanbanBoard: React.FC<OrcamentosKanbanBoardProps> = ({
           <div className="grid grid-cols-2 gap-1.5">
             <button
               type="button"
-              onClick={() => onViewOrcamentoPdf(orc)}
+              onClick={() => onViewOrcamentoPdf(orc.id)}
               className="py-1.5 px-2.5 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 font-semibold text-[11px] flex items-center justify-center gap-1 transition cursor-pointer"
               title="Visualizar e baixar o PDF deste orçamento"
             >
@@ -315,7 +317,7 @@ export const OrcamentosKanbanBoard: React.FC<OrcamentosKanbanBoardProps> = ({
 
             <button
               type="button"
-              onClick={() => onLoadOrcamento(orc)}
+              onClick={() => void onLoadOrcamento(orc.id)}
               className="py-1.5 px-2.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-700 font-semibold text-[11px] flex items-center justify-center gap-1 transition cursor-pointer"
               title="Carregar os dados deste orçamento na calculadora para edição"
             >
@@ -646,7 +648,7 @@ export const OrcamentosKanbanBoard: React.FC<OrcamentosKanbanBoardProps> = ({
                         </button>
                         <button
                           type="button"
-                          onClick={() => onViewOrcamentoPdf(orc)}
+                          onClick={() => onViewOrcamentoPdf(orc.id)}
                           className="px-2.5 py-1.5 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 font-semibold text-[11px] flex items-center gap-1 transition cursor-pointer"
                           title="Visualizar PDF"
                         >
@@ -655,7 +657,7 @@ export const OrcamentosKanbanBoard: React.FC<OrcamentosKanbanBoardProps> = ({
                         </button>
                         <button
                           type="button"
-                          onClick={() => onLoadOrcamento(orc)}
+                          onClick={() => void onLoadOrcamento(orc.id)}
                           className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-semibold text-[11px] flex items-center gap-1 transition cursor-pointer"
                           title="Carregar orçamento no editor"
                         >

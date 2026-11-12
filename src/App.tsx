@@ -42,6 +42,7 @@ import {
   salvarOrcamentosNoStorage,
 } from './utils/orcamentoKanbanUtils';
 import {
+  carregarOrcamentoDaNuvemPorId,
   carregarOrcamentosDaNuvem,
   compactarImagensParaPlanilha,
   salvarOrcamentoNaNuvem,
@@ -145,6 +146,7 @@ export default function App() {
   // Histórico e Kanban de Orçamentos Gerados (sincronizado com Google Sheets Cloud)
   const [orcamentosSalvos, setOrcamentosSalvos] = useState<OrcamentoSalvo[]>([]);
   const [activeOrcamentoId, setActiveOrcamentoId] = useState<string | null>(null);
+  const editLoadRequestRef = useRef(0);
   const [isSyncingCloud, setIsSyncingCloud] = useState<boolean>(false);
   const [cloudError, setCloudError] = useState<string | null>(null);
   const [cloudRetryAction, setCloudRetryAction] = useState<(() => void) | null>(null);
@@ -643,36 +645,94 @@ export default function App() {
     }
   };
 
-  // Carrega os dados de um orçamento salvo para edição/visualização
-  const handleLoadOrcamento = (orcamento: OrcamentoSalvo) => {
+  // Carrega do snapshot remoto correspondente ao ID selecionado, sem reutilizar o objeto da linha.
+  const handleLoadOrcamento = async (proposalId: string): Promise<boolean> => {
+    const requestId = ++editLoadRequestRef.current;
+    const localSnapshot = orcamentosSalvos.find((orcamento) => orcamento.id === proposalId);
+    let orcamento: OrcamentoSalvo | null = null;
+
+    try {
+      orcamento = await carregarOrcamentoDaNuvemPorId(proposalId);
+      if (requestId !== editLoadRequestRef.current) return false;
+      if (!orcamento) {
+        setCloudError(`O orçamento ${proposalId} não foi encontrado na planilha.`);
+        return false;
+      }
+      const orcamentoAtualizado = orcamento;
+      setOrcamentosSalvos((anteriores) => {
+        const existe = anteriores.some((item) => item.id === orcamentoAtualizado.id);
+        return existe
+          ? anteriores.map((item) =>
+              item.id === orcamentoAtualizado.id ? orcamentoAtualizado : item
+            )
+          : [...anteriores, orcamentoAtualizado];
+      });
+      setCloudError(null);
+      setCloudRetryAction(null);
+    } catch (error) {
+      if (requestId !== editLoadRequestRef.current) return false;
+      console.error(`Erro ao buscar o orçamento ${proposalId} na nuvem:`, error);
+      if (!localSnapshot) {
+        setCloudError(
+          error instanceof Error
+            ? `Não foi possível carregar o orçamento ${proposalId}: ${error.message}`
+            : `Não foi possível carregar o orçamento ${proposalId} da nuvem.`
+        );
+        setCloudRetryAction(() => () => void handleLoadOrcamento(proposalId));
+        return false;
+      }
+      orcamento = localSnapshot;
+      setCloudError(
+        `Não foi possível atualizar o orçamento ${proposalId} da nuvem. O snapshot disponível foi carregado.`
+      );
+      setCloudRetryAction(() => () => void handleLoadOrcamento(proposalId));
+    }
+
+    if (!orcamento || requestId !== editLoadRequestRef.current) return false;
+
+    const registros = orcamento.registrosVistoria || [];
+    const selectedRecord =
+      registros.find((registro) => registro.imagemUrl === orcamento?.selectedImage) ||
+      registros[registros.length - 1] ||
+      null;
+    const selectedImage = selectedRecord?.imagemUrl || orcamento.selectedImage || null;
+    const imageMimeType = selectedImage?.match(/^data:(image\/[^;]+);base64,/)?.[1];
+
     setActiveOrcamentoId(orcamento.id);
     setDadosCliente(orcamento.dadosCliente);
-    setMateriais(orcamento.materiais);
-    setEquipe(orcamento.equipe);
-    setMesesObra(orcamento.mesesObra);
-    setMargemLucroPercentual(orcamento.margemLucroPercentual);
+    setMateriais(orcamento.materiais || []);
+    setEquipe(orcamento.equipe || []);
+    setMesesObra(orcamento.mesesObra || 0);
+    setMargemLucroPercentual(orcamento.margemLucroPercentual || 0);
     setCondicoesComerciais(orcamento.condicoesComerciais || CONDICOES_COMERCIAIS_PADRAO);
-    setDiagnostico(orcamento.diagnostico);
-    if (orcamento.registrosVistoria) {
-      setRegistrosVistoria(orcamento.registrosVistoria);
-    }
-    const selectedRecord =
-      orcamento.registrosVistoria?.find(
-        (registro) => registro.imagemUrl === orcamento.selectedImage
-      ) || orcamento.registrosVistoria?.[orcamento.registrosVistoria.length - 1] || null;
-    setSelectedImage(selectedRecord?.imagemUrl || orcamento.selectedImage || null);
+    setDiagnostico(orcamento.diagnostico || null);
+    setRegistrosVistoria(registros);
+    setContexto(
+      selectedRecord?.contexto || {
+        responsavelTecnico: 'Engenheiro Civil Especialista em Estruturas e Fachadas',
+        crea: 'CREA Ativo',
+        nomeEdificio: orcamento.dadosCliente.nomeCondominio,
+        idadeEdificio: orcamento.dadosCliente.anoConstrucao
+          ? `${orcamento.dadosCliente.anoConstrucao} (${new Date().getFullYear() - parseInt(orcamento.dadosCliente.anoConstrucao, 10) || ''} anos)`
+          : '',
+        localizacao: orcamento.dadosCliente.endereco,
+      }
+    );
+    setSelectedImage(selectedImage);
     setSelectedImageRecord(selectedRecord?.id || null);
     setImageName(selectedRecord?.nomeArquivo || '');
-    const imageMimeType = selectedRecord?.imagemUrl.match(/^data:(image\/[^;]+);base64,/)?.[1];
-    if (imageMimeType) setMimeType(imageMimeType);
+    setMimeType(imageMimeType || 'image/jpeg');
+    setErrorMessage(null);
     setCurrentStep(4);
     setIsKanbanModalOpen(false);
+    return true;
   };
 
   // Abre diretamente o PDF de um orçamento salvo no histórico/Kanban
-  const handleViewOrcamentoPdf = (orcamento: OrcamentoSalvo) => {
-    handleLoadOrcamento(orcamento);
-    setIsOrcamentoPdfOpen(true);
+  const handleViewOrcamentoPdf = async (proposalId: string) => {
+    if (await handleLoadOrcamento(proposalId)) {
+      setIsOrcamentoPdfOpen(true);
+    }
   };
 
   // Gerar o PDF é uma visualização; a gravação formal ocorre em "Concluir Orçamento".
