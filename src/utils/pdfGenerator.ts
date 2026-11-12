@@ -257,7 +257,7 @@ export async function downloadProposalPdf(options: DownloadPdfOptions = {}): Pro
       const imgHeightMm = (canvas.height * imgWidthMm) / canvas.width;
 
       if (
-        imgHeightMm <= pdfPageHeightMm * 1.18 &&
+        imgHeightMm <= pdfPageHeightMm * 1.45 &&
         clonedSheets.length > 0 &&
         imgHeightMm > pdfPageHeightMm
       ) {

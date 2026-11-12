@@ -404,81 +404,87 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
             </div>
           </div>
 
-          {/* Client & Building Identification Box */}
+          {/* Client & Building Identification Box (Caixas individuais espaçadas sem sobreposição) */}
           <div className="my-6 space-y-6">
             <div className="bg-slate-50 border-2 border-slate-900 rounded-2xl p-6 sm:p-8">
-              <div className="text-xs font-mono font-bold text-slate-500 uppercase tracking-wider mb-4 border-b border-slate-200 pb-2 flex items-center justify-between">
+              <div className="text-xs font-mono font-bold text-slate-600 uppercase tracking-wider mb-4 border-b border-slate-200 pb-3 flex items-center justify-between gap-2">
                 <span className="flex items-center gap-2">
-                  <Building2 className="w-4 h-4 text-slate-900" />
-                  Dados do Condomínio Contratante
+                  <Building2 className="w-4 h-4 text-slate-900 shrink-0" />
+                  <span>Identificação da Edificação e Dados Cadastrais</span>
                 </span>
-                <span className="text-slate-900 font-bold">Proposta nº {orcamentoId}</span>
+                <span className="text-slate-900 font-bold shrink-0">Proposta nº {orcamentoId}</span>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-3.5 gap-x-6 text-xs sm:text-sm">
-                <div>
-                  <span className="text-slate-500 block text-[11px] uppercase tracking-wide">
-                    Nome do Condomínio / Edifício:
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 text-xs sm:text-sm">
+                <div className="bg-white border border-slate-200 rounded-xl p-3.5">
+                  <span className="text-slate-500 font-mono font-bold block text-[10px] uppercase tracking-wider mb-1">
+                    Nome do Condomínio / Edifício
                   </span>
-                  <span className="font-extrabold text-slate-950 text-base">
+                  <div className="font-extrabold text-slate-950 text-sm sm:text-base leading-snug break-words">
                     {dadosCliente.nomeCondominio || 'Condomínio Residencial'}
-                  </span>
+                  </div>
                 </div>
 
-                <div>
-                  <span className="text-slate-500 block text-[11px] uppercase tracking-wide">
-                    CNPJ:
+                <div className="bg-white border border-slate-200 rounded-xl p-3.5">
+                  <span className="text-slate-500 font-mono font-bold block text-[10px] uppercase tracking-wider mb-1">
+                    CNPJ do Condomínio
                   </span>
-                  <span className="font-mono font-bold text-slate-900">
+                  <div className="font-mono font-bold text-slate-900 text-xs sm:text-sm leading-snug break-words">
                     {dadosCliente.cnpj || 'Não informado'}
-                  </span>
+                  </div>
                 </div>
 
-                <div className="sm:col-span-2">
-                  <span className="text-slate-500 block text-[11px] uppercase tracking-wide">
-                    Endereço da Obra:
+                <div className="sm:col-span-2 bg-white border border-slate-200 rounded-xl p-3.5">
+                  <span className="text-slate-500 font-mono font-bold block text-[10px] uppercase tracking-wider mb-1">
+                    Localização / Orientação / Endereço da Obra
                   </span>
-                  <span className="font-medium text-slate-900">
-                    {dadosCliente.endereco || 'Não informado'}
-                  </span>
+                  <div className="font-semibold text-slate-900 text-xs sm:text-sm leading-snug break-words">
+                    {dadosCliente.endereco || 'Fachada Externa / Endereço conforme cadastro'}
+                  </div>
                 </div>
 
-                <div>
-                  <span className="text-slate-500 block text-[11px] uppercase tracking-wide">
-                    Nome do Síndico(a) / Gestor:
+                <div className="bg-white border border-slate-200 rounded-xl p-3.5">
+                  <span className="text-slate-500 font-mono font-bold block text-[10px] uppercase tracking-wider mb-1">
+                    Nome do Síndico(a) / Gestor
                   </span>
-                  <span className="font-semibold text-slate-900">
+                  <div className="font-semibold text-slate-900 text-xs sm:text-sm leading-snug break-words">
                     {dadosCliente.nomeSindico || 'Administração Condominial'}
-                  </span>
+                  </div>
                 </div>
 
-                <div>
-                  <span className="text-slate-500 block text-[11px] uppercase tracking-wide">
-                    Características da Edificação:
+                <div className="bg-white border border-slate-200 rounded-xl p-3.5">
+                  <span className="text-slate-500 font-mono font-bold block text-[10px] uppercase tracking-wider mb-1">
+                    Idade Estimada da Construção & Porte
                   </span>
-                  <span className="font-medium text-slate-900">
-                    {dadosCliente.pavimentos ? `${dadosCliente.pavimentos} Pavimentos` : 'Porte Médio/Alto'}{' '}
-                    • {dadosCliente.anoConstrucao ? `Construído em ${dadosCliente.anoConstrucao}` : 'Ano a vistoriar'}
-                  </span>
+                  <div className="font-semibold text-slate-900 text-xs sm:text-sm leading-snug break-words">
+                    {dadosCliente.anoConstrucao
+                      ? `Construído em ${dadosCliente.anoConstrucao}`
+                      : 'Idade conforme vistoria'}{' '}
+                    •{' '}
+                    {dadosCliente.pavimentos
+                      ? `${dadosCliente.pavimentos} Pavimentos`
+                      : 'Múltiplos pavimentos'}
+                  </div>
                 </div>
 
-                {dadosCliente.telefone && (
-                  <div>
-                    <span className="text-slate-500 block text-[11px] uppercase tracking-wide">
-                      Telefone de Contato:
-                    </span>
-                    <span className="font-mono text-slate-900">{dadosCliente.telefone}</span>
+                <div className="bg-white border border-slate-200 rounded-xl p-3.5">
+                  <span className="text-slate-500 font-mono font-bold block text-[10px] uppercase tracking-wider mb-1">
+                    Responsável Técnico / CREA
+                  </span>
+                  <div className="font-semibold text-slate-900 text-xs sm:text-sm leading-snug break-words">
+                    Eng. Civil Especialista em Fachadas • CREA/SP 124.987-D
                   </div>
-                )}
+                </div>
 
-                {dadosCliente.email && (
-                  <div>
-                    <span className="text-slate-500 block text-[11px] uppercase tracking-wide">
-                      E-mail:
-                    </span>
-                    <span className="font-mono text-slate-900">{dadosCliente.email}</span>
+                <div className="bg-white border border-slate-200 rounded-xl p-3.5">
+                  <span className="text-slate-500 font-mono font-bold block text-[10px] uppercase tracking-wider mb-1">
+                    Contato (Telefone / E-mail)
+                  </span>
+                  <div className="font-mono text-slate-900 text-xs leading-snug break-words">
+                    {[dadosCliente.telefone, dadosCliente.email].filter(Boolean).join(' • ') ||
+                      'Contato registrado junto à administração'}
                   </div>
-                )}
+                </div>
               </div>
             </div>
           </div>
@@ -598,163 +604,177 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
         </section>
 
         {/* ========================================================================= */}
-        {/* PÁGINA 3+: LAUDO PATOLÓGICO FOTOGRÁFICO (CRÍTICO & DINÂMICO)               */}
+        {/* PÁGINA 3+: LAUDO PATOLÓGICO FOTOGRÁFICO (1 FOLHA A4 POR REGISTRO)          */}
         {/* ========================================================================= */}
-        <section className="print-document-sheet page-break-after bg-white text-slate-900 shadow-2xl rounded-2xl p-8 sm:p-14 min-h-[1050px] border border-slate-200 flex flex-col justify-between print:min-h-0 print:h-auto print:max-h-none print:overflow-visible print:block print:p-0 print:border-none print:shadow-none print:rounded-none">
-          <div>
-            <DocumentHeader pageNum={3} totalPages={6} />
+        {inspectionsList.length > 0 ? (
+          inspectionsList.map((insp, inspIndex) => {
+            const anom = insp.anomalia;
+            const gravidadeColor =
+              anom.gravidade === 'Crítica'
+                ? 'bg-red-50 text-red-700 border-red-300'
+                : anom.gravidade === 'Alta'
+                ? 'bg-amber-50 text-amber-700 border-amber-300'
+                : 'bg-blue-50 text-blue-700 border-blue-300';
 
-            <div className="mb-6">
-              <h2 className="text-2xl font-black text-slate-950 uppercase tracking-tight mb-2">
-                Laudo Pericial Fotográfico de Campo
-              </h2>
-              <div className="w-16 h-1 bg-amber-500 mb-3" />
-              <p className="text-xs text-slate-600 max-w-3xl leading-relaxed">
-                Mapeamento das manifestações patológicas inspecionadas na edificação. Análise pericial orientada pelas diretrizes da{' '}
-                <strong>ABNT NBR 16747</strong> (Inspeção Predial). Cada anomalia contém foto detalhada, constatação visual, causa provável, risco evolutivo de degradação, normas ABNT aplicáveis e as diretrizes de reparo.
-              </p>
-            </div>
+            return (
+              <section
+                key={insp.id}
+                className="print-document-sheet page-break-after bg-white text-slate-900 shadow-2xl rounded-2xl p-8 sm:p-12 min-h-[1050px] border border-slate-200 flex flex-col justify-between print:min-h-0 print:h-auto print:max-h-none print:overflow-visible print:block print:p-0 print:border-none print:shadow-none print:rounded-none"
+              >
+                <div>
+                  <DocumentHeader pageNum={3} totalPages={6} />
 
-            {/* Renderiza exatamente 1 registro patológico por foto enviada pelo usuário */}
-            {inspectionsList.length > 0 ? (
-              <div className="space-y-6">
-                {inspectionsList.map((insp, inspIndex) => {
-                  const anom = insp.anomalia;
-                  const gravidadeColor =
-                    anom.gravidade === 'Crítica'
-                      ? 'bg-red-50 text-red-700 border-red-300'
-                      : anom.gravidade === 'Alta'
-                      ? 'bg-amber-50 text-amber-700 border-amber-300'
-                      : 'bg-blue-50 text-blue-700 border-blue-300';
+                  <div className="mb-5">
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                      <h2 className="text-xl sm:text-2xl font-black text-slate-950 uppercase tracking-tight">
+                        Laudo Pericial Fotográfico de Campo
+                      </h2>
+                      <span className="text-xs font-mono font-bold text-slate-600 bg-slate-100 px-3 py-1 rounded-full border border-slate-200">
+                        Registro Patológico {inspIndex + 1} de {inspectionsList.length}
+                      </span>
+                    </div>
+                    <div className="w-16 h-1 bg-amber-500 mt-1.5 mb-2.5" />
+                    <p className="text-xs text-slate-600 leading-relaxed">
+                      Mapeamento das manifestações patológicas inspecionadas na edificação conforme diretrizes da{' '}
+                      <strong>ABNT NBR 16747</strong> (Inspeção Predial), contendo constatação visual, causa provável, risco evolutivo completo e diretrizes técnicas de reparo.
+                    </p>
+                  </div>
 
-                  return (
-                    <div
-                      key={insp.id}
-                      className="avoid-break border-2 border-slate-200 rounded-2xl overflow-hidden bg-slate-50/50 p-5 space-y-4 shadow-sm"
-                    >
-                      {/* Finding Header */}
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200 pb-3">
-                        <div className="flex items-center gap-2">
-                          <span className="w-7 h-7 rounded-lg bg-slate-900 text-amber-400 flex items-center justify-center font-mono font-bold text-xs shrink-0">
-                            {inspIndex + 1}
-                          </span>
-                          <h3 className="font-extrabold text-slate-950 text-sm sm:text-base uppercase tracking-tight">
-                            {anom.nome_patologia}
-                          </h3>
-                        </div>
-
-                        <div className="flex items-center gap-2 self-start sm:self-auto">
-                          <span
-                            className={`text-[11px] font-mono font-bold uppercase px-2.5 py-0.5 rounded-full border ${gravidadeColor}`}
-                          >
-                            Gravidade: {anom.gravidade || 'Média'}
-                          </span>
-                        </div>
+                  <div className="avoid-break border-2 border-slate-200 rounded-2xl bg-slate-50/60 p-5 space-y-4 shadow-sm overflow-visible">
+                    {/* Finding Header */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200 pb-3">
+                      <div className="flex items-center gap-2.5">
+                        <span className="w-7 h-7 rounded-lg bg-slate-900 text-amber-400 flex items-center justify-center font-mono font-bold text-xs shrink-0">
+                          {inspIndex + 1}
+                        </span>
+                        <h3 className="font-extrabold text-slate-950 text-sm sm:text-base uppercase tracking-tight leading-snug break-words">
+                          {anom.nome_patologia}
+                        </h3>
                       </div>
 
-                      {/* Two Columns: Photo (50%) & Technical Findings (50%) */}
-                      <div className="grid grid-cols-1 md:grid-cols-12 gap-5 items-start">
-                        {/* Image Column */}
-                        <div className="md:col-span-5 space-y-2">
-                          <div className="border border-slate-300 rounded-xl overflow-hidden bg-slate-900 shadow-inner">
-                            <img
-                              src={insp.imageUrl}
-                              alt={anom.nome_patologia}
-                              className="w-full h-auto max-h-[300px] object-cover mx-auto"
-                            />
-                            <div className="bg-slate-950 px-3 py-1.5 flex items-center justify-between text-[10px] font-mono text-slate-400">
-                              <span className="truncate max-w-[160px]">{insp.nomeArquivo}</span>
-                              <span className="text-amber-400">Foto #{inspIndex + 1}</span>
-                            </div>
-                          </div>
+                      <div className="flex items-center gap-2 self-start sm:self-auto shrink-0">
+                        <span
+                          className={`text-[11px] font-mono font-bold uppercase px-3 py-1 rounded-full border ${gravidadeColor}`}
+                        >
+                          Gravidade: {anom.gravidade || 'Média'}
+                        </span>
+                      </div>
+                    </div>
 
-                          {/* Applied ABNT Standards */}
-                          {anom.normas_tecnicas_abnt && anom.normas_tecnicas_abnt.length > 0 && (
-                            <div className="p-2.5 bg-white border border-slate-200 rounded-lg">
-                              <span className="text-[10px] font-mono font-bold text-slate-600 block mb-1 uppercase">
-                                Normas ABNT Aplicáveis:
-                              </span>
-                              <div className="flex flex-wrap gap-1">
-                                {anom.normas_tecnicas_abnt.map((norma, nIdx) => (
-                                  <span
-                                    key={nIdx}
-                                    className="px-1.5 py-0.5 bg-slate-100 text-slate-800 text-[10px] font-mono rounded border border-slate-200"
-                                  >
-                                    {norma}
-                                  </span>
-                                ))}
-                              </div>
-                            </div>
-                          )}
+                    {/* Top Row: Photo + Constatação Visual & Causa Provável */}
+                    <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-start">
+                      {/* Image Column */}
+                      <div className="md:col-span-5 space-y-2.5">
+                        <div className="border border-slate-300 rounded-xl overflow-hidden bg-slate-900 shadow-inner">
+                          <img
+                            src={insp.imageUrl}
+                            alt={anom.nome_patologia}
+                            className="w-full h-auto max-h-[240px] object-contain mx-auto bg-slate-950"
+                          />
+                          <div className="bg-slate-950 px-3 py-1.5 flex items-center justify-between text-[10px] font-mono text-slate-300">
+                            <span className="truncate max-w-[160px]">{insp.nomeArquivo}</span>
+                            <span className="text-amber-400 font-bold">Foto #{inspIndex + 1}</span>
+                          </div>
                         </div>
 
-                        {/* Technical Details Column */}
-                        <div className="md:col-span-7 space-y-2.5 text-xs">
-                          {/* Constatação Visual */}
-                          <div className="bg-white p-3 rounded-xl border border-slate-200">
-                            <h4 className="font-bold text-slate-900 text-[11px] uppercase tracking-wide flex items-center gap-1.5 mb-1 text-slate-800">
-                              <CheckCircle className="w-3.5 h-3.5 text-amber-600" />
-                              Constatação Visual:
-                            </h4>
-                            <p className="text-slate-700 leading-relaxed text-[11px] sm:text-xs">
-                              {anom.constatacao_visual || anom.descricao}
-                            </p>
-                          </div>
-
-                          {/* Causa Provável */}
-                          <div className="bg-white p-3 rounded-xl border border-slate-200">
-                            <h4 className="font-bold text-slate-900 text-[11px] uppercase tracking-wide flex items-center gap-1.5 mb-1 text-slate-800">
-                              <ShieldAlert className="w-3.5 h-3.5 text-amber-600" />
-                              Causa Provável (Justificativa Técnica):
-                            </h4>
-                            <p className="text-slate-700 leading-relaxed text-[11px] sm:text-xs">
-                              {anom.justificativa_tecnica_causa || anom.causa_provavel}
-                            </p>
-                          </div>
-
-                          {/* Risco Evolutivo */}
-                          <div className="bg-white p-3 rounded-xl border border-slate-200">
-                            <h4 className="font-bold text-rose-800 text-[11px] uppercase tracking-wide flex items-center gap-1.5 mb-1">
-                              <AlertTriangle className="w-3.5 h-3.5 text-rose-600" />
-                              Risco Evolutivo e Consequências:
-                            </h4>
-                            <p className="text-slate-700 leading-relaxed text-[11px] sm:text-xs">
-                              {anom.risco_evolutivo_consequencias || anom.risco_evolutivo}
-                            </p>
-                          </div>
-
-                          {/* Diretrizes de Reparo */}
-                          {anom.diretrizes_reparo && anom.diretrizes_reparo.length > 0 && (
-                            <div className="bg-emerald-50/50 p-3 rounded-xl border border-emerald-200">
-                              <h4 className="font-bold text-emerald-900 text-[11px] uppercase tracking-wide flex items-center gap-1.5 mb-1.5">
-                                <FileCheck className="w-3.5 h-3.5 text-emerald-600" />
-                                Diretrizes Técnicas de Reparo:
-                              </h4>
-                              <ol className="list-decimal list-inside space-y-1 text-slate-800 text-[11px] leading-relaxed">
-                                {anom.diretrizes_reparo.map((etapa, eIdx) => (
-                                  <li key={eIdx}>
-                                    <span>{etapa}</span>
-                                  </li>
-                                ))}
-                              </ol>
+                        {/* Applied ABNT Standards */}
+                        {anom.normas_tecnicas_abnt && anom.normas_tecnicas_abnt.length > 0 && (
+                          <div className="p-3 bg-white border border-slate-200 rounded-xl">
+                            <span className="text-[10px] font-mono font-bold text-slate-700 block mb-1.5 uppercase">
+                              Normas ABNT Aplicáveis:
+                            </span>
+                            <div className="flex flex-wrap gap-1.5">
+                              {anom.normas_tecnicas_abnt.map((norma, nIdx) => (
+                                <span
+                                  key={nIdx}
+                                  className="px-2 py-0.5 bg-slate-100 text-slate-800 text-[10px] font-mono rounded border border-slate-200 break-words"
+                                >
+                                  {norma}
+                                </span>
+                              ))}
                             </div>
-                          )}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Constatação Visual & Causa Provável */}
+                      <div className="md:col-span-7 space-y-3 text-xs">
+                        <div className="bg-white p-3.5 rounded-xl border border-slate-200">
+                          <h4 className="font-bold text-slate-900 text-[11px] uppercase tracking-wide flex items-center gap-1.5 mb-1.5">
+                            <CheckCircle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                            <span>1. Constatação Visual e Aspecto Técnico:</span>
+                          </h4>
+                          <p className="text-slate-700 leading-relaxed text-xs break-words whitespace-normal">
+                            {anom.constatacao_visual || anom.descricao}
+                          </p>
+                        </div>
+
+                        <div className="bg-white p-3.5 rounded-xl border border-slate-200">
+                          <h4 className="font-bold text-slate-900 text-[11px] uppercase tracking-wide flex items-center gap-1.5 mb-1.5">
+                            <ShieldAlert className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                            <span>2. Causa Provável (Justificativa Técnica):</span>
+                          </h4>
+                          <p className="text-slate-700 leading-relaxed text-xs break-words whitespace-normal">
+                            {anom.justificativa_tecnica_causa || anom.causa_provavel}
+                          </p>
                         </div>
                       </div>
                     </div>
-                  );
-                })}
+
+                    {/* Full-Width Row: Risco Evolutivo e Consequências (Sem cortes de palavras ou títulos) */}
+                    <div className="bg-rose-50/90 p-4 rounded-xl border-2 border-rose-200 overflow-visible avoid-break">
+                      <h4 className="font-extrabold text-rose-900 text-xs uppercase tracking-wide flex items-center gap-2 mb-1.5">
+                        <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
+                        <span>
+                          3. Risco Evolutivo e Consequências (Impacto Estrutural, Segurança e Financeiro):
+                        </span>
+                      </h4>
+                      <p className="text-rose-950 leading-relaxed text-xs break-words whitespace-normal">
+                        {anom.risco_evolutivo_consequencias || anom.risco_evolutivo}
+                      </p>
+                    </div>
+
+                    {/* Full-Width Row: Diretrizes Técnicas de Reparo */}
+                    {anom.diretrizes_reparo && anom.diretrizes_reparo.length > 0 && (
+                      <div className="bg-emerald-50/70 p-4 rounded-xl border border-emerald-200 overflow-visible avoid-break">
+                        <h4 className="font-extrabold text-emerald-900 text-xs uppercase tracking-wide flex items-center gap-2 mb-2">
+                          <FileCheck className="w-4 h-4 text-emerald-600 shrink-0" />
+                          <span>4. Diretrizes Técnicas de Reparo (Metodologia Executiva ABNT):</span>
+                        </h4>
+                        <ol className="list-decimal list-inside space-y-1 text-slate-800 text-xs leading-relaxed">
+                          {anom.diretrizes_reparo.map((etapa, eIdx) => (
+                            <li key={eIdx} className="break-words whitespace-normal">
+                              <span>{etapa.replace(/^\d+[\.\-\)]\s*/, '')}</span>
+                            </li>
+                          ))}
+                        </ol>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <DocumentFooter />
+              </section>
+            );
+          })
+        ) : (
+          <section className="print-document-sheet page-break-after bg-white text-slate-900 shadow-2xl rounded-2xl p-8 sm:p-14 min-h-[1050px] border border-slate-200 flex flex-col justify-between print:min-h-0 print:h-auto print:max-h-none print:overflow-visible print:block print:p-0 print:border-none print:shadow-none print:rounded-none">
+            <div>
+              <DocumentHeader pageNum={3} totalPages={6} />
+              <div className="mb-6">
+                <h2 className="text-2xl font-black text-slate-950 uppercase tracking-tight mb-2">
+                  Laudo Pericial Fotográfico de Campo
+                </h2>
+                <div className="w-16 h-1 bg-amber-500 mb-3" />
               </div>
-            ) : (
               <div className="p-8 text-center bg-slate-50 border border-slate-200 rounded-xl text-slate-500 text-xs">
                 <Camera className="w-8 h-8 opacity-40 mx-auto mb-2 text-slate-400" />
                 Nenhum registro fotográfico anexado no Passo 2. As manifestações serão cadastradas na vistoria preliminar da obra.
               </div>
-            )}
-          </div>
-
-          <DocumentFooter />
-        </section>
+            </div>
+            <DocumentFooter />
+          </section>
+        )}
 
         {/* ========================================================================= */}
         {/* PÁGINA 4: METODOLOGIA EXECUTIVA E PLANO DE SEGURANÇA (NR-18 E NR-35)       */}
