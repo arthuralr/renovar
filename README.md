@@ -31,3 +31,11 @@ The app confirms a cloud save before advancing to the next wizard step. The
 Kanban and budget list refresh from the cloud when opened and periodically while
 visible; a failed cloud request is shown in the app rather than silently
 presenting the browser's local cache as current data.
+
+The matching Google Apps Script source is in [apps-script/Code.gs](./apps-script/Code.gs).
+Deploy it as a Web App with access enabled for the intended users and update
+`VITE_GOOGLE_SHEETS_API_URL` (and `GOOGLE_SHEETS_API_URL` for the server relay)
+to the new deployment URL. The script reads and writes the `Página1` tab; for a
+standalone script, set the `SPREADSHEET_ID` Script Property before deployment.
+Deletion is permanent: the script removes every row whose proposal ID exactly
+matches in the detected ID/code column (first column when no ID header exists).

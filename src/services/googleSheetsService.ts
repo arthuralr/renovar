@@ -335,9 +335,9 @@ export function montarPayloadPlanilha(
         : action === 'updateStatus'
           ? 'atualizar_status'
           : 'excluir',
-    sheet: 'Orcamentos',
-    aba: 'Orcamentos',
-    sheetName: 'Orcamentos',
+    sheet: 'Página1',
+    aba: 'Página1',
+    sheetName: 'Página1',
     etapaFormulario: etapaFormulario || 4,
     id: orcamento.id,
     ID: orcamento.id,
@@ -1230,15 +1230,21 @@ export async function atualizarStatusOrcamentoNaNuvem(
  * 4. EXCLUIR ORÇAMENTO (POST): Solicita a exclusão do orçamento na planilha do Google Sheets.
  */
 export async function excluirOrcamentoNaNuvem(id: string): Promise<boolean> {
+  const proposalId = id.trim();
+  if (!proposalId) {
+    throw new Error('O ID da proposta é obrigatório para excluir o orçamento.');
+  }
+
   const payload = {
     action: 'delete',
     acao: 'excluir',
     method: 'DELETE',
-    sheet: 'Orcamentos',
-    aba: 'Orcamentos',
-    id,
-    ID: id,
-    orcamentoId: id,
+    sheet: 'Página1',
+    aba: 'Página1',
+    sheetName: 'Página1',
+    id: proposalId,
+    ID: proposalId,
+    orcamentoId: proposalId,
     status: 'deleted',
     Status: 'deleted',
     fase: 'deleted',
@@ -1256,7 +1262,7 @@ export async function excluirOrcamentoNaNuvem(id: string): Promise<boolean> {
     if (proxyRes.ok) {
       const resultado = await proxyRes.json();
       if (resultado?.sheetsOk === true) {
-        registrarIdExcluidoLocalmente(id);
+        registrarIdExcluidoLocalmente(proposalId);
         return true;
       }
       erroProxy = String(resultado?.error || 'O servidor não confirmou a exclusão no Google Sheets.');
@@ -1267,7 +1273,7 @@ export async function excluirOrcamentoNaNuvem(id: string): Promise<boolean> {
   }
 
   try {
-    const url = `${GOOGLE_SHEETS_API_URL}?action=delete&acao=excluir&id=${encodeURIComponent(id)}`;
+    const url = `${GOOGLE_SHEETS_API_URL}?action=delete&acao=excluir&id=${encodeURIComponent(proposalId)}&sheet=${encodeURIComponent('Página1')}`;
     const response = await fetch(url, {
       method: 'POST',
       headers: {
@@ -1278,14 +1284,14 @@ export async function excluirOrcamentoNaNuvem(id: string): Promise<boolean> {
       credentials: 'omit',
     });
     if (await respostaSheetsConfirmouGravacao(response)) {
-      registrarIdExcluidoLocalmente(id);
+      registrarIdExcluidoLocalmente(proposalId);
       return true;
     }
   } catch (err) {
     console.warn('[Google Sheets] Aviso ao excluir orçamento diretamente:', err);
   }
 
-  removerIdExcluidoLocalmente(id);
+  removerIdExcluidoLocalmente(proposalId);
   throw new Error(
     erroProxy
       ? `Não foi possível excluir o orçamento no Google Sheets: ${erroProxy}`
