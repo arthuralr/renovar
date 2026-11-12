@@ -69,11 +69,10 @@ export const Step1Cliente: React.FC<Step1ClienteProps> = ({ dados, onChange, onN
             <div>
               <label className="block text-xs font-semibold text-slate-300 mb-1.5 flex items-center gap-1.5">
                 <FileText className="w-3.5 h-3.5 text-amber-400" />
-                CNPJ do Condomínio *
+                CNPJ do Condomínio (Opcional)
               </label>
               <input
                 type="text"
-                required
                 value={dados.cnpj}
                 onChange={(e) => handleCnpjChange(e.target.value)}
                 placeholder="00.000.000/0001-00"
@@ -117,11 +116,10 @@ export const Step1Cliente: React.FC<Step1ClienteProps> = ({ dados, onChange, onN
             <div>
               <label className="block text-xs font-semibold text-slate-300 mb-1.5 flex items-center gap-1.5">
                 <Calendar className="w-3.5 h-3.5 text-amber-400" />
-                Ano de Construção (Idade) *
+                Ano de Construção (Idade) (Opcional)
               </label>
               <input
                 type="text"
-                required
                 value={dados.anoConstrucao}
                 onChange={(e) => onChange({ anoConstrucao: e.target.value })}
                 placeholder="Ex: 2008 (18 anos)"
@@ -133,11 +131,10 @@ export const Step1Cliente: React.FC<Step1ClienteProps> = ({ dados, onChange, onN
             <div>
               <label className="block text-xs font-semibold text-slate-300 mb-1.5 flex items-center gap-1.5">
                 <Layers className="w-3.5 h-3.5 text-amber-400" />
-                Número de Pavimentos *
+                Número de Pavimentos (Opcional)
               </label>
               <input
                 type="text"
-                required
                 value={dados.pavimentos}
                 onChange={(e) => onChange({ pavimentos: e.target.value })}
                 placeholder="Ex: 18 andares + 2 subsolos"

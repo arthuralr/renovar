@@ -570,7 +570,7 @@ export default function App() {
   // Completion check for stepper
   const isStepComplete = (step: WizardStep): boolean => {
     if (step === 1) {
-      return !!dadosCliente.nomeCondominio.trim() && !!dadosCliente.cnpj.trim();
+      return !!dadosCliente.nomeCondominio.trim();
     }
     if (step === 2) {
       const items = diagnostico?.anomalias || diagnostico?.patologias;

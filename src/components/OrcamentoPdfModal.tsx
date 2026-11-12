@@ -145,8 +145,6 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
     return list;
   }, [diagnostico, selectedImage, historico]);
 
-  if (!isOpen) return null;
-
   const dataAtualExtenso = new Date().toLocaleDateString('pt-BR', {
     day: '2-digit',
     month: 'long',
@@ -194,6 +192,29 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
 
   const totalPatologias = inspectionsList.length;
 
+  // Ação simultânea ao clicar no botão WhatsApp: baixa o PDF para o dispositivo e abre o WhatsApp com o texto formatado
+  const handleShareWhatsAppAndDownloadPdf = (e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+
+    const url = gerarLinkWhatsAppOrcamento({
+      id: orcamentoId,
+      status: statusOrcamento,
+      dadosCliente,
+      calculos,
+      condicoesComerciais,
+      totalPatologias,
+    });
+
+    // 1. Abre imediatamente a janela/aba do WhatsApp com a mensagem executiva formatada
+    window.open(url, '_blank', 'noopener,noreferrer');
+
+    // 2. Simultaneamente dispara o download automático do arquivo PDF do orçamento
+    void handleDownloadPdf();
+  };
+
   // Corporate Renovar Header Component for Inner Pages
   const DocumentHeader = ({ pageNum, totalPages }: { pageNum: number; totalPages: number }) => (
     <div className="border-b-2 border-slate-900 pb-3 mb-6 flex items-center justify-between">
@@ -226,101 +247,101 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
   return (
     <div
       id="print-proposal-modal"
-      className="print-modal-overlay fixed inset-0 z-50 overflow-y-auto bg-slate-950/95 flex flex-col items-center p-3 sm:p-6 print:static print:inset-auto print:p-0 print:m-0 print:block print:bg-white print:overflow-visible print:h-auto print:min-h-0 print:max-h-none print:w-full print:border-none print:shadow-none"
+      aria-hidden={!isOpen}
+      className={
+        isOpen
+          ? 'print-modal-overlay fixed inset-0 z-50 overflow-y-auto bg-slate-950/95 flex flex-col items-center p-3 sm:p-6 print:static print:inset-auto print:p-0 print:m-0 print:block print:bg-white print:overflow-visible print:h-auto print:min-h-0 print:max-h-none print:w-full print:border-none print:shadow-none'
+          : 'fixed -left-[20000px] top-0 w-[850px] pointer-events-none overflow-hidden opacity-0 no-print'
+      }
     >
-      <style>{`@media print { body * { visibility: hidden; } #pdf-content, #pdf-content * { visibility: visible; } #pdf-content { position: absolute; left: 0; top: 0; width: 100%; } }`}</style>
+      {isOpen && (
+        <style>{`@media print { body * { visibility: hidden; } #pdf-content, #pdf-content * { visibility: visible; } #pdf-content { position: absolute; left: 0; top: 0; width: 100%; } }`}</style>
+      )}
 
       {/* Barra Superior Única de Ações (Sempre Oculta na Impressão) */}
-      <header className="sticky top-0 z-50 w-full max-w-4xl bg-slate-900/95 border border-slate-700/80 backdrop-blur-md rounded-2xl px-4 sm:px-6 py-3.5 mb-6 flex flex-wrap items-center justify-between gap-3 shadow-2xl no-print">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-slate-950 border border-amber-500/40 flex items-center justify-center text-amber-400 font-black text-sm">
-            R
-          </div>
-          <div>
-            <div className="text-white font-bold text-xs sm:text-sm tracking-tight uppercase flex items-center gap-2">
-              <span>Renovar Engenharia • Proposta</span>
-              <span className="font-mono text-[11px] px-2 py-0.5 rounded bg-slate-950 text-amber-400 border border-slate-800">
-                {orcamentoId}
-              </span>
+      {isOpen && (
+        <header className="sticky top-0 z-50 w-full max-w-4xl bg-slate-900/95 border border-slate-700/80 backdrop-blur-md rounded-2xl px-4 sm:px-6 py-3.5 mb-6 flex flex-wrap items-center justify-between gap-3 shadow-2xl no-print">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-slate-950 border border-amber-500/40 flex items-center justify-center text-amber-400 font-black text-sm">
+              R
             </div>
-            <div className="text-[11px] text-slate-400 font-mono hidden sm:block truncate max-w-sm">
-              {dadosCliente.nomeCondominio || 'Condomínio'} • Formato A4
+            <div>
+              <div className="text-white font-bold text-xs sm:text-sm tracking-tight uppercase flex items-center gap-2">
+                <span>Renovar Engenharia • Proposta</span>
+                <span className="font-mono text-[11px] px-2 py-0.5 rounded bg-slate-950 text-amber-400 border border-slate-800">
+                  {orcamentoId}
+                </span>
+              </div>
+              <div className="text-[11px] text-slate-400 font-mono hidden sm:block truncate max-w-sm">
+                {dadosCliente.nomeCondominio || 'Condomínio'} • Formato A4
+              </div>
             </div>
           </div>
-        </div>
 
-        <div className="flex items-center flex-wrap gap-2">
-          {onUpdateStatusOrcamento && (
-            <select
-              value={statusOrcamento}
-              onChange={(e) =>
-                onUpdateStatusOrcamento(e.target.value as StatusOrcamentoKanban)
-              }
-              aria-label="Status do orçamento"
-              className={`text-xs font-bold rounded-xl px-2.5 py-2 border focus:outline-none cursor-pointer ${obterConfigEtapaKanban(statusOrcamento).badgeClass}`}
-            >
-              {ETAPAS_KANBAN.map((etapa) => (
-                <option
-                  key={etapa.id}
-                  value={etapa.id}
-                  className="bg-slate-900 text-slate-100"
-                >
-                  {etapa.titulo}
-                </option>
-              ))}
-            </select>
-          )}
-
-          <button
-            type="button"
-            onClick={() => {
-              const url = gerarLinkWhatsAppOrcamento({
-                id: orcamentoId,
-                status: statusOrcamento,
-                dadosCliente,
-                calculos,
-                condicoesComerciais,
-                totalPatologias,
-              });
-              window.open(url, '_blank', 'noopener,noreferrer');
-            }}
-            className="flex items-center gap-1.5 px-3.5 py-2.5 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 font-bold text-xs sm:text-sm rounded-xl transition cursor-pointer"
-            title="Enviar status e dados da proposta no WhatsApp do síndico"
-          >
-            <MessageCircle className="w-4 h-4 text-emerald-400" />
-            <span>WhatsApp</span>
-          </button>
-
-          <button
-            type="button"
-            id="btn-download-pdf"
-            disabled={isDownloadingPdf}
-            onClick={handleDownloadPdf}
-            className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 hover:from-amber-400 hover:to-amber-300 disabled:opacity-70 text-slate-950 font-extrabold text-xs sm:text-sm rounded-xl shadow-xl transition transform active:scale-95 cursor-pointer"
-          >
-            {isDownloadingPdf ? (
-              <>
-                <Loader2 className="w-4 h-4 text-slate-950 animate-spin" />
-                <span>Gerando PDF...</span>
-              </>
-            ) : (
-              <>
-                <Download className="w-4 h-4 text-slate-950" />
-                <span>Baixar Orçamento (PDF)</span>
-              </>
+          <div className="flex items-center flex-wrap gap-2">
+            {onUpdateStatusOrcamento && (
+              <select
+                value={statusOrcamento}
+                onChange={(e) =>
+                  onUpdateStatusOrcamento(e.target.value as StatusOrcamentoKanban)
+                }
+                aria-label="Status do orçamento"
+                className={`text-xs font-bold rounded-xl px-2.5 py-2 border focus:outline-none cursor-pointer ${obterConfigEtapaKanban(statusOrcamento).badgeClass}`}
+              >
+                {ETAPAS_KANBAN.map((etapa) => (
+                  <option
+                    key={etapa.id}
+                    value={etapa.id}
+                    className="bg-slate-900 text-slate-100"
+                  >
+                    {etapa.titulo}
+                  </option>
+                ))}
+              </select>
             )}
-          </button>
 
-          <button
-            type="button"
-            onClick={onClose}
-            className="p-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-xl border border-slate-700 transition cursor-pointer"
-            title="Fechar Visualização"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-      </header>
+            <button
+              type="button"
+              disabled={isDownloadingPdf}
+              onClick={handleShareWhatsAppAndDownloadPdf}
+              className="flex items-center gap-1.5 px-3.5 py-2.5 bg-emerald-500/20 hover:bg-emerald-500/30 disabled:opacity-70 text-emerald-300 border border-emerald-500/40 font-bold text-xs sm:text-sm rounded-xl transition cursor-pointer"
+              title="Baixar automaticamente o PDF do orçamento e abrir o WhatsApp do síndico com a mensagem pronta"
+            >
+              <MessageCircle className="w-4 h-4 text-emerald-400" />
+              <span>{isDownloadingPdf ? 'Baixando PDF + WhatsApp...' : 'WhatsApp + PDF'}</span>
+            </button>
+
+            <button
+              type="button"
+              id="btn-download-pdf"
+              disabled={isDownloadingPdf}
+              onClick={handleDownloadPdf}
+              className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 hover:from-amber-400 hover:to-amber-300 disabled:opacity-70 text-slate-950 font-extrabold text-xs sm:text-sm rounded-xl shadow-xl transition transform active:scale-95 cursor-pointer"
+            >
+              {isDownloadingPdf ? (
+                <>
+                  <Loader2 className="w-4 h-4 text-slate-950 animate-spin" />
+                  <span>Gerando PDF...</span>
+                </>
+              ) : (
+                <>
+                  <Download className="w-4 h-4 text-slate-950" />
+                  <span>Baixar Orçamento (PDF)</span>
+                </>
+              )}
+            </button>
+
+            <button
+              type="button"
+              onClick={onClose}
+              className="p-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-xl border border-slate-700 transition cursor-pointer"
+              title="Fechar Visualização"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+        </header>
+      )}
 
       {/* Multipage Document Container */}
       <div

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   FileSpreadsheet,
   Printer,
@@ -19,6 +19,7 @@ import {
   RotateCcw,
   MessageCircle,
   Kanban,
+  Loader2,
 } from 'lucide-react';
 import {
   DadosCliente,
@@ -35,6 +36,7 @@ import {
 } from '../utils/budgetCalculator';
 import { OrcamentosKanbanBoard } from './OrcamentosKanbanBoard';
 import { gerarLinkWhatsAppOrcamento } from '../utils/orcamentoKanbanUtils';
+import { downloadProposalPdf } from '../utils/pdfGenerator';
 
 interface Step4ResumoProps {
   dadosCliente: DadosCliente;
@@ -80,12 +82,14 @@ export const Step4Resumo: React.FC<Step4ResumoProps> = ({
   const anomalias = diagnostico?.anomalias || diagnostico?.patologias || [];
   const parcelamento = calcularParcelamentoComercial(calculos.valorGlobal, condicoesComerciais);
 
+  const [isDownloadingWhatsAppPdf, setIsDownloadingWhatsAppPdf] = useState(false);
+
   const orcamentoAtivo = orcamentosSalvos.find((o) => o.id === activeOrcamentoId);
   const statusAtual: StatusOrcamentoKanban = orcamentoAtivo?.status || 'em_elaboracao';
   const idPropostaAtual =
     orcamentoAtivo?.id || `PROP-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
 
-  const handleCompartilharWhatsAppAtual = () => {
+  const handleCompartilharWhatsAppAtual = async () => {
     const url = gerarLinkWhatsAppOrcamento({
       id: idPropostaAtual,
       status: statusAtual,
@@ -94,7 +98,31 @@ export const Step4Resumo: React.FC<Step4ResumoProps> = ({
       condicoesComerciais,
       totalPatologias: anomalias.length,
     });
+
+    // 1. Abre imediatamente o link do WhatsApp com a mensagem executiva formatada
     window.open(url, '_blank', 'noopener,noreferrer');
+
+    // 2. Simultaneamente salva (se necessário) e dispara o download automático do PDF do orçamento
+    if (onSaveCurrentOrcamento && !activeOrcamentoId) {
+      onSaveCurrentOrcamento();
+    }
+
+    if (isDownloadingWhatsAppPdf) return;
+    setIsDownloadingWhatsAppPdf(true);
+    try {
+      const cleanCondo = (dadosCliente.nomeCondominio || 'Condominio')
+        .replace(/[/\\?%*:|"<>]/g, '')
+        .trim();
+      const safeName = cleanCondo ? cleanCondo.replace(/\s+/g, '-') : 'Condominio';
+      await downloadProposalPdf({
+        elementId: 'pdf-content',
+        filename: `Orcamento-Renovar-${safeName}.pdf`,
+      });
+    } catch (err) {
+      console.error('Erro ao baixar PDF durante compartilhamento via WhatsApp:', err);
+    } finally {
+      setIsDownloadingWhatsAppPdf(false);
+    }
   };
 
   // Percentages for visual chart
@@ -158,12 +186,22 @@ export const Step4Resumo: React.FC<Step4ResumoProps> = ({
 
             <button
               type="button"
+              disabled={isDownloadingWhatsAppPdf}
               onClick={handleCompartilharWhatsAppAtual}
-              className="px-6 py-2.5 bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/40 font-bold text-xs sm:text-sm rounded-xl transition cursor-pointer flex items-center justify-center gap-2"
-              title="Enviar resumo e status da proposta para o WhatsApp do síndico em 1 clique"
+              className="px-6 py-2.5 bg-emerald-500/15 hover:bg-emerald-500/25 disabled:opacity-70 text-emerald-300 border border-emerald-500/40 font-bold text-xs sm:text-sm rounded-xl transition cursor-pointer flex items-center justify-center gap-2"
+              title="Baixar automaticamente o PDF do orçamento e abrir o WhatsApp do síndico com a mensagem pronta"
             >
-              <MessageCircle className="w-4 h-4 text-emerald-400" />
-              <span>Enviar para o Síndico via WhatsApp</span>
+              {isDownloadingWhatsAppPdf ? (
+                <>
+                  <Loader2 className="w-4 h-4 text-emerald-400 animate-spin" />
+                  <span>Baixando PDF + Abrindo WhatsApp...</span>
+                </>
+              ) : (
+                <>
+                  <MessageCircle className="w-4 h-4 text-emerald-400" />
+                  <span>Enviar para o Síndico via WhatsApp</span>
+                </>
+              )}
             </button>
 
             <span className="text-[11px] text-center text-slate-500 font-mono">
@@ -622,11 +660,21 @@ export const Step4Resumo: React.FC<Step4ResumoProps> = ({
         <div className="flex flex-wrap items-center justify-end gap-3">
           <button
             type="button"
+            disabled={isDownloadingWhatsAppPdf}
             onClick={handleCompartilharWhatsAppAtual}
-            className="flex items-center gap-2 px-5 py-3.5 bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/40 text-xs sm:text-sm font-bold rounded-xl transition cursor-pointer"
+            className="flex items-center gap-2 px-5 py-3.5 bg-emerald-500/15 hover:bg-emerald-500/25 disabled:opacity-70 text-emerald-300 border border-emerald-500/40 text-xs sm:text-sm font-bold rounded-xl transition cursor-pointer"
           >
-            <MessageCircle className="w-4 h-4 text-emerald-400" />
-            <span>Compartilhar via WhatsApp</span>
+            {isDownloadingWhatsAppPdf ? (
+              <>
+                <Loader2 className="w-4 h-4 text-emerald-400 animate-spin" />
+                <span>Baixando PDF + WhatsApp...</span>
+              </>
+            ) : (
+              <>
+                <MessageCircle className="w-4 h-4 text-emerald-400" />
+                <span>Compartilhar via WhatsApp</span>
+              </>
+            )}
           </button>
 
           <button

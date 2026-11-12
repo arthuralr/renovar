@@ -30,6 +30,7 @@ import {
   obterConfigEtapaKanban,
   gerarLinkWhatsAppOrcamento,
 } from '../utils/orcamentoKanbanUtils';
+import { downloadProposalPdf } from '../utils/pdfGenerator';
 
 interface OrcamentosKanbanBoardProps {
   orcamentos: OrcamentoSalvo[];
@@ -130,7 +131,24 @@ export const OrcamentosKanbanBoard: React.FC<OrcamentosKanbanBoardProps> = ({
       totalPatologias,
     });
 
+    // 1. Abre imediatamente o link do WhatsApp com a mensagem executiva formatada
     window.open(url, '_blank', 'noopener,noreferrer');
+
+    // 2. Simultaneamente carrega os dados deste orçamento no template #pdf-content e dispara o download do arquivo PDF
+    onLoadOrcamento(orcamento);
+    const cleanCondo = (orcamento.dadosCliente.nomeCondominio || 'Condominio')
+      .replace(/[/\\?%*:|"<>]/g, '')
+      .trim();
+    const safeName = cleanCondo ? cleanCondo.replace(/\s+/g, '-') : 'Condominio';
+
+    setTimeout(() => {
+      void downloadProposalPdf({
+        elementId: 'pdf-content',
+        filename: `Orcamento-Renovar-${safeName}.pdf`,
+      }).catch((err) => {
+        console.error('Erro ao baixar PDF ao compartilhar no WhatsApp:', err);
+      });
+    }, 150);
   };
 
   const renderCardOrcamento = (orc: OrcamentoSalvo) => {
