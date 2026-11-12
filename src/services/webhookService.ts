@@ -26,7 +26,11 @@ export interface EnviarOrcamentoWebhookParams {
   diagnostico?: DiagnosticoResponse | null;
   registrosVistoria?: HistoricoInspecao[];
   contexto?: InspecaoContexto;
-  origemAcionamento?: 'gerar_orcamento_step4' | 'baixar_pdf_modal' | 'reenvio_manual';
+  origemAcionamento?:
+    | 'gerar_orcamento_step4'
+    | 'concluir_orcamento_step4'
+    | 'baixar_pdf_modal'
+    | 'reenvio_manual';
 }
 
 export interface WebhookResult {
@@ -105,7 +109,7 @@ export function montarPayloadOrcamentoWebhook(params: EnviarOrcamentoWebhookPara
     }));
 
   const equipeAtiva = equipe
-    .filter((p) => p.quantidadePessoas > 0)
+    .filter((p) => p.quantidade > 0)
     .map((p) => ({
       id: p.id,
       tipo: 'mao_de_obra',
@@ -113,15 +117,15 @@ export function montarPayloadOrcamentoWebhook(params: EnviarOrcamentoWebhookPara
       nome: p.cargo,
       descricao: `${p.cargo} (${calculos.mesesObra} meses)`,
       unidade: 'mês',
-      quantidadePessoas: p.quantidadePessoas,
-      quantidade: p.quantidadePessoas * calculos.mesesObra,
-      custoMensalUnitario: p.custoMensalUnitario,
-      precoUnitario: p.custoMensalUnitario,
-      subtotalMensal: p.quantidadePessoas * p.custoMensalUnitario,
-      subtotalPeriodoObra: p.quantidadePessoas * p.custoMensalUnitario * calculos.mesesObra,
-      subtotal: p.quantidadePessoas * p.custoMensalUnitario * calculos.mesesObra,
+      quantidadePessoas: p.quantidade,
+      quantidade: p.quantidade * calculos.mesesObra,
+      custoMensalUnitario: p.salarioBase,
+      precoUnitario: p.salarioBase,
+      subtotalMensal: p.quantidade * p.salarioBase,
+      subtotalPeriodoObra: p.quantidade * p.salarioBase * calculos.mesesObra,
+      subtotal: p.quantidade * p.salarioBase * calculos.mesesObra,
       subtotalPeriodoFormatado: formatarMoeda(
-        p.quantidadePessoas * p.custoMensalUnitario * calculos.mesesObra
+        p.quantidade * p.salarioBase * calculos.mesesObra
       ),
     }));
 

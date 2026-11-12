@@ -127,7 +127,7 @@ export function calcularOrcamento(
   mesesObra: number,
   margemLucroPercentual: number
 ): CalculosOrcamento {
-  const meses = Math.max(1, Number(mesesObra) || 1);
+  const meses = Math.max(0, Number(mesesObra) || 0);
 
   // 1. Custo de Materiais = Soma de (Quantidade * Preço Unitário)
   const custoMateriais = materiais.reduce((acc, item) => {

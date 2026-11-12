@@ -47,7 +47,6 @@ interface Step4ResumoProps {
   onPrev: () => void;
   orcamentoId?: string | null;
   statusOrcamento?: StatusOrcamentoKanban;
-  onSaveCurrentOrcamento?: () => void;
 }
 
 export const Step4Resumo: React.FC<Step4ResumoProps> = ({
@@ -62,7 +61,6 @@ export const Step4Resumo: React.FC<Step4ResumoProps> = ({
   onPrev,
   orcamentoId = null,
   statusOrcamento = 'em_elaboracao',
-  onSaveCurrentOrcamento,
 }) => {
   const anomalias = diagnostico?.anomalias || diagnostico?.patologias || [];
   const parcelamento = calcularParcelamentoComercial(calculos.valorGlobal, condicoesComerciais);
@@ -83,11 +81,6 @@ export const Step4Resumo: React.FC<Step4ResumoProps> = ({
 
     // 1. Abre imediatamente o link do WhatsApp com a mensagem executiva formatada
     window.open(url, '_blank', 'noopener,noreferrer');
-
-    // 2. Simultaneamente salva (se necessário) e dispara o download automático do PDF do orçamento
-    if (onSaveCurrentOrcamento && !orcamentoId) {
-      onSaveCurrentOrcamento();
-    }
 
     if (isDownloadingWhatsAppPdf) return;
     setIsDownloadingWhatsAppPdf(true);
@@ -219,7 +212,7 @@ export const Step4Resumo: React.FC<Step4ResumoProps> = ({
             </button>
 
             <span className="text-[11px] text-center text-slate-500 font-mono">
-              Salva automaticamente no histórico e Kanban ao gerar
+              O orçamento só é salvo na nuvem ao clicar em "Concluir Orçamento".
             </span>
           </div>
         </div>

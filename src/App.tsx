@@ -33,7 +33,6 @@ import {
 import {
   calcularOrcamento,
   MATERIAIS_PADRAO,
-  PROFISSIONAIS_PADRAO,
   CONDICOES_COMERCIAIS_PADRAO,
 } from './utils/budgetCalculator';
 import { gerarLaudoTecnicoAbntFallback } from './utils/abntEngine';
@@ -108,10 +107,10 @@ export default function App() {
   }, [dadosCliente.nomeCondominio, dadosCliente.anoConstrucao, dadosCliente.endereco]);
 
   // Step 3: Materiais e Equipe
-  const [materiais, setMateriais] = useState<ItemMaterial[]>(MATERIAIS_PADRAO);
-  const [equipe, setEquipe] = useState<CargoProfissional[]>(PROFISSIONAIS_PADRAO);
-  const [mesesObra, setMesesObra] = useState<number>(4);
-  const [margemLucroPercentual, setMargemLucroPercentual] = useState<number>(20);
+  const [materiais, setMateriais] = useState<ItemMaterial[]>([]);
+  const [equipe, setEquipe] = useState<CargoProfissional[]>([]);
+  const [mesesObra, setMesesObra] = useState<number>(0);
+  const [margemLucroPercentual, setMargemLucroPercentual] = useState<number>(0);
 
   // Condições Comerciais e Pagamento
   const [condicoesComerciais, setCondicoesComerciais] =
@@ -417,6 +416,11 @@ export default function App() {
     forcarNovoId = false,
     etapaFormulario: WizardStep = currentStep
   ): Promise<OrcamentoSalvo | null> => {
+    if (!dadosCliente.nomeCondominio.trim()) {
+      setCloudError('Informe o nome do condomínio antes de salvar ou concluir o orçamento.');
+      return null;
+    }
+
     const agora = new Date().toISOString();
     const idGerado =
       activeOrcamentoId && !forcarNovoId
@@ -465,11 +469,9 @@ export default function App() {
     }
   };
 
-  // Avança ou navega entre as etapas do formulário, persistindo automaticamente os dados na planilha do Google Sheets
-  const handleMudarEtapaFormulario = async (proximaEtapa: WizardStep) => {
+  // A navegação entre etapas não cria nem atualiza orçamento na nuvem.
+  const handleMudarEtapaFormulario = (proximaEtapa: WizardStep) => {
     if (proximaEtapa === currentStep) return;
-    const salvo = await salvarOrcamentoNoHistorico(false, proximaEtapa);
-    if (!salvo) return;
     setCurrentStep(proximaEtapa);
   };
 
@@ -502,10 +504,10 @@ export default function App() {
     setDiagnostico(null);
     setRegistrosVistoria([]);
     setErrorMessage(null);
-    setMateriais(MATERIAIS_PADRAO);
-    setEquipe(PROFISSIONAIS_PADRAO);
-    setMesesObra(4);
-    setMargemLucroPercentual(20);
+    setMateriais([]);
+    setEquipe([]);
+    setMesesObra(0);
+    setMargemLucroPercentual(0);
     setCondicoesComerciais(CONDICOES_COMERCIAIS_PADRAO);
     setCurrentStep(1);
   };
@@ -607,11 +609,15 @@ export default function App() {
     setIsOrcamentoPdfOpen(true);
   };
 
-  // Acionado no momento em que o orçamento é gerado no Passo 4 (salva automaticamente na planilha Google Sheets, abre o PDF e envia POST JSON para o webhook n8n)
-  const handleGerarOrcamento = async () => {
-    const registroSalvo = await salvarOrcamentoNoHistorico(false, 4);
-    if (!registroSalvo) return;
+  // Gerar o PDF é uma visualização; a gravação formal ocorre em "Concluir Orçamento".
+  const handleGerarOrcamento = () => {
     setIsOrcamentoPdfOpen(true);
+  };
+
+  const handleConcluirOrcamento = async (): Promise<boolean> => {
+    const registroSalvo = await salvarOrcamentoNoHistorico(false, 4);
+    if (!registroSalvo) return false;
+
     void enviarOrcamentoWebhook({
       orcamentoId: registroSalvo.id,
       dadosCliente,
@@ -622,8 +628,9 @@ export default function App() {
       diagnostico: diagnosticoConsolidado,
       registrosVistoria,
       contexto,
-      origemAcionamento: 'gerar_orcamento_step4',
+      origemAcionamento: 'concluir_orcamento_step4',
     });
+    return true;
   };
 
   // Completion check for stepper
@@ -663,7 +670,7 @@ export default function App() {
           <div className="p-4 rounded-xl bg-red-950/60 border border-red-800 text-red-200 text-sm flex items-start gap-3 shadow-lg">
             <AlertTriangle className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
             <div className="flex-1">
-              <strong className="block font-semibold">Falha na sincronização com a nuvem</strong>
+              <strong className="block font-semibold">Atenção</strong>
               <p className="text-xs text-red-300 mt-0.5">{cloudError}</p>
             </div>
             <button
@@ -677,7 +684,7 @@ export default function App() {
         {/* Wizard Stepper Bar */}
         <WizardStepper
           currentStep={currentStep}
-          onSelectStep={(step) => handleMudarEtapaFormulario(step)}
+          onSelectStep={handleMudarEtapaFormulario}
           isStepComplete={isStepComplete}
         />
 
@@ -907,16 +914,13 @@ export default function App() {
               onUpdateCondicoesComerciais={handleUpdateCondicoesComerciais}
               setMargemLucroPercentual={setMargemLucroPercentual}
               onOpenPdf={handleGerarOrcamento}
-              onConcludeOrcamento={async () =>
-                Boolean(await salvarOrcamentoNoHistorico(false, 4))
-              }
+              onConcludeOrcamento={handleConcluirOrcamento}
               onPrev={() => handleMudarEtapaFormulario(3)}
               orcamentoId={activeOrcamentoId}
               statusOrcamento={
                 orcamentosSalvos.find((orcamento) => orcamento.id === activeOrcamentoId)
                   ?.status || 'em_elaboracao'
               }
-              onSaveCurrentOrcamento={() => void salvarOrcamentoNoHistorico(false, 4)}
             />
           </div>
         )}
@@ -992,6 +996,12 @@ export default function App() {
           isSyncingCloud={isSyncingCloud}
           isModal={true}
           onCloseModal={() => setIsKanbanModalOpen(false)}
+          currentStep={currentStep}
+          isStepComplete={isStepComplete}
+          onSelectStep={(step) => {
+            handleMudarEtapaFormulario(step);
+            setIsKanbanModalOpen(false);
+          }}
         />
       )}
 

@@ -23,7 +23,8 @@ import {
   RefreshCw,
   Cloud,
 } from 'lucide-react';
-import { OrcamentoSalvo, StatusOrcamentoKanban } from '../types';
+import { OrcamentoSalvo, StatusOrcamentoKanban, WizardStep } from '../types';
+import { WizardStepper } from './WizardStepper';
 import { formatarMoeda, calcularParcelamentoComercial } from '../utils/budgetCalculator';
 import {
   ETAPAS_KANBAN,
@@ -45,6 +46,9 @@ interface OrcamentosKanbanBoardProps {
   isSyncingCloud?: boolean;
   isModal?: boolean;
   onCloseModal?: () => void;
+  currentStep?: WizardStep;
+  isStepComplete?: (step: WizardStep) => boolean;
+  onSelectStep?: (step: WizardStep) => void;
 }
 
 export const OrcamentosKanbanBoard: React.FC<OrcamentosKanbanBoardProps> = ({
@@ -60,6 +64,9 @@ export const OrcamentosKanbanBoard: React.FC<OrcamentosKanbanBoardProps> = ({
   isSyncingCloud = false,
   isModal = false,
   onCloseModal,
+  currentStep,
+  isStepComplete,
+  onSelectStep,
 }) => {
   const [modoVisualizacao, setModoVisualizacao] = useState<'kanban' | 'lista'>('kanban');
   const [busca, setBusca] = useState('');
@@ -509,8 +516,7 @@ export const OrcamentosKanbanBoard: React.FC<OrcamentosKanbanBoardProps> = ({
               Nenhum orçamento registrado no histórico ainda
             </h4>
             <p className="text-xs text-slate-400 max-w-md mx-auto">
-              Ao clicar em <strong className="text-amber-400">"Gerar Orçamento (PDF)"</strong> ou em{' '}
-              <strong className="text-amber-400">"Salvar Orçamento Atual"</strong>, a proposta é salva automaticamente aqui para gestão em etapas Kanban e envio via WhatsApp.
+              A proposta aparece aqui depois de ser salva na planilha ou concluída na Etapa 4.
             </p>
           </div>
         </div>
@@ -679,7 +685,16 @@ export const OrcamentosKanbanBoard: React.FC<OrcamentosKanbanBoardProps> = ({
   if (isModal) {
     return (
       <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/90 backdrop-blur-sm p-3 sm:p-6 flex items-start justify-center no-print">
-        <div className="w-full max-w-7xl my-4">{content}</div>
+        <div className="w-full max-w-7xl my-4 space-y-4">
+          {currentStep !== undefined && isStepComplete && onSelectStep && (
+            <WizardStepper
+              currentStep={currentStep}
+              isStepComplete={isStepComplete}
+              onSelectStep={onSelectStep}
+            />
+          )}
+          {content}
+        </div>
       </div>
     );
   }

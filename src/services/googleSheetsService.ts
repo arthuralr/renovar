@@ -306,7 +306,7 @@ export function montarPayloadPlanilha(
   const anomalias =
     orcamento.diagnostico?.anomalias || orcamento.diagnostico?.patologias || [];
 
-  const nomeCondominio = orcamento.dadosCliente.nomeCondominio || 'Condomínio em Cadastro';
+  const nomeCondominio = orcamento.dadosCliente.nomeCondominio || '';
   const nomeSindico = orcamento.dadosCliente.nomeSindico || '';
   const telefone = orcamento.dadosCliente.telefone || '';
   const email = orcamento.dadosCliente.email || '';
@@ -956,6 +956,10 @@ export async function salvarOrcamentoNaNuvem(
   orcamento: OrcamentoSalvo,
   etapaFormulario?: number
 ): Promise<boolean> {
+  if (!orcamento.dadosCliente.nomeCondominio.trim()) {
+    throw new Error('Informe o nome do condomínio antes de salvar o orçamento.');
+  }
+
   removerIdExcluidoLocalmente(orcamento.id);
   const payload = montarPayloadPlanilha(orcamento, 'save', etapaFormulario);
 

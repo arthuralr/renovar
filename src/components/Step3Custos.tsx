@@ -60,12 +60,25 @@ export const Step3Custos: React.FC<Step3CustosProps> = ({
   const handleAddMaterial = () => {
     const novoItem: ItemMaterial = {
       id: `mat-${Date.now()}`,
-      nome: 'Novo Insumo / Material',
+      nome: '',
       unidade: 'un',
-      quantidade: 1,
-      precoUnitario: 50,
+      quantidade: 0,
+      precoUnitario: 0,
     };
     setMateriais([...materiais, novoItem]);
+  };
+
+  const handleAddProfissional = () => {
+    setEquipe([
+      ...equipe,
+      {
+        id: `prof-${Date.now()}`,
+        cargo: '',
+        salarioBase: 0,
+        quantidade: 0,
+        descricaoFuncao: '',
+      },
+    ]);
   };
 
   // Remove material row
@@ -126,7 +139,7 @@ export const Step3Custos: React.FC<Step3CustosProps> = ({
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={() => setMateriais(MATERIAIS_PADRAO)}
             className="flex items-center gap-1.5 px-3 py-2 text-xs text-slate-400 hover:text-white bg-slate-800/80 hover:bg-slate-700/80 rounded-xl border border-slate-700 transition cursor-pointer"
@@ -290,18 +303,32 @@ export const Step3Custos: React.FC<Step3CustosProps> = ({
             <div className="flex items-center gap-1.5">
               <input
                 type="number"
-                min="1"
+                min="0"
                 max="36"
-                value={mesesObra}
-                onChange={(e) => setMesesObra(Math.max(1, Number(e.target.value)))}
+                value={mesesObra || ''}
+                onChange={(e) => setMesesObra(Math.max(0, Number(e.target.value)))}
+                placeholder="0"
                 className="w-16 bg-slate-900 border border-slate-700 rounded-lg px-2 py-1 text-center font-mono font-bold text-sm text-amber-400 focus:outline-none focus:border-amber-400"
               />
               <span className="text-xs text-slate-400 font-medium">meses</span>
             </div>
+            <button
+              type="button"
+              onClick={handleAddProfissional}
+              className="flex items-center gap-1.5 px-3 py-2 bg-sky-500/15 hover:bg-sky-500/25 text-sky-300 border border-sky-500/40 font-bold text-xs rounded-xl transition cursor-pointer"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Adicionar Profissional</span>
+            </button>
           </div>
         </div>
 
         {/* Professional Cards Grid */}
+        {equipe.length === 0 ? (
+          <p className="py-5 text-center text-xs text-slate-500">
+            Nenhum profissional adicionado. Cadastre a equipe e os custos reais do projeto.
+          </p>
+        ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
           {equipe.map((prof) => {
             const subtotalMensal = prof.salarioBase * prof.quantidade;
@@ -314,16 +341,50 @@ export const Step3Custos: React.FC<Step3CustosProps> = ({
               >
                 <div>
                   <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs font-bold text-white flex items-center gap-1.5">
-                      <HardHat className="w-3.5 h-3.5 text-amber-400" />
-                      {prof.cargo}
-                    </span>
+                    <label className="flex items-center gap-1.5 flex-1">
+                      <HardHat className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                      <input
+                        type="text"
+                        value={prof.cargo}
+                        placeholder="Cargo / função"
+                        onChange={(e) =>
+                          setEquipe(
+                            equipe.map((item) =>
+                              item.id === prof.id ? { ...item, cargo: e.target.value } : item
+                            )
+                          )
+                        }
+                        className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2 py-1 text-xs font-bold text-white focus:outline-none focus:border-amber-400"
+                      />
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setEquipe(equipe.filter((item) => item.id !== prof.id))}
+                      className="p-1 text-slate-500 hover:text-rose-400"
+                      title="Remover profissional"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
                   </div>
-                  <p className="text-[11px] text-slate-400 line-clamp-1 mb-2">
-                    {prof.descricaoFuncao}
-                  </p>
-                  <div className="text-[11px] text-slate-400 font-mono">
-                    Salário Base: <span className="text-slate-200 font-semibold">{formatarMoeda(prof.salarioBase)}/mês</span>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={prof.salarioBase || ''}
+                    placeholder="Salário mensal (R$)"
+                    onChange={(e) =>
+                      setEquipe(
+                        equipe.map((item) =>
+                          item.id === prof.id
+                            ? { ...item, salarioBase: Math.max(0, Number(e.target.value)) }
+                            : item
+                        )
+                      )
+                    }
+                    className="w-full mt-2 bg-slate-900 border border-slate-700 rounded-lg px-2 py-1.5 text-[11px] font-mono text-slate-200 focus:outline-none focus:border-amber-400"
+                  />
+                  <div className="text-[11px] text-slate-400 font-mono mt-2">
+                    Custo por profissional: <span className="text-slate-200 font-semibold">{formatarMoeda(prof.salarioBase)}/mês</span>
                   </div>
                 </div>
 
@@ -358,6 +419,7 @@ export const Step3Custos: React.FC<Step3CustosProps> = ({
             );
           })}
         </div>
+        )}
       </div>
 
       {/* SECTION 3: Prévia dos Cálculos Matemáticos Rígidos */}
