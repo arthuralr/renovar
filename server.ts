@@ -494,6 +494,9 @@ const extractRowsFromSheetsResponse = (parsed: any): any[] => {
 
 const handleGetOrcamentosSheets = async (_req: express.Request, res: express.Response) => {
   res.setHeader('Content-Type', 'application/json');
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
   const store = readServerCloudStore();
   const serverItems = Object.values(store.orcamentos);
 
@@ -501,10 +504,12 @@ const handleGetOrcamentosSheets = async (_req: express.Request, res: express.Res
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 15000);
     try {
-      const response = await fetch(GOOGLE_SHEETS_API_URL, {
+      const separator = GOOGLE_SHEETS_API_URL.includes('?') ? '&' : '?';
+      const response = await fetch(`${GOOGLE_SHEETS_API_URL}${separator}t=${Date.now()}`, {
         method: 'GET',
         redirect: 'follow',
         signal: controller.signal,
+        headers: { 'Cache-Control': 'no-cache', Pragma: 'no-cache' },
       });
       const text = await response.text();
       let sheetsRows: any[] = [];

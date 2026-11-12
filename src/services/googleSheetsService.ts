@@ -10,14 +10,11 @@ import {
 } from '../types';
 import {
   CONDICOES_COMERCIAIS_PADRAO,
-  MATERIAIS_PADRAO,
-  PROFISSIONAIS_PADRAO,
   calcularOrcamento,
   formatarMoeda,
 } from '../utils/budgetCalculator';
 import {
   obterConfigEtapaKanban,
-  carregarOrcamentosSalvos,
   salvarOrcamentosNoStorage,
 } from '../utils/orcamentoKanbanUtils';
 
@@ -676,8 +673,7 @@ function analisarCelulasDaLinha(cells: any[]) {
  */
 export function normalizarLinhaPlanilhaParaOrcamento(
   row: any,
-  index: number,
-  cacheLocalMap?: Map<string, OrcamentoSalvo>
+  _index: number
 ): OrcamentoSalvo | null {
   if (!row || typeof row !== 'object') return null;
 
@@ -702,11 +698,16 @@ export function normalizarLinhaPlanilhaParaOrcamento(
     scan.statusDetectado
   );
 
+  const statusCompleto = primeiroTextoNaoVazio(rawStatus, parsedDetalhes?.status);
+  const statusChave = normalizarChaveColuna(statusCompleto);
+  const marcadorExclusao = normalizarChaveColuna(
+    obterCampoFlexivel(row, ['deleted', 'excluido', 'excluida', 'acao', 'action'])
+  );
   if (
-    rawStatus &&
-    (rawStatus.toLowerCase() === 'deleted' ||
-      rawStatus.toLowerCase() === 'excluido' ||
-      rawStatus.toLowerCase() === 'excluído')
+    ['deleted', 'excluido', 'rascunho', 'draft', 'obsolete', 'obsoleto'].some((status) =>
+      statusChave.includes(status)
+    ) ||
+    ['delete', 'excluir', 'deleted', 'true', '1'].includes(marcadorExclusao)
   ) {
     return null;
   }
@@ -721,20 +722,17 @@ export function normalizarLinhaPlanilhaParaOrcamento(
       'idOrcamento',
     ]),
     parsedDetalhes?.id,
-    scan.idDetectado,
-    `PROP-CLOUD-${index + 1}`
+    scan.idDetectado
   );
 
   if (!idExtraido) return null;
-
-  const itemLocal = cacheLocalMap?.get(idExtraido);
 
   // Status da linha da planilha tem prioridade (pois pode ter sido atualizado na planilha ou no Kanban)
   const statusNormalizado = rawStatus
     ? normalizarStatusKanban(rawStatus)
     : parsedDetalhes?.status
       ? normalizarStatusKanban(parsedDetalhes.status)
-      : itemLocal?.status || 'em_elaboracao';
+      : 'em_elaboracao';
 
   const nomeCondominio = primeiroTextoNaoVazio(
     obterCampoFlexivel(row, [
@@ -752,7 +750,6 @@ export function normalizarLinhaPlanilhaParaOrcamento(
       'razaoSocial',
     ]),
     parsedDetalhes?.dadosCliente?.nomeCondominio,
-    itemLocal?.dadosCliente?.nomeCondominio,
     scan.clienteDetectado
   );
 
@@ -765,7 +762,6 @@ export function normalizarLinhaPlanilhaParaOrcamento(
       'responsavel',
     ]),
     parsedDetalhes?.dadosCliente?.nomeSindico,
-    itemLocal?.dadosCliente?.nomeSindico,
     scan.sindicoDetectado
   );
 
@@ -778,28 +774,24 @@ export function normalizarLinhaPlanilhaParaOrcamento(
       'contato',
     ]),
     parsedDetalhes?.dadosCliente?.telefone,
-    itemLocal?.dadosCliente?.telefone,
     scan.telefoneDetectado
   );
 
   const email = primeiroTextoNaoVazio(
     obterCampoFlexivel(row, ['email', 'e-mail', 'correio']),
     parsedDetalhes?.dadosCliente?.email,
-    itemLocal?.dadosCliente?.email,
     scan.emailDetectado
   );
 
   const cnpj = primeiroTextoNaoVazio(
     obterCampoFlexivel(row, ['cnpj', 'documento']),
     parsedDetalhes?.dadosCliente?.cnpj,
-    itemLocal?.dadosCliente?.cnpj,
     scan.cnpjDetectado
   );
 
   const endereco = primeiroTextoNaoVazio(
     obterCampoFlexivel(row, ['endereco', 'localizacao', 'logradouro', 'enderecoObra']),
-    parsedDetalhes?.dadosCliente?.endereco,
-    itemLocal?.dadosCliente?.endereco
+    parsedDetalhes?.dadosCliente?.endereco
   );
 
   const valorGlobal = primeiroNumeroPositivo(
@@ -814,7 +806,6 @@ export function normalizarLinhaPlanilhaParaOrcamento(
       'orcamento',
     ]),
     parsedDetalhes?.calculos?.valorGlobal,
-    itemLocal?.calculos?.valorGlobal,
     scan.valorDetectado
   );
 
@@ -822,45 +813,46 @@ export function normalizarLinhaPlanilhaParaOrcamento(
   const chaveCond = normalizarChaveColuna(nomeCondominio);
   const chaveId = normalizarChaveColuna(idExtraido);
   if (
-    (!nomeCondominio && !valorGlobal && !parsedDetalhes && !scan.idDetectado) ||
+    !nomeCondominio ||
     chaveCond === 'cliente' ||
     chaveCond === 'condominio' ||
     chaveCond === 'nomedocondominio' ||
+    chaveCond === 'condominioemcadastro' ||
+    chaveCond === 'condominiocadastrado' ||
+    chaveCond === 'rascunho' ||
+    chaveCond === 'draft' ||
+    chaveCond === 'obsoleto' ||
     chaveId === 'id' ||
-    chaveId === 'codigo'
+    chaveId === 'codigo' ||
+    chaveId.startsWith('propcloud')
   ) {
     return null;
   }
 
   const dadosCliente: DadosCliente = {
-    nomeCondominio: nomeCondominio || 'Condomínio Cadastrado',
+    nomeCondominio,
     cnpj,
     endereco,
     nomeSindico,
     anoConstrucao: primeiroTextoNaoVazio(
       obterCampoFlexivel(row, ['anoConstrucao', 'idade', 'ano']),
-      parsedDetalhes?.dadosCliente?.anoConstrucao,
-      itemLocal?.dadosCliente?.anoConstrucao
+      parsedDetalhes?.dadosCliente?.anoConstrucao
     ),
     pavimentos: primeiroTextoNaoVazio(
       obterCampoFlexivel(row, ['pavimentos', 'andares', 'numeroDePavimentos']),
-      parsedDetalhes?.dadosCliente?.pavimentos,
-      itemLocal?.dadosCliente?.pavimentos
+      parsedDetalhes?.dadosCliente?.pavimentos
     ),
     telefone,
     email,
   };
 
-  const materiais: ItemMaterial[] =
-    parsedDetalhes?.materiais || itemLocal?.materiais || MATERIAIS_PADRAO;
-  const equipe: CargoProfissional[] =
-    parsedDetalhes?.equipe || itemLocal?.equipe || PROFISSIONAIS_PADRAO;
+  const materiais: ItemMaterial[] = parsedDetalhes?.materiais || [];
+  const equipe: CargoProfissional[] = parsedDetalhes?.equipe || [];
   const mesesObra =
     Number(
       obterCampoFlexivel(row, ['mesesObra', 'prazo', 'meses']) ??
         parsedDetalhes?.mesesObra ??
         parsedDetalhes?.calculos?.mesesObra ??
-        itemLocal?.mesesObra ??
         4
     ) || 4;
   const margemLucroPercentual =
@@ -868,13 +860,11 @@ export function normalizarLinhaPlanilhaParaOrcamento(
       obterCampoFlexivel(row, ['margemLucroPercentual', 'margemLucro', 'lucro']) ??
         parsedDetalhes?.margemLucroPercentual ??
         parsedDetalhes?.calculos?.margemLucroPercentual ??
-        itemLocal?.margemLucroPercentual ??
         20
     ) || 20;
 
   const calculosBase =
     parsedDetalhes?.calculos ||
-    itemLocal?.calculos ||
     calcularOrcamento(materiais, equipe, mesesObra, margemLucroPercentual);
 
   const calculos: CalculosOrcamento = {
@@ -884,15 +874,13 @@ export function normalizarLinhaPlanilhaParaOrcamento(
 
   const condicoesComerciais: CondicoesComerciais = {
     ...CONDICOES_COMERCIAIS_PADRAO,
-    ...(itemLocal?.condicoesComerciais || {}),
     ...(parsedDetalhes?.condicoesComerciais || {}),
     ...(row.condicoesComerciais && typeof row.condicoesComerciais === 'object'
       ? row.condicoesComerciais
       : {}),
   };
 
-  const diagnostico: DiagnosticoResponse | null =
-    parsedDetalhes?.diagnostico || itemLocal?.diagnostico || null;
+  const diagnostico: DiagnosticoResponse | null = parsedDetalhes?.diagnostico || null;
 
   const dataCriacaoIso =
     parseDataPlanilhaIso(
@@ -900,13 +888,11 @@ export function normalizarLinhaPlanilhaParaOrcamento(
     ) ||
     parseDataPlanilhaIso(parsedDetalhes?.dataCriacao) ||
     parseDataPlanilhaIso(scan.dataDetectada) ||
-    parseDataPlanilhaIso(itemLocal?.dataCriacao) ||
     new Date().toISOString();
 
   const dataAtualizacaoIso =
     parseDataPlanilhaIso(obterCampoFlexivel(row, ['dataAtualizacao', 'updatedAt'])) ||
     parseDataPlanilhaIso(parsedDetalhes?.dataAtualizacao) ||
-    parseDataPlanilhaIso(itemLocal?.dataAtualizacao) ||
     dataCriacaoIso;
 
   return {
@@ -922,8 +908,8 @@ export function normalizarLinhaPlanilhaParaOrcamento(
     mesesObra,
     margemLucroPercentual,
     diagnostico,
-    registrosVistoria: itemLocal?.registrosVistoria || parsedDetalhes?.registrosVistoria || [],
-    selectedImage: itemLocal?.selectedImage ?? parsedDetalhes?.selectedImage ?? null,
+    registrosVistoria: parsedDetalhes?.registrosVistoria || [],
+    selectedImage: parsedDetalhes?.selectedImage ?? null,
   };
 }
 
@@ -1062,44 +1048,42 @@ export function extrairListaBrutaDeResposta(rawData: any): any[] {
  * e retorna as linhas brutas da planilha.
  */
 async function buscarLinhasDiretoDoGoogleSheetsWebApp(): Promise<any[] | null> {
-  const urlsCandidatas = [
-    GOOGLE_SHEETS_API_URL,
-    `${GOOGLE_SHEETS_API_URL}?t=${Date.now()}`,
-  ];
+  const separador = GOOGLE_SHEETS_API_URL.includes('?') ? '&' : '?';
+  const url = `${GOOGLE_SHEETS_API_URL}${separador}t=${Date.now()}`;
 
-  for (const url of urlsCandidatas) {
-    try {
-      const response = await fetch(url, {
-        method: 'GET',
-        redirect: 'follow',
-        credentials: 'omit',
-      });
+  try {
+    const response = await fetch(url, {
+      method: 'GET',
+      redirect: 'follow',
+      credentials: 'omit',
+      cache: 'no-store',
+      headers: { 'Cache-Control': 'no-cache', Pragma: 'no-cache' },
+    });
 
-      if (response.ok) {
-        const text = await response.text();
-        if (text && text.trim()) {
-          try {
-            const parsed = JSON.parse(text);
-            const extraidos = extrairListaBrutaDeResposta(parsed);
-            if (
-              Array.isArray(parsed) ||
-              extraidos.length > 0 ||
-              (typeof parsed === 'object' &&
-                parsed !== null &&
-                ['data', 'dados', 'orcamentos', 'values', 'rows', 'items'].some(
-                  (key) => Array.isArray(parsed[key])
-                ))
-            ) {
-              return extraidos;
-            }
-          } catch {
-            // Caso não seja JSON válido, tenta próxima URL candidata
+    if (response.ok) {
+      const text = await response.text();
+      if (text && text.trim()) {
+        try {
+          const parsed = JSON.parse(text);
+          const extraidos = extrairListaBrutaDeResposta(parsed);
+          if (
+            Array.isArray(parsed) ||
+            extraidos.length > 0 ||
+            (typeof parsed === 'object' &&
+              parsed !== null &&
+              ['data', 'dados', 'orcamentos', 'values', 'rows', 'items'].some(
+                (key) => Array.isArray(parsed[key])
+              ))
+          ) {
+            return extraidos;
           }
+        } catch {
+          console.warn('[Google Sheets GET] A resposta do Apps Script não contém JSON válido.');
         }
       }
-    } catch (err) {
-      console.warn(`[Google Sheets GET] Tentativa falhou para ${url}:`, err);
     }
+  } catch (err) {
+    console.warn(`[Google Sheets GET] Tentativa falhou para ${url}:`, err);
   }
 
   return null;
@@ -1111,11 +1095,7 @@ async function buscarLinhasDiretoDoGoogleSheetsWebApp(): Promise<any[] | null> {
  * nova guia, aba anônima ou outro dispositivo.
  */
 export async function carregarOrcamentosDaNuvem(): Promise<OrcamentoSalvo[]> {
-  const cacheLocal = carregarOrcamentosSalvos();
-  const cacheLocalMap = new Map<string, OrcamentoSalvo>(
-    cacheLocal.map((item) => [item.id, item])
-  );
-  const excluidosSet = obterIdsExcluidosLocalmente();
+  const excluidosSet = new Set<string>();
 
   // 1. Chamada GET direta do Front-End ao Web App do Google Sheets (GOOGLE_SHEETS_API_URL)
   let linhasPlanilhaBrutas = await buscarLinhasDiretoDoGoogleSheetsWebApp();
@@ -1123,14 +1103,17 @@ export async function carregarOrcamentosDaNuvem(): Promise<OrcamentoSalvo[]> {
 
   // 2. Consulta complementar ao endpoint `/api/sheets/orcamentos` para contornar CORS.
   try {
-    const proxyRes = await fetch(`/api/sheets/orcamentos?t=${Date.now()}`);
+    const proxyRes = await fetch(`/api/sheets/orcamentos?t=${Date.now()}`, {
+      cache: 'no-store',
+      headers: { 'Cache-Control': 'no-cache', Pragma: 'no-cache' },
+    });
     const contentType = proxyRes.headers.get('content-type') || '';
     if (proxyRes.ok && contentType.includes('application/json')) {
       const json = await proxyRes.json();
       if (json?.warning && linhasPlanilhaBrutas === null) {
         throw new Error(String(json.warning));
       }
-      if (linhasPlanilhaBrutas === null || linhasPlanilhaBrutas.length === 0) {
+      if (linhasPlanilhaBrutas === null) {
         linhasPlanilhaBrutas = extrairListaBrutaDeResposta(json);
       }
       if (Array.isArray(json?.deletedIds)) {
@@ -1158,11 +1141,7 @@ export async function carregarOrcamentosDaNuvem(): Promise<OrcamentoSalvo[]> {
   // 3. Processa todas as linhas vindas diretamente da planilha do Google Sheets
   const linhasConvertidas = converterLinhasBrutasPlanilha(linhasPlanilhaBrutas);
   for (let i = 0; i < linhasConvertidas.length; i++) {
-    const normalizado = normalizarLinhaPlanilhaParaOrcamento(
-      linhasConvertidas[i],
-      i,
-      cacheLocalMap
-    );
+    const normalizado = normalizarLinhaPlanilhaParaOrcamento(linhasConvertidas[i], i);
     if (normalizado && !excluidosSet.has(normalizado.id)) {
       mapaUnico.set(normalizado.id, normalizado);
     }

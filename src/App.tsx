@@ -144,7 +144,7 @@ export default function App() {
   const [isSyncingCloud, setIsSyncingCloud] = useState<boolean>(false);
   const [cloudError, setCloudError] = useState<string | null>(null);
 
-  // Consulta os orçamentos na nuvem somente enquanto o histórico/Kanban está aberto.
+  // Sincroniza o histórico remoto sem preencher ou alterar os campos do novo orçamento.
   const sincronizarOrcamentosDaNuvem = async () => {
     setIsSyncingCloud(true);
     try {
@@ -161,10 +161,10 @@ export default function App() {
     }
   };
 
-  // O histórico é carregado apenas ao abrir o Kanban, nunca ao iniciar um novo formulário.
+  // Busca o estado atual da nuvem na inicialização e continua atualizando o Kanban aberto.
   useEffect(() => {
+    void sincronizarOrcamentosDaNuvem();
     if (isKanbanModalOpen) {
-      void sincronizarOrcamentosDaNuvem();
       const handleWindowFocus = () => void sincronizarOrcamentosDaNuvem();
       window.addEventListener('focus', handleWindowFocus);
       const timer = setInterval(() => {
