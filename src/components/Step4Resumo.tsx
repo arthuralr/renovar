@@ -18,7 +18,6 @@ import {
   FileText,
   RotateCcw,
   MessageCircle,
-  Kanban,
   Loader2,
 } from 'lucide-react';
 import {
@@ -26,7 +25,6 @@ import {
   CalculosOrcamento,
   DiagnosticoResponse,
   CondicoesComerciais,
-  OrcamentoSalvo,
   StatusOrcamentoKanban,
 } from '../types';
 import {
@@ -34,7 +32,6 @@ import {
   calcularParcelamentoComercial,
   CONDICOES_COMERCIAIS_PADRAO,
 } from '../utils/budgetCalculator';
-import { OrcamentosKanbanBoard } from './OrcamentosKanbanBoard';
 import { gerarLinkWhatsAppOrcamento } from '../utils/orcamentoKanbanUtils';
 import { downloadProposalPdf } from '../utils/pdfGenerator';
 
@@ -46,17 +43,11 @@ interface Step4ResumoProps {
   onUpdateCondicoesComerciais: (novasCondicoes: Partial<CondicoesComerciais>) => void;
   setMargemLucroPercentual: (pct: number) => void;
   onOpenPdf: () => void;
+  onConcludeOrcamento: () => Promise<boolean>;
   onPrev: () => void;
-  orcamentosSalvos?: OrcamentoSalvo[];
-  activeOrcamentoId?: string | null;
-  onUpdateStatusOrcamento?: (id: string, novoStatus: StatusOrcamentoKanban) => void;
-  onViewOrcamentoPdf?: (orcamento: OrcamentoSalvo) => void;
-  onLoadOrcamento?: (orcamento: OrcamentoSalvo) => void;
-  onDeleteOrcamento?: (id: string) => void;
-  onClearAllOrcamentos?: () => void;
+  orcamentoId?: string | null;
+  statusOrcamento?: StatusOrcamentoKanban;
   onSaveCurrentOrcamento?: () => void;
-  onRefreshCloud?: () => void;
-  isSyncingCloud?: boolean;
 }
 
 export const Step4Resumo: React.FC<Step4ResumoProps> = ({
@@ -67,32 +58,23 @@ export const Step4Resumo: React.FC<Step4ResumoProps> = ({
   onUpdateCondicoesComerciais,
   setMargemLucroPercentual,
   onOpenPdf,
+  onConcludeOrcamento,
   onPrev,
-  orcamentosSalvos = [],
-  activeOrcamentoId = null,
-  onUpdateStatusOrcamento,
-  onViewOrcamentoPdf,
-  onLoadOrcamento,
-  onDeleteOrcamento,
-  onClearAllOrcamentos,
+  orcamentoId = null,
+  statusOrcamento = 'em_elaboracao',
   onSaveCurrentOrcamento,
-  onRefreshCloud,
-  isSyncingCloud = false,
 }) => {
   const anomalias = diagnostico?.anomalias || diagnostico?.patologias || [];
   const parcelamento = calcularParcelamentoComercial(calculos.valorGlobal, condicoesComerciais);
 
   const [isDownloadingWhatsAppPdf, setIsDownloadingWhatsAppPdf] = useState(false);
-
-  const orcamentoAtivo = orcamentosSalvos.find((o) => o.id === activeOrcamentoId);
-  const statusAtual: StatusOrcamentoKanban = orcamentoAtivo?.status || 'em_elaboracao';
-  const idPropostaAtual =
-    orcamentoAtivo?.id || `PROP-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
+  const [isConcluding, setIsConcluding] = useState(false);
+  const [conclusionMessage, setConclusionMessage] = useState<string | null>(null);
 
   const handleCompartilharWhatsAppAtual = async () => {
     const url = gerarLinkWhatsAppOrcamento({
-      id: idPropostaAtual,
-      status: statusAtual,
+      id: orcamentoId || `PROP-${new Date().getFullYear()}`,
+      status: statusOrcamento,
       dadosCliente,
       calculos,
       condicoesComerciais,
@@ -103,7 +85,7 @@ export const Step4Resumo: React.FC<Step4ResumoProps> = ({
     window.open(url, '_blank', 'noopener,noreferrer');
 
     // 2. Simultaneamente salva (se necessário) e dispara o download automático do PDF do orçamento
-    if (onSaveCurrentOrcamento && !activeOrcamentoId) {
+    if (onSaveCurrentOrcamento && !orcamentoId) {
       onSaveCurrentOrcamento();
     }
 
@@ -122,6 +104,18 @@ export const Step4Resumo: React.FC<Step4ResumoProps> = ({
       console.error('Erro ao baixar PDF durante compartilhamento via WhatsApp:', err);
     } finally {
       setIsDownloadingWhatsAppPdf(false);
+    }
+  };
+
+  const handleConcluirOrcamento = async () => {
+    setIsConcluding(true);
+    setConclusionMessage(null);
+    try {
+      if (await onConcludeOrcamento()) {
+        setConclusionMessage('Orçamento concluído e salvo na nuvem.');
+      }
+    } finally {
+      setIsConcluding(false);
     }
   };
 
@@ -176,13 +170,33 @@ export const Step4Resumo: React.FC<Step4ResumoProps> = ({
 
           {/* Big Action Buttons: Generate PDF + 1-Click WhatsApp */}
           <div className="shrink-0 flex flex-col gap-2.5">
-            <button
-              onClick={onOpenPdf}
-              className="px-8 py-4 bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 hover:from-amber-400 hover:to-amber-300 text-slate-950 font-extrabold text-sm sm:text-base rounded-2xl shadow-xl shadow-amber-500/25 transition transform active:scale-98 cursor-pointer flex items-center justify-center gap-2.5"
-            >
-              <Printer className="w-5 h-5" />
-              <span>Gerar Orçamento (PDF)</span>
-            </button>
+            <div className="flex flex-col sm:flex-row gap-2.5">
+              <button
+                onClick={onOpenPdf}
+                className="px-8 py-4 bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 hover:from-amber-400 hover:to-amber-300 text-slate-950 font-extrabold text-sm sm:text-base rounded-2xl shadow-xl shadow-amber-500/25 transition transform active:scale-98 cursor-pointer flex items-center justify-center gap-2.5"
+              >
+                <Printer className="w-5 h-5" />
+                <span>Gerar Orçamento (PDF)</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleConcluirOrcamento()}
+                disabled={isConcluding}
+                className="px-6 py-4 bg-emerald-500/15 hover:bg-emerald-500/25 disabled:opacity-70 text-emerald-300 border border-emerald-500/40 font-extrabold text-sm rounded-2xl transition cursor-pointer flex items-center justify-center gap-2.5"
+              >
+                {isConcluding ? (
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                ) : (
+                  <CheckCircle2 className="w-5 h-5" />
+                )}
+                <span>{isConcluding ? 'Salvando...' : 'Concluir Orçamento'}</span>
+              </button>
+            </div>
+            {conclusionMessage && (
+              <p role="status" className="text-xs text-emerald-300 text-center sm:text-right">
+                {conclusionMessage}
+              </p>
+            )}
 
             <button
               type="button"
@@ -687,26 +701,6 @@ export const Step4Resumo: React.FC<Step4ResumoProps> = ({
         </div>
       </div>
 
-      {/* Kanban & Saved Budgets History Section */}
-      {onUpdateStatusOrcamento &&
-        onViewOrcamentoPdf &&
-        onLoadOrcamento &&
-        onDeleteOrcamento && (
-          <div className="pt-4">
-            <OrcamentosKanbanBoard
-              orcamentos={orcamentosSalvos}
-              activeOrcamentoId={activeOrcamentoId}
-              onUpdateStatus={onUpdateStatusOrcamento}
-              onViewOrcamentoPdf={onViewOrcamentoPdf}
-              onLoadOrcamento={onLoadOrcamento}
-              onDeleteOrcamento={onDeleteOrcamento}
-              onClearAllOrcamentos={onClearAllOrcamentos}
-              onSaveCurrentOrcamento={onSaveCurrentOrcamento}
-              onRefreshCloud={onRefreshCloud}
-              isSyncingCloud={isSyncingCloud}
-            />
-          </div>
-        )}
     </div>
   );
 };

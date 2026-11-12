@@ -554,16 +554,13 @@ const handlePostOrcamentosSheets = async (req: express.Request, res: express.Res
   const action = String(payload.action || 'save');
   const id = String(payload.id || payload.orcamentoId || '').trim();
   const status = String(payload.status || '');
+  const isDelete = action === 'delete' || status === 'deleted';
 
-  // 1. Atualiza imediatamente o espelho em nuvem do servidor para garantir consistência instantânea em abas anônimas e outros dispositivos
-  if (id) {
+  // Mantém a cópia do servidor sincronizada com salvamentos e mudanças de status.
+  // Exclusões só são registradas depois da confirmação do Google Sheets.
+  if (id && !isDelete) {
     const store = readServerCloudStore();
-    if (action === 'delete' || status === 'deleted') {
-      delete store.orcamentos[id];
-      if (!store.deletedIds.includes(id)) {
-        store.deletedIds.push(id);
-      }
-    } else if (action === 'updateStatus') {
+    if (action === 'updateStatus') {
       store.deletedIds = store.deletedIds.filter((delId) => delId !== id);
       const existing = store.orcamentos[id] || {};
       store.orcamentos[id] = {
@@ -623,11 +620,27 @@ const handlePostOrcamentosSheets = async (req: express.Request, res: express.Res
         apiIndicatesFailure =
           result?.ok === false || result?.success === false || Boolean(result?.error);
       } catch {
-        // Respostas não JSON são aceitas quando o Apps Script retorna HTTP 2xx.
+        apiIndicatesFailure = /<(?:!doctype|html|head|body)\b/i.test(text);
+      }
+      const sheetsOk = response.ok && !apiIndicatesFailure;
+      if (isDelete) {
+        if (!sheetsOk) {
+          return res.status(502).json({
+            ok: false,
+            sheetsOk: false,
+            error: `Google Sheets não confirmou a exclusão do orçamento${text ? `: ${text}` : '.'}`,
+          });
+        }
+        const store = readServerCloudStore();
+        if (id) {
+          delete store.orcamentos[id];
+          if (!store.deletedIds.includes(id)) store.deletedIds.push(id);
+          writeServerCloudStore(store);
+        }
       }
       return res.status(200).json({
         ok: true,
-        sheetsOk: response.ok && !apiIndicatesFailure,
+        sheetsOk,
         status: response.status,
         response: text,
       });
@@ -635,6 +648,14 @@ const handlePostOrcamentosSheets = async (req: express.Request, res: express.Res
       clearTimeout(timeoutId);
     }
   } catch (error: any) {
+    if (isDelete) {
+      console.warn('Erro ao excluir orçamento no Google Sheets:', error?.message || error);
+      return res.status(502).json({
+        ok: false,
+        sheetsOk: false,
+        error: error?.message || 'Não foi possível excluir o orçamento no Google Sheets.',
+      });
+    }
     console.warn('Aviso ao gravar no Google Sheets externo (salvo no espelho do servidor):', error?.message || error);
     return res.status(200).json({
       ok: true,

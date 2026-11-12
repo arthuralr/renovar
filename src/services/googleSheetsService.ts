@@ -31,6 +31,7 @@ async function respostaSheetsConfirmouGravacao(response: Response): Promise<bool
 
   const text = await response.clone().text();
   if (!text.trim()) return true;
+  if (/<(?:!doctype|html|head|body)\b/i.test(text)) return false;
 
   try {
     const body = JSON.parse(text);
@@ -1225,7 +1226,6 @@ export async function atualizarStatusOrcamentoNaNuvem(
  * 4. EXCLUIR ORÇAMENTO (POST): Solicita a exclusão do orçamento na planilha do Google Sheets.
  */
 export async function excluirOrcamentoNaNuvem(id: string): Promise<boolean> {
-  registrarIdExcluidoLocalmente(id);
   const payload = {
     action: 'delete',
     acao: 'excluir',
@@ -1240,7 +1240,28 @@ export async function excluirOrcamentoNaNuvem(id: string): Promise<boolean> {
     fase: 'deleted',
   };
 
-  let okDireto = false;
+  let erroProxy: string | null = null;
+  try {
+    const proxyRes = await fetch('/api/sheets/orcamentos', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    });
+    if (proxyRes.ok) {
+      const resultado = await proxyRes.json();
+      if (resultado?.sheetsOk === true) {
+        registrarIdExcluidoLocalmente(id);
+        return true;
+      }
+      erroProxy = String(resultado?.error || 'O servidor não confirmou a exclusão no Google Sheets.');
+    }
+  } catch (err) {
+    erroProxy = err instanceof Error ? err.message : String(err);
+    console.warn('[Google Sheets] Aviso ao excluir orçamento pelo servidor:', err);
+  }
+
   try {
     const url = `${GOOGLE_SHEETS_API_URL}?action=delete&acao=excluir&id=${encodeURIComponent(id)}`;
     const response = await fetch(url, {
@@ -1252,24 +1273,18 @@ export async function excluirOrcamentoNaNuvem(id: string): Promise<boolean> {
       redirect: 'follow',
       credentials: 'omit',
     });
-    okDireto = await respostaSheetsConfirmouGravacao(response);
+    if (await respostaSheetsConfirmouGravacao(response)) {
+      registrarIdExcluidoLocalmente(id);
+      return true;
+    }
   } catch (err) {
     console.warn('[Google Sheets] Aviso ao excluir orçamento diretamente:', err);
   }
 
-  try {
-    const proxyRes = await fetch('/api/sheets/orcamentos', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
-    if (proxyRes.ok) {
-      const resultado = await proxyRes.json();
-      if (resultado?.sheetsOk === true) return true;
-    }
-  } catch {
-    // Ignora caso backend não esteja presente
-  }
-
-  return okDireto;
+  removerIdExcluidoLocalmente(id);
+  throw new Error(
+    erroProxy
+      ? `Não foi possível excluir o orçamento no Google Sheets: ${erroProxy}`
+      : 'O Google Sheets não confirmou a exclusão do orçamento.'
+  );
 }

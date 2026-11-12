@@ -60,42 +60,26 @@ import {
 } from 'lucide-react';
 
 const STORAGE_KEY = 'patologias_historico_v1';
-const CLIENTE_STORAGE_KEY = 'patologias_cliente_v1';
-const CONDICOES_STORAGE_KEY = 'patologias_condicoes_comerciais_v1';
 
 export default function App() {
   // Wizard Navigation
   const [currentStep, setCurrentStep] = useState<WizardStep>(1);
 
   // Step 1: Dados do Cliente
-  const [dadosCliente, setDadosCliente] = useState<DadosCliente>(() => {
-    try {
-      const stored = localStorage.getItem(CLIENTE_STORAGE_KEY);
-      if (stored) return JSON.parse(stored);
-    } catch (e) {
-      console.warn('Erro ao carregar dados do cliente do cache local', e);
-    }
-    return {
-      nomeCondominio: '',
-      cnpj: '',
-      endereco: '',
-      nomeSindico: '',
-      anoConstrucao: '',
-      pavimentos: '',
-      telefone: '',
-      email: '',
-    };
+  const [dadosCliente, setDadosCliente] = useState<DadosCliente>({
+    nomeCondominio: '',
+    cnpj: '',
+    endereco: '',
+    nomeSindico: '',
+    anoConstrucao: '',
+    pavimentos: '',
+    telefone: '',
+    email: '',
   });
 
   const handleUpdateCliente = (novosDados: Partial<DadosCliente>) => {
     setDadosCliente((prev) => {
-      const updated = { ...prev, ...novosDados };
-      try {
-        localStorage.setItem(CLIENTE_STORAGE_KEY, JSON.stringify(updated));
-      } catch (e) {
-        console.warn('Erro ao salvar dados do cliente', e);
-      }
-      return updated;
+      return { ...prev, ...novosDados };
     });
   };
 
@@ -130,27 +114,12 @@ export default function App() {
   const [margemLucroPercentual, setMargemLucroPercentual] = useState<number>(20);
 
   // Condições Comerciais e Pagamento
-  const [condicoesComerciais, setCondicoesComerciais] = useState<CondicoesComerciais>(() => {
-    try {
-      const stored = localStorage.getItem(CONDICOES_STORAGE_KEY);
-      if (stored) {
-        return { ...CONDICOES_COMERCIAIS_PADRAO, ...JSON.parse(stored) };
-      }
-    } catch (e) {
-      console.warn('Erro ao carregar condições comerciais do cache local', e);
-    }
-    return CONDICOES_COMERCIAIS_PADRAO;
-  });
+  const [condicoesComerciais, setCondicoesComerciais] =
+    useState<CondicoesComerciais>(CONDICOES_COMERCIAIS_PADRAO);
 
   const handleUpdateCondicoesComerciais = (novasCondicoes: Partial<CondicoesComerciais>) => {
     setCondicoesComerciais((prev) => {
-      const updated = { ...prev, ...novasCondicoes };
-      try {
-        localStorage.setItem(CONDICOES_STORAGE_KEY, JSON.stringify(updated));
-      } catch (e) {
-        console.warn('Erro ao salvar condições comerciais', e);
-      }
-      return updated;
+      return { ...prev, ...novasCondicoes };
     });
   };
 
@@ -176,37 +145,13 @@ export default function App() {
   const [isSyncingCloud, setIsSyncingCloud] = useState<boolean>(false);
   const [cloudError, setCloudError] = useState<string | null>(null);
 
-  // Busca os orçamentos salvos na planilha do Google Sheets via GET e sincroniza em tempo real
-  const sincronizarOrcamentosDaNuvem = async (hidratarSeVazio = false) => {
+  // Consulta os orçamentos na nuvem somente enquanto o histórico/Kanban está aberto.
+  const sincronizarOrcamentosDaNuvem = async () => {
     setIsSyncingCloud(true);
     try {
       const listaNuvem = await carregarOrcamentosDaNuvem();
       setOrcamentosSalvos(listaNuvem);
       setCloudError(null);
-
-      // Se aberto em guia anônima ou novo dispositivo (sem cliente preenchido no formulário),
-      // restaura automaticamente o último orçamento/cadastro salvo na planilha
-      if (hidratarSeVazio && listaNuvem.length > 0) {
-        const maisRecente = listaNuvem[0];
-        setDadosCliente((prev) => {
-          if (prev.nomeCondominio.trim()) return prev;
-          setActiveOrcamentoId(maisRecente.id);
-          setMateriais(maisRecente.materiais || MATERIAIS_PADRAO);
-          setEquipe(maisRecente.equipe || PROFISSIONAIS_PADRAO);
-          setMesesObra(maisRecente.mesesObra || 4);
-          setMargemLucroPercentual(maisRecente.margemLucroPercentual ?? 20);
-          setCondicoesComerciais(
-            maisRecente.condicoesComerciais || CONDICOES_COMERCIAIS_PADRAO
-          );
-          if (maisRecente.diagnostico) {
-            setDiagnostico(maisRecente.diagnostico);
-          }
-          if (maisRecente.registrosVistoria && maisRecente.registrosVistoria.length > 0) {
-            setRegistrosVistoria(maisRecente.registrosVistoria);
-          }
-          return maisRecente.dadosCliente;
-        });
-      }
     } catch (e) {
       console.warn('Erro ao sincronizar orçamentos da nuvem (Google Sheets):', e);
       setCloudError(
@@ -217,27 +162,21 @@ export default function App() {
     }
   };
 
-  // Carrega dados da nuvem ao iniciar a aplicação (hidratando em abas anônimas / novos dispositivos)
+  // O histórico é carregado apenas ao abrir o Kanban, nunca ao iniciar um novo formulário.
   useEffect(() => {
-    void sincronizarOrcamentosDaNuvem(true);
-
-    const handleWindowFocus = () => {
-      void sincronizarOrcamentosDaNuvem(false);
-    };
-    window.addEventListener('focus', handleWindowFocus);
-    return () => window.removeEventListener('focus', handleWindowFocus);
-  }, []);
-
-  // Sincronização em tempo real ao abrir o Kanban ou Passo 4 (com atualização periódica automática)
-  useEffect(() => {
-    if (isKanbanModalOpen || currentStep === 4) {
-      void sincronizarOrcamentosDaNuvem(false);
+    if (isKanbanModalOpen) {
+      void sincronizarOrcamentosDaNuvem();
+      const handleWindowFocus = () => void sincronizarOrcamentosDaNuvem();
+      window.addEventListener('focus', handleWindowFocus);
       const timer = setInterval(() => {
-        void sincronizarOrcamentosDaNuvem(false);
+        void sincronizarOrcamentosDaNuvem();
       }, 15000);
-      return () => clearInterval(timer);
+      return () => {
+        window.removeEventListener('focus', handleWindowFocus);
+        clearInterval(timer);
+      };
     }
-  }, [isKanbanModalOpen, currentStep]);
+  }, [isKanbanModalOpen]);
 
   // Load history from localStorage
   useEffect(() => {
@@ -537,7 +476,13 @@ export default function App() {
   // Limpa o formulário para iniciar o cadastro de um novo orçamento / cliente
   const handleNovoOrcamento = () => {
     setActiveOrcamentoId(null);
-    const clienteVazio: DadosCliente = {
+    setCloudError(null);
+    setIsOrcamentoPdfOpen(false);
+    setIsJsonModalOpen(false);
+    setIsReportModalOpen(false);
+    setIsHistoryOpen(false);
+    setIsKanbanModalOpen(false);
+    setDadosCliente({
       nomeCondominio: '',
       cnpj: '',
       endereco: '',
@@ -546,17 +491,17 @@ export default function App() {
       pavimentos: '',
       telefone: '',
       email: '',
-    };
-    setDadosCliente(clienteVazio);
-    try {
-      localStorage.removeItem(CLIENTE_STORAGE_KEY);
-    } catch {
-      // Ignora erro de storage
-    }
+    });
     setSelectedImage(null);
     setImageName('');
+    setMimeType('image/jpeg');
+    setContexto({
+      responsavelTecnico: 'Engenheiro Civil Especialista em Estruturas e Fachadas',
+      crea: 'CREA Ativo',
+    });
     setDiagnostico(null);
     setRegistrosVistoria([]);
+    setErrorMessage(null);
     setMateriais(MATERIAIS_PADRAO);
     setEquipe(PROFISSIONAIS_PADRAO);
     setMesesObra(4);
@@ -584,28 +529,55 @@ export default function App() {
   };
 
   // Exclui um orçamento salvo da lista e da nuvem (Google Sheets)
-  const handleDeleteOrcamento = (id: string) => {
-    setOrcamentosSalvos((prev) => {
-      const atualizados = prev.filter((orc) => orc.id !== id);
-      salvarOrcamentosNoStorage(atualizados);
-      return atualizados;
-    });
-    if (activeOrcamentoId === id) {
-      setActiveOrcamentoId(null);
+  const handleDeleteOrcamento = async (id: string) => {
+    try {
+      await excluirOrcamentoNaNuvem(id);
+      setOrcamentosSalvos((prev) => {
+        const atualizados = prev.filter((orc) => orc.id !== id);
+        salvarOrcamentosNoStorage(atualizados);
+        return atualizados;
+      });
+      if (activeOrcamentoId === id) setActiveOrcamentoId(null);
+      setCloudError(null);
+    } catch (error) {
+      console.error(`Erro ao excluir orçamento ${id} do Google Sheets:`, error);
+      const message =
+        error instanceof Error ? error.message : 'Não foi possível excluir o orçamento da nuvem.';
+      setCloudError(message);
+      window.alert(message);
     }
-    void excluirOrcamentoNaNuvem(id);
   };
 
   // Limpa todos os orçamentos salvos
-  const handleClearAllOrcamentos = () => {
+  const handleClearAllOrcamentos = async () => {
     if (confirm('Deseja realmente excluir todos os orçamentos salvos do histórico?')) {
       const idsAtuais = orcamentosSalvos.map((o) => o.id);
-      setOrcamentosSalvos([]);
-      setActiveOrcamentoId(null);
-      salvarOrcamentosNoStorage([]);
-      idsAtuais.forEach((id) => {
-        void excluirOrcamentoNaNuvem(id);
-      });
+      const resultados = await Promise.all(
+        idsAtuais.map(async (id) => {
+          try {
+            await excluirOrcamentoNaNuvem(id);
+            return { id, excluido: true };
+          } catch (error) {
+            console.error(`Erro ao excluir orçamento ${id} do Google Sheets:`, error);
+            return { id, excluido: false };
+          }
+        })
+      );
+      const excluidos = new Set(
+        resultados.filter((resultado) => resultado.excluido).map((resultado) => resultado.id)
+      );
+      const restantes = orcamentosSalvos.filter((orcamento) => !excluidos.has(orcamento.id));
+      setOrcamentosSalvos(restantes);
+      salvarOrcamentosNoStorage(restantes);
+      if (activeOrcamentoId && excluidos.has(activeOrcamentoId)) setActiveOrcamentoId(null);
+      setCloudError(
+        restantes.length > 0
+          ? 'Alguns orçamentos não puderam ser excluídos da nuvem. Tente novamente.'
+          : null
+      );
+      if (restantes.length > 0) {
+        window.alert('Alguns orçamentos não puderam ser excluídos da nuvem. Tente novamente.');
+      }
     }
   };
 
@@ -695,7 +667,7 @@ export default function App() {
               <p className="text-xs text-red-300 mt-0.5">{cloudError}</p>
             </div>
             <button
-              onClick={() => void sincronizarOrcamentosDaNuvem(false)}
+              onClick={() => void sincronizarOrcamentosDaNuvem()}
               className="px-3 py-1 bg-red-900/60 hover:bg-red-800 text-xs text-white rounded-lg transition cursor-pointer"
             >
               Tentar novamente
@@ -935,17 +907,16 @@ export default function App() {
               onUpdateCondicoesComerciais={handleUpdateCondicoesComerciais}
               setMargemLucroPercentual={setMargemLucroPercentual}
               onOpenPdf={handleGerarOrcamento}
+              onConcludeOrcamento={async () =>
+                Boolean(await salvarOrcamentoNoHistorico(false, 4))
+              }
               onPrev={() => handleMudarEtapaFormulario(3)}
-              orcamentosSalvos={orcamentosSalvos}
-              activeOrcamentoId={activeOrcamentoId}
-              onUpdateStatusOrcamento={handleUpdateStatusOrcamento}
-              onViewOrcamentoPdf={handleViewOrcamentoPdf}
-              onLoadOrcamento={handleLoadOrcamento}
-              onDeleteOrcamento={handleDeleteOrcamento}
-              onClearAllOrcamentos={handleClearAllOrcamentos}
+              orcamentoId={activeOrcamentoId}
+              statusOrcamento={
+                orcamentosSalvos.find((orcamento) => orcamento.id === activeOrcamentoId)
+                  ?.status || 'em_elaboracao'
+              }
               onSaveCurrentOrcamento={() => void salvarOrcamentoNoHistorico(false, 4)}
-              onRefreshCloud={() => sincronizarOrcamentosDaNuvem(false)}
-              isSyncingCloud={isSyncingCloud}
             />
           </div>
         )}
@@ -1017,7 +988,7 @@ export default function App() {
           onSaveCurrentOrcamento={() =>
             void salvarOrcamentoNoHistorico(false, currentStep)
           }
-          onRefreshCloud={() => sincronizarOrcamentosDaNuvem(false)}
+          onRefreshCloud={() => sincronizarOrcamentosDaNuvem()}
           isSyncingCloud={isSyncingCloud}
           isModal={true}
           onCloseModal={() => setIsKanbanModalOpen(false)}
