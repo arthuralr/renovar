@@ -21,7 +21,7 @@ import {
 export const GOOGLE_SHEETS_API_URL =
   (typeof import.meta !== 'undefined' &&
     (import.meta as any)?.env?.VITE_GOOGLE_SHEETS_API_URL) ||
-  'https://script.google.com/macros/s/AKfycbwEJsdwH7Rrb3rhb1Ytd7IvyqHTQvpFcfmS5Yof6Zs7DXTBmsC4LPYAl3jP2SjN7krw2g/exec';
+  'https://script.google.com/macros/s/AKfycbzicDbZ6t7c_flfGGBM4UII0pfL82GQ_GIkaWhUQUqKHwbdNPYxZWw9WVqlTBbU457Bnw/exec';
 
 async function respostaSheetsConfirmouGravacao(response: Response): Promise<boolean> {
   if (!response.ok) return false;
@@ -274,20 +274,127 @@ function parseDataPlanilhaIso(valorBruto: any): string | null {
 }
 
 /**
- * Remove imagens Base64 do snapshot e mantém as URLs remotas do Google Drive.
+ * Preserva as fotos embutidas nos registros e evita duplicá-las no campo selecionado.
  */
 export function compactarOrcamentoParaNuvem(orcamento: OrcamentoSalvo): OrcamentoSalvo {
-  const limparImagem = (imagemUrl?: string | null) =>
-    imagemUrl?.startsWith('data:image/') ? '' : imagemUrl || '';
-
   return {
     ...orcamento,
-    selectedImage: limparImagem(orcamento.selectedImage),
+    selectedImage: null,
     registrosVistoria: (orcamento.registrosVistoria || []).map((reg) => ({
       ...reg,
-      imagemUrl: limparImagem(reg.imagemUrl),
+      imagemUrl: reg.imagemUrl || '',
     })),
   };
+}
+
+const LIMITE_CARACTERES_DETALHES = 49000;
+
+function reduzirImagemBase64(dataUrl: string, limiteCaracteres: number): Promise<string> {
+  if (dataUrl.length <= limiteCaracteres) return Promise.resolve(dataUrl);
+  if (limiteCaracteres < 512) {
+    return Promise.reject(
+      new Error(
+        'Há fotos demais para o limite de uma célula do Google Sheets. Reduza a quantidade de fotos e tente novamente.'
+      )
+    );
+  }
+
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => {
+      const maxDimension = 1600;
+      const initialScale = Math.min(
+        1,
+        maxDimension / Math.max(image.naturalWidth, image.naturalHeight)
+      );
+      let scale = initialScale;
+
+      while (scale * Math.max(image.naturalWidth, image.naturalHeight) >= 128) {
+        const width = Math.max(1, Math.round(image.naturalWidth * scale));
+        const height = Math.max(1, Math.round(image.naturalHeight * scale));
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const context = canvas.getContext('2d');
+        if (!context) {
+          reject(new Error('Não foi possível compactar uma das imagens para a planilha.'));
+          return;
+        }
+        context.fillStyle = '#fff';
+        context.fillRect(0, 0, width, height);
+        context.drawImage(image, 0, 0, width, height);
+
+        for (const quality of [0.76, 0.58, 0.4, 0.28]) {
+          const compressed = canvas.toDataURL('image/jpeg', quality);
+          if (compressed.length <= limiteCaracteres) {
+            resolve(compressed);
+            return;
+          }
+        }
+        scale *= 0.72;
+      }
+
+      reject(
+        new Error(
+          'As imagens selecionadas excedem o limite de armazenamento da célula Detalhes do Google Sheets. Reduza a quantidade de fotos.'
+        )
+      );
+    };
+    image.onerror = () => reject(new Error('Não foi possível ler uma das imagens selecionadas.'));
+    image.src = dataUrl;
+  });
+}
+
+export async function compactarImagensParaPlanilha(
+  orcamento: OrcamentoSalvo
+): Promise<OrcamentoSalvo> {
+  const registros = orcamento.registrosVistoria || [];
+  const imagensEmbutidas = registros.filter((registro) =>
+    registro.imagemUrl.startsWith('data:image/')
+  );
+  const base = compactarOrcamentoParaNuvem(orcamento);
+  const detalhesBase = JSON.stringify({
+    ...base,
+    registrosVistoria: registros.map((registro) => ({
+      ...registro,
+      imagemUrl: registro.imagemUrl.startsWith('data:image/') ? '' : registro.imagemUrl,
+    })),
+  });
+  const caracteresDisponiveis = LIMITE_CARACTERES_DETALHES - detalhesBase.length;
+
+  if (caracteresDisponiveis < 0) {
+    throw new Error(
+      'Os dados do laudo excedem o limite de uma célula do Google Sheets. Reduza o conteúdo do diagnóstico e tente novamente.'
+    );
+  }
+
+  if (imagensEmbutidas.length === 0) {
+    return base;
+  }
+
+  const limitePorImagem = Math.floor(caracteresDisponiveis / imagensEmbutidas.length);
+  const imagensCompactadas = new Map(
+    await Promise.all(
+      imagensEmbutidas.map(async (registro) => [
+        registro.id,
+        await reduzirImagemBase64(registro.imagemUrl, limitePorImagem),
+      ] as const)
+    )
+  );
+  const resultado: OrcamentoSalvo = {
+    ...base,
+    registrosVistoria: registros.map((registro) => ({
+      ...registro,
+      imagemUrl: imagensCompactadas.get(registro.id) || registro.imagemUrl || '',
+    })),
+  };
+
+  if (JSON.stringify(resultado).length > LIMITE_CARACTERES_DETALHES) {
+    throw new Error(
+      'O laudo ainda excede o limite de armazenamento do Google Sheets após compactar as imagens.'
+    );
+  }
+  return resultado;
 }
 
 /**
@@ -317,9 +424,18 @@ export function montarPayloadPlanilha(
   const valorFormatado = formatarMoeda(valorGlobal);
   const dataFormatada = new Date(orcamento.dataCriacao).toLocaleString('pt-BR');
   const detalhesJson = JSON.stringify(orcamentoCompacto);
+  if (detalhesJson.length > LIMITE_CARACTERES_DETALHES) {
+    throw new Error(
+      'O laudo excede o limite de armazenamento de uma célula do Google Sheets (49.000 caracteres). Reduza as fotos ou o conteúdo do diagnóstico.'
+    );
+  }
   const imagens = (orcamentoCompacto.registrosVistoria || [])
     .filter((registro) => registro.imagemUrl)
-    .map(({ id, imagemUrl, nomeArquivo }) => ({ id, url: imagemUrl, nomeArquivo }));
+    .map(({ id, imagemUrl, nomeArquivo }) => ({
+      id,
+      nomeArquivo,
+      embutida: imagemUrl.startsWith('data:image/'),
+    }));
 
   const resumoDetalhesTexto = [
     `Condomínio: ${nomeCondominio}`,
@@ -992,114 +1108,6 @@ export async function salvarOrcamentoNaNuvem(
 
   if (salvouDireto) return true;
   throw new Error('A API do Google Sheets não confirmou a gravação do orçamento.');
-}
-
-export interface ImagemDrive {
-  imageUrl: string;
-  fileId: string;
-  fileName: string;
-}
-
-function parseRespostaAppsScript(text: string): any {
-  if (!text.trim() || /<(?:!doctype|html|head|body)\b/i.test(text)) {
-    throw new Error(
-      'O Apps Script retornou uma página HTML ou resposta vazia. Verifique a implantação como Web App e o acesso "Qualquer pessoa".'
-    );
-  }
-  let result: any;
-  try {
-    result = JSON.parse(text);
-  } catch {
-    throw new Error('O Apps Script retornou uma resposta JSON inválida.');
-  }
-  if (result?.ok === false || result?.success === false || result?.error) {
-    throw new Error(String(result.error || 'O Apps Script recusou a solicitação.'));
-  }
-  return result;
-}
-
-async function postarUploadImagem(
-  url: string,
-  payload: Record<string, string>
-): Promise<ImagemDrive> {
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body: JSON.stringify(payload),
-    redirect: 'follow',
-    credentials: 'omit',
-  });
-  const resultado = parseRespostaAppsScript(await response.text());
-  if (!response.ok || !resultado.imageUrl || !resultado.fileId) {
-    throw new Error(
-      resultado.error ||
-        `Não foi possível salvar a imagem no Google Drive (HTTP ${response.status}).`
-    );
-  }
-  return {
-    imageUrl: String(resultado.imageUrl),
-    fileId: String(resultado.fileId),
-    fileName: String(resultado.fileName || payload.fileName),
-  };
-}
-
-export async function uploadImagemParaDrive(
-  dataUrl: string,
-  fileName: string,
-  mimeType: string,
-  uploadId: string
-): Promise<ImagemDrive> {
-  if (!/^data:image\/[a-zA-Z0-9.+-]+;base64,/.test(dataUrl)) {
-    throw new Error('O arquivo selecionado não contém uma imagem Base64 válida.');
-  }
-  if (dataUrl.length > 15 * 1024 * 1024) {
-    throw new Error('A imagem excede o limite de 11 MB permitido para upload.');
-  }
-  const payload = {
-    action: 'uploadImage',
-    uploadId,
-    fileName,
-    mimeType,
-    imageBase64: dataUrl.slice(dataUrl.indexOf(',') + 1),
-  };
-  const separador = GOOGLE_SHEETS_API_URL.includes('?') ? '&' : '?';
-  const targetUrl = `${GOOGLE_SHEETS_API_URL}${separador}t=${Date.now()}`;
-  let directError: unknown;
-
-  try {
-    return await postarUploadImagem(targetUrl, payload);
-  } catch (error) {
-    directError = error;
-    console.warn('[Google Drive] Upload direto falhou; tentando o relay do servidor:', error);
-  }
-
-  try {
-    const response = await fetch('/api/sheets/imagens', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
-    const resultado = parseRespostaAppsScript(await response.text());
-    if (!response.ok || !resultado.imageUrl || !resultado.fileId) {
-      throw new Error(
-        resultado.error ||
-          `O relay não confirmou o upload da imagem (HTTP ${response.status}).`
-      );
-    }
-    return {
-      imageUrl: String(resultado.imageUrl),
-      fileId: String(resultado.fileId),
-      fileName: String(resultado.fileName || fileName),
-    };
-  } catch (relayError) {
-    const relayMessage =
-      relayError instanceof Error ? relayError.message : String(relayError);
-    const directMessage =
-      directError instanceof Error ? directError.message : String(directError);
-    throw new Error(
-      `Falha ao armazenar a imagem no Google Drive. Apps Script: ${directMessage}. Relay: ${relayMessage}`
-    );
-  }
 }
 
 /**

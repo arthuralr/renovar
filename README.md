@@ -46,18 +46,17 @@ standalone script, set the `SPREADSHEET_ID` Script Property before deployment.
 Deletion is permanent: the script removes every row whose proposal ID exactly
 matches in the detected ID/code column (first column when no ID header exists).
 
-### Pathology photos in Google Drive
+### Pathology photos
 
-The Step 2 upload sends optimized JPG/PNG/WEBP photos to the Apps Script, which
-stores them in Drive and adds their URLs to the budget's `imagens` column and
-JSON details in `Página1`. Configure the optional `DRIVE_FOLDER_ID` Script
-Property to choose a Drive folder; without it, files are created in the script
-owner's Drive root. Image upload failures are shown in Step 2 and can be retried;
-the budget is not saved until pending photos have uploaded successfully.
+Step 2 keeps optimized JPEG images as Base64 data URLs in each inspection
+record. When the budget is saved, the browser reduces the images as needed and
+embeds them in the JSON stored in the `detalhes` cell of `Página1`; the Apps
+Script does not upload the photos to Drive. The same embedded data is used by
+the Kanban/history, image preview, and PDF generator.
+When the user advances from a step with photos and a condominium name filled,
+the app persists that budget before moving to the next step.
 
-The script must be redeployed as a Web App with **Execute as: Me** and access
-set to **Anyone**. In the Apps Script project, authorize the Sheets and Drive
-permissions and verify the deployment at `<exec-url>?health=1`. Photos are
-shared as **Anyone with the link / Viewer** so they can be displayed on other
-devices without Google sign-in. Anyone who obtains an image URL can view that
-photo; do not upload sensitive images unless this sharing policy is acceptable.
+Google Sheets limits a cell to 50,000 characters. The application reserves
+space for the rest of the budget and keeps `detalhes` below 49,000 characters;
+if the report text or number of photos cannot fit after compression, saving
+shows an actionable error instead of sending a value Sheets will reject.

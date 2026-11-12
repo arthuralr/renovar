@@ -421,7 +421,7 @@ app.post('/api/webhook/renovar-proposta/', handleWebhookRenovarProposta);
 const GOOGLE_SHEETS_API_URL =
   process.env.GOOGLE_SHEETS_API_URL ||
   process.env.VITE_GOOGLE_SHEETS_API_URL ||
-  'https://script.google.com/macros/s/AKfycbwEJsdwH7Rrb3rhb1Ytd7IvyqHTQvpFcfmS5Yof6Zs7DXTBmsC4LPYAl3jP2SjN7krw2g/exec';
+  'https://script.google.com/macros/s/AKfycbzicDbZ6t7c_flfGGBM4UII0pfL82GQ_GIkaWhUQUqKHwbdNPYxZWw9WVqlTBbU457Bnw/exec';
 
 const createAppsScriptUrl = (params: Record<string, string> = {}): string => {
   let url: URL;
@@ -572,63 +572,6 @@ const handleGetOrcamentosSheets = async (_req: express.Request, res: express.Res
   }
 };
 
-const handlePostImagemDrive = async (req: express.Request, res: express.Response) => {
-  res.setHeader('Content-Type', 'application/json');
-  res.setHeader('Cache-Control', 'no-store');
-  const payload = req.body || {};
-  if (
-    payload.action !== 'uploadImage' ||
-    !payload.uploadId ||
-    !payload.imageBase64 ||
-    !payload.mimeType ||
-    String(payload.uploadId).length > 80 ||
-    !['image/jpeg', 'image/png', 'image/webp'].includes(String(payload.mimeType).toLowerCase()) ||
-    String(payload.imageBase64).length > 15000000
-  ) {
-    return res.status(400).json({
-      ok: false,
-      error: 'Imagem inválida, formato não suportado ou tamanho superior ao limite permitido.',
-    });
-  }
-
-  try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 30000);
-    try {
-      const response = await fetch(createAppsScriptUrl(), {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify(payload),
-        redirect: 'follow',
-        signal: controller.signal,
-      });
-      const text = await response.text();
-      let result: any;
-      try {
-        result = JSON.parse(text);
-      } catch {
-        throw new Error(
-          /<(?:!doctype|html|head|body)\b/i.test(text)
-            ? 'O Apps Script retornou HTML. Verifique a implantação Web App e o acesso "Qualquer pessoa".'
-            : 'O Apps Script retornou uma resposta JSON inválida.'
-        );
-      }
-      if (!response.ok || result?.ok === false || result?.error || !result?.imageUrl) {
-        throw new Error(String(result?.error || `Falha no Apps Script (HTTP ${response.status}).`));
-      }
-      return res.status(200).json(result);
-    } finally {
-      clearTimeout(timeoutId);
-    }
-  } catch (error: any) {
-    console.error('Erro ao enviar fotografia ao Google Drive:', error?.message || error);
-    return res.status(502).json({
-      ok: false,
-      error: error?.message || 'Não foi possível enviar a imagem ao Google Drive.',
-    });
-  }
-};
-
 const handlePostOrcamentosSheets = async (req: express.Request, res: express.Response) => {
   res.setHeader('Content-Type', 'application/json');
   const payload = req.body || {};
@@ -752,8 +695,6 @@ app.get('/api/sheets/orcamentos', handleGetOrcamentosSheets);
 app.get('/api/sheets/orcamentos/', handleGetOrcamentosSheets);
 app.post('/api/sheets/orcamentos', handlePostOrcamentosSheets);
 app.post('/api/sheets/orcamentos/', handlePostOrcamentosSheets);
-app.post('/api/sheets/imagens', handlePostImagemDrive);
-app.post('/api/sheets/imagens/', handlePostImagemDrive);
 
 // Explicit error handler for all /api routes to GUARANTEE json response, never HTML
 app.use('/api', (err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {

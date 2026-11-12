@@ -21,13 +21,7 @@ function doGet(event) {
   try {
     if (event && event.parameter && event.parameter.health === '1') {
       getBudgetSheet_();
-      const folderId = PropertiesService.getScriptProperties().getProperty('DRIVE_FOLDER_ID');
-      if (folderId) {
-        DriveApp.getFolderById(folderId).getName();
-      } else {
-        DriveApp.getRootFolder().getId();
-      }
-      return jsonOutput_({ ok: true, service: 'google-sheets-drive', spreadsheetReady: true });
+      return jsonOutput_({ ok: true, service: 'google-sheets', spreadsheetReady: true });
     }
     const sheet = getBudgetSheet_();
     const values = sheet.getDataRange().getDisplayValues();
@@ -41,10 +35,6 @@ function doPost(event) {
   try {
     const payload = readPayload_(event);
     const action = String(payload.action || payload.acao || 'save').toLowerCase();
-    if (action === 'uploadimage' || action === 'upload_image') {
-      return jsonOutput_(uploadImageToDrive_(payload));
-    }
-
     const proposalId = String(
       payload.id || payload.ID || payload.orcamentoId || payload.codigo || ''
     ).trim();
@@ -245,60 +235,6 @@ function canonicalHeader_(header) {
   if (['detalhes', 'json', 'payload', 'orcamento', 'dados'].indexOf(header) !== -1) return 'detalhes';
   if (['imagens', 'fotos', 'fotografias', 'imageurls'].indexOf(header) !== -1) return 'imagens';
   return '';
-}
-
-function uploadImageToDrive_(payload) {
-  const rawUploadId = String(payload.uploadId || '');
-  const uploadId = rawUploadId.replace(/[^a-zA-Z0-9_-]/g, '');
-  const mimeType = String(payload.mimeType || '').toLowerCase();
-  const imageBase64 = String(payload.imageBase64 || '').replace(/\s/g, '');
-  const allowedTypes = {
-    'image/jpeg': 'jpg',
-    'image/png': 'png',
-    'image/webp': 'webp',
-  };
-  if (!uploadId || uploadId.length > 80) {
-    throw new Error('O identificador do upload é obrigatório e deve ter até 80 caracteres.');
-  }
-  if (!Object.prototype.hasOwnProperty.call(allowedTypes, mimeType)) {
-    throw new Error('Formato de imagem não suportado. Envie JPG, PNG ou WEBP.');
-  }
-  if (!imageBase64 || imageBase64.length > 15000000) {
-    throw new Error('A imagem está vazia ou excede o limite de tamanho do upload.');
-  }
-
-  const fileName = 'vistoria_' + uploadId + '.' + allowedTypes[mimeType];
-  const folderId = PropertiesService.getScriptProperties().getProperty('DRIVE_FOLDER_ID');
-  const folder = folderId ? DriveApp.getFolderById(folderId) : DriveApp.getRootFolder();
-  const existingFiles = folder.getFilesByName(fileName);
-  let file = existingFiles.hasNext() ? existingFiles.next() : null;
-  const isNewFile = !file;
-
-  if (!file) {
-    const bytes = Utilities.base64Decode(imageBase64);
-    if (bytes.length > 11 * 1024 * 1024) {
-      throw new Error('A imagem excede o limite de 11 MB.');
-    }
-    file = folder.createFile(Utilities.newBlob(bytes, mimeType, fileName));
-  }
-
-  try {
-    file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
-  } catch (error) {
-    if (isNewFile) file.setTrashed(true);
-    throw new Error(
-      'Não foi possível habilitar o acesso "qualquer pessoa com o link" no Google Drive. Verifique as políticas da conta Google Workspace: ' +
-        error.message
-    );
-  }
-
-  return {
-    ok: true,
-    fileId: file.getId(),
-    fileName: file.getName(),
-    imageUrl: 'https://drive.google.com/uc?export=view&id=' + file.getId(),
-    webViewUrl: file.getUrl(),
-  };
 }
 
 function normalizeHeader_(value) {

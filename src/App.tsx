@@ -43,7 +43,7 @@ import {
 } from './utils/orcamentoKanbanUtils';
 import {
   carregarOrcamentosDaNuvem,
-  uploadImagemParaDrive,
+  compactarImagensParaPlanilha,
   salvarOrcamentoNaNuvem,
   atualizarStatusOrcamentoNaNuvem,
   excluirOrcamentoNaNuvem,
@@ -88,17 +88,8 @@ export default function App() {
   const [selectedImageRecordId, setSelectedImageRecordId] = useState<string | null>(null);
   const [imageName, setImageName] = useState<string>('');
   const [mimeType, setMimeType] = useState<string>('image/jpeg');
-  const [imageUploadingCount, setImageUploadingCount] = useState(0);
-  const [imageUploadErrors, setImageUploadErrors] = useState<
-    Array<{ recordId: string; name: string; message: string }>
-  >([]);
-  const imageDataByRecordId = useRef(
-    new Map<string, { dataUrl: string; name: string; mimeType: string }>()
-  );
-  const imageUrlsByRecordId = useRef(new Map<string, string>());
-  const imageUploadPromises = useRef(new Map<string, Promise<boolean>>());
-  const imageUploadContextId = useRef(0);
   const selectedImageRecordIdRef = useRef<string | null>(null);
+  const isPersistingStepRef = useRef(false);
   const [contexto, setContexto] = useState<InspecaoContexto>({
     responsavelTecnico: 'Engenheiro Civil Especialista em Estruturas e Fachadas',
     crea: 'CREA Ativo',
@@ -210,62 +201,6 @@ export default function App() {
     setSelectedImageRecordId(recordId);
   };
 
-  const enviarImagemParaDrive = (recordId: string): Promise<boolean> => {
-    const pendente = imageUploadPromises.current.get(recordId);
-    if (pendente) return pendente;
-
-    const imagem = imageDataByRecordId.current.get(recordId);
-    if (!imagem) return Promise.resolve(true);
-
-    const contextId = imageUploadContextId.current;
-    setImageUploadingCount((count) => count + 1);
-    const upload = (async () => {
-      try {
-        const resultado = await uploadImagemParaDrive(
-          imagem.dataUrl,
-          imagem.name,
-          imagem.mimeType,
-          recordId
-        );
-        imageUrlsByRecordId.current.set(recordId, resultado.imageUrl);
-        imageDataByRecordId.current.delete(recordId);
-        if (contextId === imageUploadContextId.current) {
-          setRegistrosVistoria((prev) =>
-            prev.map((registro) =>
-              registro.id === recordId
-                ? { ...registro, imagemUrl: resultado.imageUrl }
-                : registro
-            )
-          );
-          setImageUploadErrors((prev) => prev.filter((error) => error.recordId !== recordId));
-        }
-        return true;
-      } catch (error) {
-        const message =
-          error instanceof Error ? error.message : 'Falha ao enviar a fotografia ao Google Drive.';
-        if (contextId === imageUploadContextId.current) {
-          setImageUploadErrors((prev) => [
-            ...prev.filter((item) => item.recordId !== recordId),
-            { recordId, name: imagem.name, message },
-          ]);
-        }
-        return false;
-      } finally {
-        imageUploadPromises.current.delete(recordId);
-        if (contextId === imageUploadContextId.current) {
-          setImageUploadingCount((count) => Math.max(0, count - 1));
-        }
-      }
-    })();
-    imageUploadPromises.current.set(recordId, upload);
-    return upload;
-  };
-
-  const tentarNovamenteUploadsDeImagem = async () => {
-    const recordIds = Array.from(imageDataByRecordId.current.keys());
-    await Promise.all(recordIds.map((recordId) => enviarImagemParaDrive(recordId)));
-  };
-
   const upsertRegistroVistoria = (res: DiagnosticoResponse, img: string, name: string) => {
     const selectedRecordId = selectedImageRecordIdRef.current;
     setRegistrosVistoria((prev) => {
@@ -288,9 +223,7 @@ export default function App() {
           selectedRecordId ||
           `insp-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
         dataHora: new Date().toISOString(),
-        imagemUrl: selectedRecordId
-          ? imageUrlsByRecordId.current.get(selectedRecordId) || img
-          : img,
+        imagemUrl: img,
         nomeArquivo: name || `vistoria-foto-${prev.length + 1}.jpg`,
         contexto,
         resultado: res,
@@ -301,16 +234,13 @@ export default function App() {
 
   const saveToHistory = (res: DiagnosticoResponse, img: string, name: string) => {
     upsertRegistroVistoria(res, img, name);
-    const recordId = selectedImageRecordIdRef.current;
-    const imagemPersistida =
-      (recordId && imageUrlsByRecordId.current.get(recordId)) || img;
 
     setHistorico((prev) => {
-      const filtered = prev.filter((h) => h.imagemUrl !== imagemPersistida);
+      const filtered = prev.filter((h) => h.imagemUrl !== img);
       const newItem: HistoricoInspecao = {
         id: `insp-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
         dataHora: new Date().toISOString(),
-        imagemUrl: imagemPersistida,
+        imagemUrl: img,
         nomeArquivo: name || 'vistoria-fotografica.jpg',
         contexto,
         resultado: res,
@@ -332,11 +262,6 @@ export default function App() {
     setImageName(name);
     setMimeType(mType);
     setErrorMessage(null);
-    imageDataByRecordId.current.set(recordId, {
-      dataUrl: base64,
-      name: name || 'vistoria-fotografica.jpg',
-      mimeType: mType || 'image/jpeg',
-    });
 
     setRegistrosVistoria((prev) => {
       const nextIndex = prev.length;
@@ -352,16 +277,12 @@ export default function App() {
       };
       return [...prev, newItem];
     });
-    void enviarImagemParaDrive(recordId);
   };
 
   const handleRemoveRegistroVistoria = (id: string) => {
     setRegistrosVistoria((prev) => {
       const target = prev.find((r) => r.id === id);
       const remaining = prev.filter((r) => r.id !== id);
-      imageDataByRecordId.current.delete(id);
-      imageUrlsByRecordId.current.delete(id);
-      setImageUploadErrors((prev) => prev.filter((error) => error.recordId !== id));
       if (target && (target.id === selectedImageRecordIdRef.current || target.imagemUrl === selectedImage)) {
         if (remaining.length > 0) {
           const next = remaining[remaining.length - 1];
@@ -385,7 +306,7 @@ export default function App() {
 
     if (!selectedImage.startsWith('data:image/')) {
       setErrorMessage(
-        'Esta fotografia já está arquivada no Google Drive e não está disponível para reanálise. Reenvie o arquivo original para executar um novo diagnóstico.'
+        'Esta fotografia está vinculada por uma URL externa e não pode ser reanalisada nesta sessão. Reenvie o arquivo original para executar um novo diagnóstico.'
       );
       return;
     }
@@ -477,21 +398,12 @@ export default function App() {
     setSelectedImage(item.imagemUrl);
     setSelectedImageRecord(item.id);
     setImageName(item.nomeArquivo);
+    const imageMimeType = item.imagemUrl.match(/^data:(image\/[^;]+);base64,/)?.[1];
+    if (imageMimeType) setMimeType(imageMimeType);
     setContexto(item.contexto);
     setDiagnostico(item.resultado);
     setErrorMessage(null);
     upsertRegistroVistoria(item.resultado, item.imagemUrl, item.nomeArquivo);
-    if (item.imagemUrl.startsWith('data:image/')) {
-      const mimeType = item.imagemUrl.match(/^data:(image\/[^;]+);base64,/)?.[1] || 'image/jpeg';
-      imageDataByRecordId.current.set(item.id, {
-        dataUrl: item.imagemUrl,
-        name: item.nomeArquivo || 'vistoria-fotografica.jpg',
-        mimeType,
-      });
-      void enviarImagemParaDrive(item.id);
-    } else {
-      imageUrlsByRecordId.current.set(item.id, item.imagemUrl);
-    }
     setCurrentStep(2); // Jump to step 2 when selecting history
   };
 
@@ -539,33 +451,6 @@ export default function App() {
       return null;
     }
 
-    const uploadsOk = await Promise.all(
-      Array.from(imageDataByRecordId.current.keys()).map((recordId) =>
-        enviarImagemParaDrive(recordId)
-      )
-    );
-    if (uploadsOk.some((ok) => !ok)) {
-      setCloudError('Uma ou mais fotografias não foram enviadas ao Google Drive. Tente novamente antes de salvar.');
-      setCloudRetryAction(() =>
-        () => void salvarOrcamentoNoHistorico(forcarNovoId, etapaFormulario)
-      );
-      return null;
-    }
-
-    const registrosComImagensNuvem = registrosVistoria.map((registro) => ({
-      ...registro,
-      imagemUrl: imageUrlsByRecordId.current.get(registro.id) || registro.imagemUrl,
-    }));
-    const activeImageRecordId = selectedImageRecordIdRef.current;
-    const imagemSelecionadaNuvem = activeImageRecordId
-      ? imageUrlsByRecordId.current.get(activeImageRecordId) ||
-        registrosComImagensNuvem.find((registro) => registro.id === activeImageRecordId)
-          ?.imagemUrl ||
-        null
-      : selectedImage?.startsWith('data:image/')
-        ? null
-        : selectedImage;
-
     const agora = new Date().toISOString();
     const idGerado =
       activeOrcamentoId && !forcarNovoId
@@ -575,7 +460,7 @@ export default function App() {
     const existente = orcamentosSalvos.find((o) => o.id === idGerado);
     const statusPreservado: StatusOrcamentoKanban = existente?.status || 'em_elaboracao';
 
-    const novoRegistro: OrcamentoSalvo = {
+    const novoRegistroBase: OrcamentoSalvo = {
       id: idGerado,
       dataCriacao: existente?.dataCriacao || agora,
       dataAtualizacao: agora,
@@ -588,12 +473,20 @@ export default function App() {
       mesesObra,
       margemLucroPercentual,
       diagnostico: diagnosticoConsolidado,
-      registrosVistoria: registrosComImagensNuvem,
-      selectedImage: imagemSelecionadaNuvem,
+      registrosVistoria: [...registrosVistoria],
+      selectedImage,
     };
 
     try {
+      const novoRegistro = await compactarImagensParaPlanilha(novoRegistroBase);
       await salvarOrcamentoNaNuvem(novoRegistro, etapaFormulario);
+      setRegistrosVistoria(novoRegistro.registrosVistoria || []);
+      const imagemAtualCompactada = novoRegistro.registrosVistoria?.find(
+        (registro) => registro.id === selectedImageRecordIdRef.current
+      )?.imagemUrl;
+      if (imagemAtualCompactada && selectedImage?.startsWith('data:image/')) {
+        setSelectedImage(imagemAtualCompactada);
+      }
       setOrcamentosSalvos((prev) => {
         const semDuplicata = prev.filter((o) => o.id !== idGerado);
         const atualizados = [novoRegistro, ...semDuplicata];
@@ -618,9 +511,25 @@ export default function App() {
     }
   };
 
-  // A navegação entre etapas não cria nem atualiza orçamento na nuvem.
-  const handleMudarEtapaFormulario = (proximaEtapa: WizardStep) => {
-    if (proximaEtapa === currentStep) return;
+  // Persist photo-bearing budgets when the user explicitly advances the wizard.
+  const handleMudarEtapaFormulario = async (proximaEtapa: WizardStep) => {
+    if (proximaEtapa === currentStep || isPersistingStepRef.current) return;
+    const temFotosParaPersistir = registrosVistoria.some((registro) =>
+      registro.imagemUrl.startsWith('data:image/')
+    );
+    if (
+      proximaEtapa > currentStep &&
+      temFotosParaPersistir &&
+      dadosCliente.nomeCondominio.trim()
+    ) {
+      isPersistingStepRef.current = true;
+      try {
+        const salvo = await salvarOrcamentoNoHistorico(false, proximaEtapa);
+        if (!salvo) return;
+      } finally {
+        isPersistingStepRef.current = false;
+      }
+    }
     setCurrentStep(proximaEtapa);
   };
 
@@ -654,11 +563,6 @@ export default function App() {
     });
     setDiagnostico(null);
     setRegistrosVistoria([]);
-    imageUploadContextId.current += 1;
-    imageDataByRecordId.current.clear();
-    imageUrlsByRecordId.current.clear();
-    setImageUploadingCount(0);
-    setImageUploadErrors([]);
     setErrorMessage(null);
     setMateriais([]);
     setEquipe([]);
@@ -749,35 +653,18 @@ export default function App() {
     setMargemLucroPercentual(orcamento.margemLucroPercentual);
     setCondicoesComerciais(orcamento.condicoesComerciais || CONDICOES_COMERCIAIS_PADRAO);
     setDiagnostico(orcamento.diagnostico);
-    imageUploadContextId.current += 1;
-    imageDataByRecordId.current.clear();
-    imageUrlsByRecordId.current.clear();
     if (orcamento.registrosVistoria) {
       setRegistrosVistoria(orcamento.registrosVistoria);
-      orcamento.registrosVistoria.forEach((registro) => {
-        if (registro.imagemUrl.startsWith('data:image/')) {
-          const mimeType =
-            registro.imagemUrl.match(/^data:(image\/[^;]+);base64,/)?.[1] || 'image/jpeg';
-          imageDataByRecordId.current.set(registro.id, {
-            dataUrl: registro.imagemUrl,
-            name: registro.nomeArquivo || 'vistoria-fotografica.jpg',
-            mimeType,
-          });
-          void enviarImagemParaDrive(registro.id);
-        } else if (registro.imagemUrl) {
-          imageUrlsByRecordId.current.set(registro.id, registro.imagemUrl);
-        }
-      });
-    }
-    if (orcamento.selectedImage !== undefined) {
-      setSelectedImage(orcamento.selectedImage);
     }
     const selectedRecord =
       orcamento.registrosVistoria?.find(
         (registro) => registro.imagemUrl === orcamento.selectedImage
-      ) || null;
+      ) || orcamento.registrosVistoria?.[orcamento.registrosVistoria.length - 1] || null;
+    setSelectedImage(selectedRecord?.imagemUrl || orcamento.selectedImage || null);
     setSelectedImageRecord(selectedRecord?.id || null);
     setImageName(selectedRecord?.nomeArquivo || '');
+    const imageMimeType = selectedRecord?.imagemUrl.match(/^data:(image\/[^;]+);base64,/)?.[1];
+    if (imageMimeType) setMimeType(imageMimeType);
     setCurrentStep(4);
     setIsKanbanModalOpen(false);
   };
@@ -944,35 +831,6 @@ export default function App() {
               onSelectRegistro={handleSelectHistoryItem}
               onRemoveRegistro={handleRemoveRegistroVistoria}
             />
-            {(imageUploadingCount > 0 || imageUploadErrors.length > 0) && (
-              <div
-                className={`p-4 rounded-xl border text-sm ${
-                  imageUploadErrors.length
-                    ? 'bg-red-950/60 border-red-800 text-red-200'
-                    : 'bg-sky-950/40 border-sky-800 text-sky-200'
-                }`}
-              >
-                <strong className="block font-semibold">
-                  {imageUploadingCount > 0
-                    ? `Enviando ${imageUploadingCount} fotografia(s) ao Google Drive...`
-                    : 'Não foi possível arquivar todas as fotografias'}
-                </strong>
-                {imageUploadErrors.map((failure) => (
-                  <p key={failure.recordId} className="mt-1 text-xs">
-                    {failure.name}: {failure.message}
-                  </p>
-                ))}
-                {imageUploadErrors.length > 0 && (
-                  <button
-                    onClick={() => void tentarNovamenteUploadsDeImagem()}
-                    disabled={imageUploadingCount > 0}
-                    className="mt-3 px-3 py-1 bg-red-900/60 hover:bg-red-800 text-xs text-white rounded-lg transition disabled:opacity-50"
-                  >
-                    Tentar upload novamente
-                  </button>
-                )}
-              </div>
-            )}
 
             {/* Error notification if any */}
             {errorMessage && (
