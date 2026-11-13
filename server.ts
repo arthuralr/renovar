@@ -22,6 +22,23 @@ delete process.env.GCLOUD_PROJECT;
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
 
+const allowedCorsOrigins = (process.env.CORS_ORIGIN || '')
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  if (origin && allowedCorsOrigins.includes(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Vary', 'Origin');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Cache-Control, Pragma');
+  }
+  if (req.method === 'OPTIONS') return res.sendStatus(204);
+  next();
+});
+
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
@@ -31,23 +48,18 @@ const pool = new Pool({
 });
 
 async function garantirTabela() {
-  try {
-    await pool.query('DROP TABLE IF EXISTS propostas_renovar;');
-    await pool.query(`
-      CREATE TABLE propostas_renovar (
-        id VARCHAR(255) PRIMARY KEY,
-        cliente TEXT,
-        status VARCHAR(100),
-        dados JSONB,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      );
-    `);
-    console.log('[Banco de Dados] Tabela propostas_renovar recriada com sucesso no Neon.tech.');
-  } catch (err) {
-    console.error('[Banco de Dados] Erro ao alinhar tabela:', err);
-  }
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS propostas_renovar (
+      id VARCHAR(255) PRIMARY KEY,
+      cliente TEXT,
+      status VARCHAR(100),
+      dados JSONB,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+  `);
+  console.log('[Banco de Dados] Tabela propostas_renovar pronta no Neon.tech.');
 }
-void garantirTabela();
+await garantirTabela();
 
 const GEMINI_PRIMARY_MODEL = 'gemini-2.5-flash';
 const GEMINI_BACKUP_MODEL = 'gemini-2.0-flash';
@@ -251,7 +263,7 @@ const handlePostOrcamentos = async (req: express.Request, res: express.Response)
   try {
     if (isDelete && id) {
       await pool.query('DELETE FROM propostas_renovar WHERE id = $1', [id]);
-      return res.status(200).json({ ok: true, sheetsOk: true, success: true, message: 'Excluído com sucesso.' });
+      return res.status(200).json({ ok: true, success: true, message: 'Excluído com sucesso.' });
     }
 
     if (id) {
@@ -271,17 +283,17 @@ const handlePostOrcamentos = async (req: express.Request, res: express.Response)
         );
       }
     }
-    return res.status(200).json({ ok: true, sheetsOk: true, success: true, message: 'Salvo com sucesso.' });
+    return res.status(200).json({ ok: true, success: true, message: 'Salvo com sucesso.' });
   } catch (err: any) {
     console.error('Erro ao salvar no banco:', err);
-    return res.status(500).json({ ok: false, sheetsOk: false, error: err?.message });
+    return res.status(500).json({ ok: false, error: err?.message });
   }
 };
 
-app.get('/api/sheets/orcamentos', handleGetOrcamentos);
-app.get('/api/sheets/orcamentos/', handleGetOrcamentos);
-app.post('/api/sheets/orcamentos', handlePostOrcamentos);
-app.post('/api/sheets/orcamentos/', handlePostOrcamentos);
+app.get('/api/orcamentos', handleGetOrcamentos);
+app.get('/api/orcamentos/', handleGetOrcamentos);
+app.post('/api/orcamentos', handlePostOrcamentos);
+app.post('/api/orcamentos/', handlePostOrcamentos);
 
 if (process.env.NODE_ENV !== 'production') {
   const { createServer: createViteServer } = await import('vite');

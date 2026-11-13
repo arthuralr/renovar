@@ -44,13 +44,13 @@ import {
   salvarOrcamentosNoStorage,
 } from './utils/orcamentoKanbanUtils';
 import {
-  carregarOrcamentoDaNuvemPorId,
-  carregarOrcamentosDaNuvem,
-  compactarImagensParaPlanilha,
-  salvarOrcamentoNaNuvem,
-  atualizarStatusOrcamentoNaNuvem,
-  excluirOrcamentoNaNuvem,
-} from './services/googleSheetsService';
+  carregarOrcamentoDoBancoPorId,
+  carregarOrcamentosDoBanco,
+  compactarImagensParaPersistencia,
+  salvarOrcamentoNoBanco,
+  atualizarStatusOrcamentoNoBanco,
+  excluirOrcamentoDoBanco,
+} from './services/orcamentosService';
 import {
   ShieldAlert,
   AlertTriangle,
@@ -159,7 +159,7 @@ export default function App() {
   const sincronizarOrcamentosDaNuvem = async () => {
     setIsSyncingCloud(true);
     try {
-      const listaNuvem = await carregarOrcamentosDaNuvem();
+      const listaNuvem = await carregarOrcamentosDoBanco();
       setOrcamentosSalvos(listaNuvem);
       setCloudError(null);
       setCloudRetryAction(null);
@@ -508,8 +508,8 @@ export default function App() {
     };
 
     try {
-      const novoRegistro = await compactarImagensParaPlanilha(novoRegistroBase);
-      await salvarOrcamentoNaNuvem(novoRegistro, etapaFormulario);
+      const novoRegistro = await compactarImagensParaPersistencia(novoRegistroBase);
+      await salvarOrcamentoNoBanco(novoRegistro, etapaFormulario);
       setRegistrosVistoria(novoRegistro.registrosVistoria || []);
       const imagemAtualCompactada = novoRegistro.registrosVistoria?.find(
         (registro) => registro.id === selectedImageRecordIdRef.current
@@ -634,7 +634,7 @@ export default function App() {
     });
 
     try {
-      const atualizado = await atualizarStatusOrcamentoNaNuvem(alvo, novoStatus);
+      const atualizado = await atualizarStatusOrcamentoNoBanco(alvo, novoStatus);
       if (!atualizado) {
         throw new Error('O banco de dados não confirmou a atualização da etapa.');
       }
@@ -654,7 +654,7 @@ export default function App() {
 
   const handleDeleteOrcamento = async (id: string) => {
     try {
-      await excluirOrcamentoNaNuvem(id);
+      await excluirOrcamentoDoBanco(id);
       setOrcamentosSalvos((prev) => {
         const atualizados = prev.filter((orc) => orc.id !== id);
         salvarOrcamentosNoStorage(atualizados);
@@ -677,7 +677,7 @@ export default function App() {
       const resultados = await Promise.all(
         idsAtuais.map(async (id) => {
           try {
-            await excluirOrcamentoNaNuvem(id);
+            await excluirOrcamentoDoBanco(id);
             return { id, excluido: true };
           } catch (error) {
             console.error(`Erro ao excluir orçamento ${id}:`, error);
@@ -709,7 +709,7 @@ export default function App() {
     let orcamento: OrcamentoSalvo | null = null;
 
     try {
-      orcamento = await carregarOrcamentoDaNuvemPorId(proposalId);
+      orcamento = await carregarOrcamentoDoBancoPorId(proposalId);
       if (requestId !== editLoadRequestRef.current) return false;
       if (!orcamento) {
         setCloudError(`O orçamento ${proposalId} não foi encontrado no banco de dados.`);

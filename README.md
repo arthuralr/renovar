@@ -1,62 +1,32 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://ai.google.dev/static/site-assets/images/share-ais-513315318.png" />
-</div>
+# Patologias.Lab
 
-# Run and deploy your AI Studio app
-
-This contains everything you need to run your app locally.
-
-View your app in AI Studio: https://ai.studio/apps/33faecfa-b5f5-4025-8ad7-9d63f1d78df2
+Aplicação de diagnóstico de patologias prediais e elaboração de propostas.
 
 ## Run Locally
 
-**Prerequisites:**  Node.js
+**Prerequisites:** Node.js and a PostgreSQL database (Neon.tech is supported).
 
+1. Install dependencies with `npm install`.
+2. Copy `.env.example` to `.env` and configure `GEMINI_API_KEY`,
+   `DATABASE_URL`, and `VITE_API_URL`.
+3. Configure `CORS_ORIGIN` on the API server with the frontend's origin when
+   the frontend and API are hosted on different domains.
+4. Start the app with `npm run dev`.
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+## PostgreSQL persistence
 
-## Google Sheets persistence
+Budgets are created, loaded, updated, and deleted through the Express API at
+`/api/orcamentos`. The API persists records in the PostgreSQL table
+`propostas_renovar`; its startup check creates the table only when it does not
+exist and preserves existing records.
 
-Budgets are saved to and loaded from the Google Sheets Web App configured by
-`VITE_GOOGLE_SHEETS_API_URL`. Set it in `.env.local` to the deployed Apps Script
-`/exec` URL when using a different spreadsheet integration. The server-side
-relay also accepts `GOOGLE_SHEETS_API_URL`; it is used when the browser cannot
-read the Apps Script response because of CORS.
+`DATABASE_URL` is used only by the backend and must not be exposed in frontend
+configuration. `VITE_API_URL` is the API server's base URL, such as
+`https://api.example.com`; it is embedded in the frontend at build time. When it
+is unset, the frontend uses the current origin, which is suitable when the
+frontend and API are served together. For cross-origin deployments, set
+`CORS_ORIGIN` on the API server to the exact frontend origin (for example
+`https://app.example.com`).
 
-For Vercel deployments, configure both `VITE_GOOGLE_SHEETS_API_URL` (frontend,
-then redeploy) and `GOOGLE_SHEETS_API_URL` (server/API runtime) with the same
-Apps Script `/exec` URL. The server rejects malformed URLs and returns explicit
-HTTP errors when the Apps Script is unavailable. The UI keeps running and shows
-a retry action instead of replacing cloud data with a local fallback.
-
-The app confirms a cloud save before advancing to the next wizard step. The
-Kanban and budget list refresh from the cloud when opened and periodically while
-visible; a failed cloud request is shown in the app rather than silently
-presenting the browser's local cache as current data.
-
-The matching Google Apps Script source is in [apps-script/Code.gs](./apps-script/Code.gs).
-Deploy it as a Web App with access enabled for the intended users and update
-`VITE_GOOGLE_SHEETS_API_URL` (and `GOOGLE_SHEETS_API_URL` for the server relay)
-to the new deployment URL. The script reads and writes the `Página1` tab; for a
-standalone script, set the `SPREADSHEET_ID` Script Property before deployment.
-Deletion is permanent: the script removes every row whose proposal ID exactly
-matches in the detected ID/code column (first column when no ID header exists).
-
-### Pathology photos
-
-Step 2 keeps optimized JPEG images as Base64 data URLs in each inspection
-record. When the budget is saved, the browser reduces the images as needed and
-embeds them in the JSON stored in the `detalhes` cell of `Página1`; the Apps
-Script does not upload the photos to Drive. The same embedded data is used by
-the Kanban/history, image preview, and PDF generator.
-When the user advances from a step with photos and a condominium name filled,
-the app persists that budget before moving to the next step.
-
-Google Sheets limits a cell to 50,000 characters. The application reserves
-space for the rest of the budget and keeps `detalhes` below 49,000 characters;
-if the report text or number of photos cannot fit after compression, saving
-shows an actionable error instead of sending a value Sheets will reject.
+Inspection photos are retained as Base64 data URLs within the budget's JSON
+record in PostgreSQL. They are not uploaded to a separate file-storage service.

@@ -386,11 +386,11 @@ export const OrcamentosKanbanBoard: React.FC<OrcamentosKanbanBoardProps> = ({
               </span>
               <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 flex items-center gap-1">
                 <Cloud className="w-3 h-3 text-emerald-400" />
-                {isSyncingCloud ? 'Sincronizando Google Sheets...' : 'Google Sheets Cloud Ativo'}
+                {isSyncingCloud ? 'Sincronizando banco...' : 'Banco de dados em nuvem ativo'}
               </span>
             </div>
             <p className="text-xs text-slate-400 mt-0.5">
-              Persistência em nuvem via Google Sheets com acompanhamento de etapas Kanban e envio em 1 clique para o WhatsApp do síndico.
+              Persistência em PostgreSQL com acompanhamento de etapas Kanban e envio em 1 clique para o WhatsApp do síndico.
             </p>
           </div>
         </div>
@@ -403,7 +403,7 @@ export const OrcamentosKanbanBoard: React.FC<OrcamentosKanbanBoardProps> = ({
               disabled={isSyncingCloud}
               onClick={onRefreshCloud}
               className="px-3 py-2 rounded-xl bg-slate-950 hover:bg-slate-800 disabled:opacity-50 text-sky-300 border border-slate-700 text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer"
-              title="Recarregar orçamentos diretamente da planilha no Google Sheets"
+              title="Recarregar orçamentos diretamente do banco de dados"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${isSyncingCloud ? 'animate-spin' : ''}`} />
               <span>{isSyncingCloud ? 'Sincronizando...' : 'Atualizar da Nuvem'}</span>
@@ -415,10 +415,10 @@ export const OrcamentosKanbanBoard: React.FC<OrcamentosKanbanBoardProps> = ({
               type="button"
               onClick={onSaveCurrentOrcamento}
               className="px-3.5 py-2 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-xs font-bold flex items-center gap-1.5 transition cursor-pointer"
-              title="Salvar o orçamento atual na planilha do Google Sheets"
+              title="Salvar o orçamento atual no banco de dados"
             >
               <PlusCircle className="w-4 h-4" />
-              <span>Salvar na Planilha</span>
+              <span>Salvar no Banco</span>
             </button>
           )}
 

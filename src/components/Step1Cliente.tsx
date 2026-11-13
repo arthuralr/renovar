@@ -55,7 +55,7 @@ export const Step1Cliente: React.FC<Step1ClienteProps> = ({
                 </h2>
                 <span className="text-[10px] font-mono px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 flex items-center gap-1">
                   <Cloud className="w-3 h-3 text-emerald-400" />
-                  {isSyncingCloud ? 'Sincronizando Planilha...' : 'Google Sheets Cloud'}
+                  {isSyncingCloud ? 'Sincronizando banco...' : 'Banco de dados em nuvem'}
                 </span>
                 {activeOrcamentoId && (
                   <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-md bg-slate-950 text-amber-400 border border-slate-800">
