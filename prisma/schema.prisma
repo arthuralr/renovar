@@ -1,0 +1,45 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// Tabela principal de Orçamentos e Laudos Patológicos
+model Orcamento {
+  id              String      @id @default(uuid())
+  clienteNome     String
+  status          String      @default("pendente") // ex: pendente, aprovado, executando, concluido
+  valorTotal      Decimal     @db.Decimal(10, 2)
+  
+  // Guarda todo o objeto JSON detalhado retornado pelo Gemini (patologia, gravidade, normas ABNT, reparos)
+  detalhesJson    Json?       
+  
+  // Arrays para armazenar as URLs das fotos e PDFs salvos no Storage
+  imagensUrls     String[]    
+  documentosUrls  String[]    
+
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  
+  // Relação com os lançamentos financeiros vinculados
+  transacoes      TransacaoFinanceira[]
+
+  @@index([createdAt])
+}
+
+// Tabela de controle financeiro (receitas e despesas)
+model TransacaoFinanceira {
+  id            String      @id @default(uuid())
+  tipo          String      // "receita" ou "despesa"
+  descricao     String
+  valor         Decimal     @db.Decimal(10, 2)
+  data          DateTime    @default(now())
+  
+  orcamentoId   String?
+  orcamento     Orcamento?  @relation(fields: [orcamentoId], references: [id], onDelete: SetNull)
+
+  @@index([data])
+}

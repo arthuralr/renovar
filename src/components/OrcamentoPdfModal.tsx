@@ -90,7 +90,7 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
     () => calcularParcelamentoComercial(calculos.valorGlobal, condicoesComerciais),
     [calculos.valorGlobal, condicoesComerciais]
   );
-  const validadeDias = condicoesComerciais?.prazoValidadeDias || 30;
+  const validadeDias = 30;
 
   const fallbackOrcamentoId = useMemo(
     () => `PROP-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
@@ -144,6 +144,13 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
 
     return list;
   }, [diagnostico, selectedImage, historico]);
+
+  const photoPageCount = Math.max(1, inspectionsList.length);
+  const methodologyPageNum = 7 + photoPageCount;
+  const costsPageNum = methodologyPageNum + 1;
+  const finalPageNum = costsPageNum + 1;
+  const maintenancePageNum = finalPageNum + 1;
+  const totalPdfPages = maintenancePageNum;
 
   const dataAtualExtenso = new Date().toLocaleDateString('pt-BR', {
     day: '2-digit',
@@ -239,7 +246,7 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
   // Corporate Renovar Footer Component for Inner Pages
   const DocumentFooter = () => (
     <div className="border-t border-slate-200 pt-3 mt-8 flex flex-col sm:flex-row items-center justify-between text-[10px] font-mono text-slate-500">
-      <div>Renovar Engenharia de Fachadas • CREA/SP nº 124.987-D</div>
+      <div>RENOVAR SC — Soluções Prediais • CREA/SC: 105.402-1</div>
       <div>Validade: {validadeDias} dias • Emissão: {dataAtualExtenso}</div>
     </div>
   );
@@ -352,259 +359,411 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
         {/* PÁGINA 1: CAPA E IDENTIFICAÇÃO DO CONDOMÍNIO                              */}
         {/* ========================================================================= */}
         <section className="print-document-sheet page-break-after bg-white text-slate-900 shadow-2xl rounded-2xl p-8 sm:p-14 min-h-[1050px] flex flex-col justify-between border border-slate-200 relative overflow-hidden print:min-h-0 print:h-auto print:max-h-none print:overflow-visible print:block print:p-0 print:border-none print:shadow-none print:rounded-none">
-          {/* Top Decorative Header with Renovar Corporate Logo */}
-          <div>
-            <div className="flex items-center justify-between border-b-2 border-slate-900 pb-5">
-              <div className="flex items-center gap-4">
-                {/* Logomarca Renovar */}
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-slate-950 via-slate-900 to-amber-950 border border-amber-500/40 text-amber-400 flex items-center justify-center font-black shadow-lg">
-                    <span className="text-2xl font-black font-sans tracking-tighter text-amber-400">
-                      R
-                    </span>
-                  </div>
-                  <div>
-                    <div className="text-xl font-black tracking-tight text-slate-950 uppercase font-sans">
-                      RENOVAR
-                    </div>
-                    <div className="text-[10px] font-bold text-amber-600 tracking-widest uppercase font-mono">
-                      Engenharia Diagnóstica & Restauração
-                    </div>
-                  </div>
-                </div>
+          <div className="flex items-start justify-between gap-5 border-b-2 border-slate-900 pb-5">
+            <div>
+              <div className="text-2xl font-black tracking-tight text-slate-950">
+                RENOVAR SC — SOLUÇÕES PREDIAIS
               </div>
-
-              <div className="text-right font-mono text-[11px] text-slate-600">
-                <div className="font-bold text-slate-900">CREA/SP: 124.987-D</div>
-                <div>ART de Execução nº 2026/89412</div>
+              <div className="mt-2 text-xs font-mono text-slate-600">
+                CNPJ: 57.293.244/0001-27
+              </div>
+              <div className="text-xs font-mono font-bold text-slate-900">
+                CREA/SC: 105.402-1
               </div>
             </div>
-
-            {/* Document Title Block */}
-            <div className="mt-14 sm:mt-20 space-y-4">
-              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-amber-50 border border-amber-300 text-amber-900 font-mono text-xs font-bold uppercase tracking-wider">
-                <Award className="w-4 h-4 text-amber-600" />
-                Orçamento Técnico e Comercial Oficial
-              </div>
-
-              <h1 className="text-3xl sm:text-5xl font-black text-slate-950 tracking-tight uppercase leading-tight font-sans">
-                Proposta Técnica e Comercial
-              </h1>
-
-              <div className="text-lg sm:text-2xl font-bold text-amber-600 uppercase tracking-tight">
-                Restauração de Fachadas, Tratamento de Patologias & Pintura Predial
-              </div>
-
-              <p className="text-xs sm:text-sm text-slate-600 max-w-2xl leading-relaxed">
-                Elaborada com rigor metodológico conforme as normas brasileiras{' '}
-                <strong>ABNT NBR 16747</strong> (Inspeção Predial), <strong>NBR 13755</strong>{' '}
-                (Revestimentos Cerâmicos e Argamassados de Fachada) e <strong>NBR 9575</strong>{' '}
-                (Impermeabilização).
-              </p>
+            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-slate-950 text-3xl font-black text-amber-400">
+              R
             </div>
           </div>
 
-          {/* Client & Building Identification Box (Caixas individuais espaçadas sem sobreposição) */}
-          <div className="my-6 space-y-6">
-            <div className="bg-slate-50 border-2 border-slate-900 rounded-2xl p-6 sm:p-8">
-              <div className="text-xs font-mono font-bold text-slate-600 uppercase tracking-wider mb-4 border-b border-slate-200 pb-3 flex items-center justify-between gap-2">
-                <span className="flex items-center gap-2">
-                  <Building2 className="w-4 h-4 text-slate-900 shrink-0" />
-                  <span>Identificação da Edificação e Dados Cadastrais</span>
-                </span>
-                <span className="text-slate-900 font-bold shrink-0">Proposta nº {orcamentoId}</span>
+          <div className="my-auto py-12">
+            <div className="mb-5 text-xs font-mono font-bold uppercase tracking-[0.2em] text-amber-700">
+              Proposta oficial • {orcamentoId}
+            </div>
+            <h1 className="max-w-3xl text-3xl font-black uppercase leading-tight tracking-tight text-slate-950 sm:text-5xl">
+              Proposta Técnica e Comercial de Reforma Prediais e Restauração de Fachadas
+            </h1>
+            <div className="mt-6 h-1.5 w-24 bg-amber-500" />
+          </div>
+
+          <div className="space-y-4 border-l-4 border-amber-500 bg-slate-50 p-6">
+            <div>
+              <div className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-500">
+                Condomínio / Edifício
               </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 text-xs sm:text-sm">
-                <div className="bg-white border border-slate-200 rounded-xl p-3.5">
-                  <span className="text-slate-500 font-mono font-bold block text-[10px] uppercase tracking-wider mb-1">
-                    Nome do Condomínio / Edifício
-                  </span>
-                  <div className="font-extrabold text-slate-950 text-sm sm:text-base leading-snug break-words">
-                    {dadosCliente.nomeCondominio || 'Condomínio Residencial'}
-                  </div>
+              <div className="mt-1 break-words text-xl font-extrabold text-slate-950">
+                {dadosCliente.nomeCondominio || 'Não informado'}
+              </div>
+            </div>
+            <div>
+              <div className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-500">
+                Endereço da Obra
+              </div>
+              <div className="mt-1 break-words text-sm font-medium text-slate-800">
+                {dadosCliente.endereco || 'Não informado'}
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <div className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-500">
+                  Síndico(a)
                 </div>
-
-                <div className="bg-white border border-slate-200 rounded-xl p-3.5">
-                  <span className="text-slate-500 font-mono font-bold block text-[10px] uppercase tracking-wider mb-1">
-                    CNPJ do Condomínio
-                  </span>
-                  <div className="font-mono font-bold text-slate-900 text-xs sm:text-sm leading-snug break-words">
-                    {dadosCliente.cnpj || 'Não informado'}
-                  </div>
+                <div className="mt-1 break-words text-sm font-semibold text-slate-900">
+                  {dadosCliente.nomeSindico || 'Não informado'}
                 </div>
-
-                <div className="sm:col-span-2 bg-white border border-slate-200 rounded-xl p-3.5">
-                  <span className="text-slate-500 font-mono font-bold block text-[10px] uppercase tracking-wider mb-1">
-                    Localização / Orientação / Endereço da Obra
-                  </span>
-                  <div className="font-semibold text-slate-900 text-xs sm:text-sm leading-snug break-words">
-                    {dadosCliente.endereco || 'Fachada Externa / Endereço conforme cadastro'}
-                  </div>
+              </div>
+              <div>
+                <div className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-500">
+                  Número da Proposta
                 </div>
-
-                <div className="bg-white border border-slate-200 rounded-xl p-3.5">
-                  <span className="text-slate-500 font-mono font-bold block text-[10px] uppercase tracking-wider mb-1">
-                    Nome do Síndico(a) / Gestor
-                  </span>
-                  <div className="font-semibold text-slate-900 text-xs sm:text-sm leading-snug break-words">
-                    {dadosCliente.nomeSindico || 'Administração Condominial'}
-                  </div>
-                </div>
-
-                <div className="bg-white border border-slate-200 rounded-xl p-3.5">
-                  <span className="text-slate-500 font-mono font-bold block text-[10px] uppercase tracking-wider mb-1">
-                    Idade Estimada da Construção & Porte
-                  </span>
-                  <div className="font-semibold text-slate-900 text-xs sm:text-sm leading-snug break-words">
-                    {dadosCliente.anoConstrucao
-                      ? `Construído em ${dadosCliente.anoConstrucao}`
-                      : 'Idade conforme vistoria'}{' '}
-                    •{' '}
-                    {dadosCliente.pavimentos
-                      ? `${dadosCliente.pavimentos} Pavimentos`
-                      : 'Múltiplos pavimentos'}
-                  </div>
-                </div>
-
-                <div className="bg-white border border-slate-200 rounded-xl p-3.5">
-                  <span className="text-slate-500 font-mono font-bold block text-[10px] uppercase tracking-wider mb-1">
-                    Responsável Técnico / CREA
-                  </span>
-                  <div className="font-semibold text-slate-900 text-xs sm:text-sm leading-snug break-words">
-                    Eng. Civil Especialista em Fachadas • CREA/SP 124.987-D
-                  </div>
-                </div>
-
-                <div className="bg-white border border-slate-200 rounded-xl p-3.5">
-                  <span className="text-slate-500 font-mono font-bold block text-[10px] uppercase tracking-wider mb-1">
-                    Contato (Telefone / E-mail)
-                  </span>
-                  <div className="font-mono text-slate-900 text-xs leading-snug break-words">
-                    {[dadosCliente.telefone, dadosCliente.email].filter(Boolean).join(' • ') ||
-                      'Contato registrado junto à administração'}
-                  </div>
+                <div className="mt-1 break-words text-sm font-bold text-slate-900">
+                  {orcamentoId}
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Bottom Cover Metadata */}
-          <div className="border-t border-slate-200 pt-5 flex flex-col sm:flex-row items-start sm:items-center justify-between text-xs font-mono text-slate-600 gap-2">
-            <div>
-              <span className="font-bold text-slate-900">Data de Emissão:</span> {dataAtualExtenso}
-            </div>
-            <div>
-              <span className="font-bold text-slate-900">Validade da Proposta:</span> {validadeDias} dias
-            </div>
-            <div>
-              <span className="font-bold text-slate-900">Prazo Estimado de Execução:</span> {calculos.mesesObra} meses
+          <div className="mt-8 border-t border-slate-200 pt-5 text-xs font-mono text-slate-600">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <div>
+                <span className="font-bold text-slate-900">Data de emissão:</span>{' '}
+                {dataAtualExtenso}
+              </div>
+              <div>
+                <span className="font-bold text-slate-900">Validade:</span> 30 dias
+              </div>
+              <div>
+                <span className="font-bold text-slate-900">Prazo estimado:</span>{' '}
+                {calculos.mesesObra} {calculos.mesesObra === 1 ? 'mês' : 'meses'}
+              </div>
             </div>
           </div>
         </section>
 
         {/* ========================================================================= */}
-        {/* PÁGINA 2: APRESENTAÇÃO E CULTURA INSTITUCIONAL (MISSÃO E 3 PILARES)        */}
+        {/* PÁGINA 2: CARTA DE APRESENTAÇÃO TÉCNICA                                   */}
         {/* ========================================================================= */}
         <section className="print-document-sheet page-break-after bg-white text-slate-900 shadow-2xl rounded-2xl p-8 sm:p-14 min-h-[1050px] border border-slate-200 flex flex-col justify-between print:min-h-0 print:h-auto print:max-h-none print:overflow-visible print:block print:p-0 print:border-none print:shadow-none print:rounded-none">
           <div>
-            <DocumentHeader pageNum={2} totalPages={6} />
-
-            <h2 className="text-2xl font-black text-slate-950 uppercase tracking-tight mb-2">
-              Apresentação e Cultura Institucional
+            <DocumentHeader pageNum={2} totalPages={totalPdfPages} />
+            <h2 className="text-2xl font-black uppercase tracking-tight text-slate-950">
+              Carta de Apresentação Técnica
             </h2>
-            <div className="w-16 h-1 bg-amber-500 mb-6" />
+            <div className="mb-10 mt-3 h-1 w-16 bg-amber-500" />
 
-            {/* Carta de Apresentação */}
-            <div className="text-xs sm:text-sm text-slate-700 leading-relaxed space-y-3.5 mb-6 text-justify">
-              <p>
-                A <strong>Renovar Engenharia</strong> é uma empresa especializada em engenharia diagnóstica, recuperação estrutural e restauração de fachadas prediais de alto padrão. Atuamos há anos proporcionando soluções definitivas para condomínios residenciais e comerciais, aliando capacidade técnica de ponta à gestão transparente e humanizada de canteiros de obra.
-              </p>
-              <p>
-                Nossa atuação é estritamente pautada pelo cumprimento rigoroso das normas da <strong>ABNT</strong> e das Normas Regulamentadoras de Segurança do Trabalho do Ministério do Trabalho. Tratamos cada condomínio com exclusividade, realizando vistorias profundas das causas das anomalias antes de prescrever qualquer tipo de intervenção estética.
-              </p>
-            </div>
-
-            {/* Missão */}
-            <div className="bg-amber-50 border-l-4 border-amber-500 p-4 rounded-r-xl mb-6">
-              <span className="text-[11px] font-mono font-bold text-amber-900 uppercase block mb-1">
-                Nossa Missão:
-              </span>
-              <p className="text-xs sm:text-sm text-slate-800 italic leading-relaxed">
-                "Preservar o patrimônio arquitetônico e estrutural das edificações com soluções definitivas de engenharia diagnóstica, garantindo segurança patrimonial e humana com excelência técnica, previsibilidade orçamentária e total tranquilidade para a gestão condominial."
-              </p>
-            </div>
-
-            {/* Três Pilares Inegociáveis */}
-            <div className="space-y-4">
-              <h3 className="text-sm font-mono font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
-                <Award className="w-4 h-4 text-amber-500" />
-                Os Três Pilares Inegociáveis da Renovar:
-              </h3>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
-                {/* Pilar 1 */}
-                <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
-                  <div className="w-8 h-8 rounded-lg bg-amber-500/10 text-amber-600 flex items-center justify-center font-bold">
-                    <ShieldAlert className="w-4 h-4" />
-                  </div>
-                  <h4 className="font-extrabold text-slate-950 uppercase text-xs">
-                    1. Segurança acima de tudo
-                  </h4>
-                  <p className="text-slate-600 leading-relaxed text-[11px]">
-                    Foco intransigente em <strong>Zero Acidentes</strong>. Cumprimento estrito das normas <strong>NR-18</strong> e <strong>NR-35</strong>. Balancins elétricos com cabos secundários e travas de segurança automáticas (blockstop), linhas de vida verticais de aço independentes, exames médicos periódicos (ASO específico para altura) e treinamentos diários de segurança com nossa equipe.
-                  </p>
-                </div>
-
-                {/* Pilar 2 */}
-                <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
-                  <div className="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-600 flex items-center justify-center font-bold">
-                    <CheckCircle2 className="w-4 h-4" />
-                  </div>
-                  <h4 className="font-extrabold text-slate-950 uppercase text-xs">
-                    2. Qualidade como padrão mínimo
-                  </h4>
-                  <p className="text-slate-600 leading-relaxed text-[11px]">
-                    Rigor técnico normativo absoluto. Emprego exclusivo de insumos e matérias-primas homologadas pelas normas da ABNT: argamassas poliméricas tixotrópicas reforçadas com fibras, passivadores anticorrosivos para armaduras expostas, mástiques de poliuretano de alta elasticidade e tintas elastoméricas com memória mecânica.
-                  </p>
-                </div>
-
-                {/* Pilar 3 */}
-                <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
-                  <div className="w-8 h-8 rounded-lg bg-sky-500/10 text-sky-600 flex items-center justify-center font-bold">
-                    <User className="w-4 h-4" />
-                  </div>
-                  <h4 className="font-extrabold text-slate-950 uppercase text-xs">
-                    3. Respeito no dia a dia da obra
-                  </h4>
-                  <p className="text-slate-600 leading-relaxed text-[11px]">
-                    Comunicação constante e transparente com o síndico e moradores, envio de relatórios quinzenais com fotos de evolução física da obra, respeito irrevogável aos horários de silêncio e repouso, conduta ética irrepreensível dos operários e isolamento seguro e limpo de garagens e áreas de circulação comuns.
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Banner de Valorização Patrimonial */}
-            <div className="mt-6 p-4 rounded-xl bg-slate-950 text-white flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="space-y-7 text-sm leading-7 text-slate-800 sm:text-base">
               <div className="space-y-1">
-                <span className="text-[10px] font-mono font-bold text-amber-400 uppercase tracking-widest">
-                  Garantia de Retorno do Investimento
-                </span>
-                <div className="text-xs sm:text-sm font-bold text-slate-100">
-                  Estanqueidade Absoluta + Proteção Estrutural + Valorização de até 20% do Imóvel
-                </div>
+                <p>À Administração do Condomínio {dadosCliente.nomeCondominio || '[Nome do Condomínio]'}</p>
+                <p>{dadosCliente.endereco || '[Endereço da Obra]'}</p>
               </div>
-              <div className="text-xs font-mono text-amber-300 font-bold px-3 py-1.5 rounded-lg bg-amber-500/20 border border-amber-500/40 shrink-0">
-                Garantia de 5 Anos
+
+              <p>Prezados Senhores,</p>
+
+              <p>
+                A Renovar SC - Soluções Prediais tem a honra de apresentar a presente proposta
+                técnica para execução da reforma predial externa e interna, elaborada com base em
+                critérios técnicos rigorosos e metodologia executiva consolidada.
+              </p>
+
+              <p>
+                A presente proposta não se limita à execução de serviços de pintura ou reparos
+                superficiais. Trata-se de um plano técnico estruturado de recuperação, correção de
+                patologias construtivas, requalificação estética e valorização patrimonial da
+                edificação.
+              </p>
+
+              <p>
+                Nosso objetivo é entregar ao condomínio uma solução completa, segura e duradoura,
+                capaz de corrigir manifestações patológicas, interromper processos de degradação
+                precoce, proteger os sistemas construtivos contra infiltrações, restabelecer o
+                padrão estético original e valorizar o patrimônio dos condôminos.
+              </p>
+
+              <p>
+                Entendemos que a decisão por uma reforma predial envolve responsabilidade
+                financeira coletiva. Por esse motivo, a Renovar apresenta uma proposta detalhada,
+                transparente e tecnicamente fundamentada.
+              </p>
+
+              <div className="pt-6">
+                <p>Atenciosamente,</p>
+                <p className="mt-3 font-bold text-slate-950">
+                  RENOVAR SC — Soluções Prediais
+                </p>
               </div>
             </div>
           </div>
-
-          <DocumentFooter />
+          <div className="mt-10 border-t border-slate-200 pt-4 text-xs font-mono text-slate-600">
+            CREA/SC: 105.402-1 • Proposta nº {orcamentoId}
+          </div>
         </section>
 
         {/* ========================================================================= */}
-        {/* PÁGINA 3+: LAUDO PATOLÓGICO FOTOGRÁFICO (1 FOLHA A4 POR REGISTRO)          */}
+        {/* PÁGINA 3: APRESENTAÇÃO INSTITUCIONAL E MODELO DE GESTÃO                   */}
+        {/* ========================================================================= */}
+        <section className="print-document-sheet page-break-after bg-white text-slate-900 shadow-2xl rounded-2xl p-8 sm:p-14 min-h-[1050px] border border-slate-200 flex flex-col justify-between print:min-h-0 print:h-auto print:max-h-none print:overflow-visible print:block print:p-0 print:border-none print:shadow-none print:rounded-none">
+          <div>
+            <DocumentHeader pageNum={3} totalPages={totalPdfPages} />
+
+            <h2 className="text-2xl font-black text-slate-950 uppercase tracking-tight mb-2">
+              Apresentação Institucional — Renovar SC e Cultura Organizacional
+            </h2>
+            <div className="w-16 h-1 bg-amber-500 mb-6" />
+
+            <div className="text-xs sm:text-sm text-slate-700 leading-relaxed space-y-5 text-justify">
+              <p>
+                A <strong>Renovar SC - Soluções Prediais</strong> é uma empresa especializada em
+                recuperação, revitalização e requalificação de edificações, com atuação focada em
+                obras prediais de médio e alto padrão técnico. Ao longo dos anos, consolidamos
+                nossa atuação por meio de uma metodologia estruturada, controle rigoroso de
+                qualidade e compromisso absoluto com desempenho, segurança e durabilidade.
+              </p>
+              <p>
+                Nossa empresa nasceu com um propósito claro: elevar o padrão de execução das
+                reformas prediais, substituindo práticas improvisadas por processos técnicos bem
+                definidos, planejamento detalhado e acompanhamento constante em campo.
+              </p>
+              <p>
+                A gestão operacional é conduzida de maneira direta e ativa. Os sócios da empresa
+                participam também do operacional da obra, garantindo presença constante, tomada de
+                decisão ágil e alinhamento técnico com a equipe de campo. Esse modelo reduz falhas,
+                aumenta eficiência e assegura padrão elevado de execução.
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-8 border-t border-slate-200 pt-4 text-xs font-mono text-slate-600">
+            CREA/SC: 105.402-1 • Gestão direta dos sócios • Renovar SC — Soluções Prediais
+          </div>
+        </section>
+
+        {/* ========================================================================= */}
+        {/* PÁGINA 4: OS TRÊS PILARES INEGOCIÁVEIS                                    */}
+        {/* ========================================================================= */}
+        <section className="print-document-sheet page-break-after bg-white text-slate-900 shadow-2xl rounded-2xl p-8 sm:p-14 min-h-[1050px] border border-slate-200 flex flex-col justify-between print:min-h-0 print:h-auto print:max-h-none print:overflow-visible print:block print:p-0 print:border-none print:shadow-none print:rounded-none">
+          <div>
+            <DocumentHeader pageNum={4} totalPages={totalPdfPages} />
+            <h2 className="text-2xl font-black text-slate-950 uppercase tracking-tight mb-2">
+              Os Três Pilares Inegociáveis da Renovar
+            </h2>
+            <div className="w-16 h-1 bg-amber-500 mb-7" />
+
+            <div className="space-y-5 text-xs leading-relaxed text-slate-700 sm:text-sm">
+              <article className="rounded-xl border border-amber-200 bg-amber-50/60 p-5">
+                <h3 className="mb-2 font-extrabold uppercase text-slate-950">
+                  1. Segurança acima de tudo
+                </h3>
+                <p>
+                  A segurança dos colaboradores, moradores, síndicos e visitantes é prioridade
+                  absoluta. Toda atividade é executada com uso obrigatório de Equipamentos de
+                  Proteção Individual (EPIs) adequados à função desempenhada. A empresa mantém
+                  fiscalização interna rigorosa quanto ao cumprimento das normas regulamentadoras
+                  aplicáveis, especialmente a NR-18 (Condições e Meio Ambiente de Trabalho na
+                  Indústria da Construção) e a NR-35 (Trabalho em Altura). Não há flexibilização
+                  quanto às normas de segurança.
+                </p>
+              </article>
+
+              <article className="rounded-xl border border-emerald-200 bg-emerald-50/50 p-5">
+                <h3 className="mb-2 font-extrabold uppercase text-slate-950">
+                  2. Qualidade como padrão mínimo
+                </h3>
+                <p>
+                  Na Renovar, qualidade não é diferencial competitivo, é requisito básico. Cada
+                  etapa da obra segue critérios técnicos previamente definidos. Não suprimimos
+                  processos, não utilizamos soluções improvisadas e não entregamos serviços
+                  inacabados. Trabalhamos com materiais adequados ao sistema construtivo existente
+                  e aplicamos metodologias compatíveis com as normas técnicas vigentes.
+                </p>
+              </article>
+
+              <article className="rounded-xl border border-sky-200 bg-sky-50/50 p-5">
+                <h3 className="mb-2 font-extrabold uppercase text-slate-950">
+                  3. Respeito no dia a dia da obra
+                </h3>
+                <p>
+                  Entendemos que uma reforma predial ocorre dentro do ambiente onde famílias vivem.
+                  Por isso, postura profissional é inegociável. Todos os colaboradores são
+                  orientados a manter comportamento respeitoso com síndicos, moradores, zeladores,
+                  idosos, mulheres e crianças. Preservamos áreas comuns, mantemos organização do
+                  canteiro e reduzimos impactos operacionais sempre que possível. Comunicação
+                  clara e transparente faz parte da nossa rotina.
+                </p>
+              </article>
+            </div>
+          </div>
+
+          <div className="mt-8 border-t border-slate-200 pt-4 text-xs font-mono text-slate-600">
+            CREA/SC: 105.402-1 • Segurança • Qualidade • Respeito
+          </div>
+        </section>
+
+        {/* ========================================================================= */}
+        {/* PÁGINA 5: MEMORIAL DESCRITIVO DE MATERIAIS E MARCAS HOMOLOGADAS            */}
+        {/* ========================================================================= */}
+        <section className="print-document-sheet page-break-after bg-white text-slate-900 shadow-2xl rounded-2xl p-7 sm:p-11 min-h-[1050px] border border-slate-200 flex flex-col justify-between print:min-h-0 print:h-auto print:max-h-none print:overflow-visible print:block print:p-0 print:border-none print:shadow-none print:rounded-none">
+          <div>
+            <DocumentHeader pageNum={5} totalPages={totalPdfPages} />
+            <h2 className="text-xl font-black uppercase tracking-tight text-slate-950 sm:text-2xl">
+              Memorial Descritivo de Materiais de Alta Performance e Marcas Homologadas
+            </h2>
+            <div className="mb-5 mt-3 h-1 w-16 bg-amber-500" />
+
+            <p className="mb-5 text-xs leading-relaxed text-slate-700 sm:text-sm">
+              A Renovar SC adota rigorosos critérios na seleção dos insumos aplicados em suas
+              obras. Todos os materiais utilizados possuem laudos técnicos de conformidade, fichas
+              técnicas atualizadas e são fornecidos por fabricantes consolidados no mercado da
+              construção civil, garantindo durabilidade, desempenho mecânico, proteção contra
+              intempéries e aderência perfeita aos substratos existentes.
+            </p>
+
+            <h3 className="mb-3 text-xs font-extrabold uppercase tracking-wide text-slate-900">
+              Matriz de Insumos e Marcas Homologadas
+            </h3>
+            <table className="w-full table-fixed border-collapse text-left text-[10px] leading-snug sm:text-xs">
+              <thead>
+                <tr className="bg-slate-900 text-white">
+                  <th className="w-[25%] border border-slate-700 p-2">Aplicação</th>
+                  <th className="w-[52%] border border-slate-700 p-2">Sistema / especificação</th>
+                  <th className="w-[23%] border border-slate-700 p-2">Marcas de referência</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr className="align-top">
+                  <td className="border border-slate-300 bg-slate-50 p-2 font-bold text-slate-900">
+                    1. Tratamento de Fissuras e Trincas Dinâmicas
+                  </td>
+                  <td className="border border-slate-300 p-2 text-slate-700">
+                    Selantes elastoméricos à base de poliuretano (PU 40/244) de alto módulo e
+                    argamassas poliméricas tixotrópicas estruturais.
+                  </td>
+                  <td className="border border-slate-300 p-2 text-slate-700">
+                    Sika, MC-Bauchemie, Ceramfix.
+                  </td>
+                </tr>
+                <tr className="align-top">
+                  <td className="border border-slate-300 bg-slate-50 p-2 font-bold text-slate-900">
+                    2. Recuperação de Concreto e Argamassa (Recomposição)
+                  </td>
+                  <td className="border border-slate-300 p-2 text-slate-700">
+                    Argamassas poliméricas estruturais modificadas com polímeros, sem retração,
+                    reforçadas com fibras sintéticas.
+                  </td>
+                  <td className="border border-slate-300 p-2 text-slate-700">
+                    Sika, MC-Bauchemie, Weber.
+                  </td>
+                </tr>
+                <tr className="align-top">
+                  <td className="border border-slate-300 bg-slate-50 p-2 font-bold text-slate-900">
+                    3. Tratamento de Armaduras Expostas (Oxidação)
+                  </td>
+                  <td className="border border-slate-300 p-2 text-slate-700">
+                    Primer inibidor de corrosão à base de zinco ou epóxi monocomponente ativo.
+                  </td>
+                  <td className="border border-slate-300 p-2 text-slate-700">
+                    Sika, MC-Bauchemie.
+                  </td>
+                </tr>
+                <tr className="align-top">
+                  <td className="border border-slate-300 bg-slate-50 p-2 font-bold text-slate-900">
+                    4. Sistema de Pintura Externa e Impermeabilização de Fachada
+                  </td>
+                  <td className="border border-slate-300 p-2 text-slate-700">
+                    Seladores acrílicos de penetração profunda e tintas 100% acrílicas elastoméricas
+                    com película emborrachada flexível, antifúngicas e com memória mecânica contra
+                    microfissuras térmicas.
+                  </td>
+                  <td className="border border-slate-300 p-2 text-slate-700">
+                    Sherwin Williams, Coral, Suvinil.
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div className="mt-6 border-t border-slate-200 pt-4 text-xs font-mono text-slate-600">
+            CREA/SC: 105.402-1 • Materiais sujeitos à especificação técnica e compatibilidade com os substratos existentes.
+          </div>
+        </section>
+
+        {/* ========================================================================= */}
+        {/* PÁGINA 6: CONFORMIDADE DOCUMENTAL E CHECKLIST DE HABILITAÇÃO               */}
+        {/* ========================================================================= */}
+        <section className="print-document-sheet page-break-after bg-white text-slate-900 shadow-2xl rounded-2xl p-7 sm:p-11 min-h-[1050px] border border-slate-200 flex flex-col justify-between print:min-h-0 print:h-auto print:max-h-none print:overflow-visible print:block print:p-0 print:border-none print:shadow-none print:rounded-none">
+          <div>
+            <DocumentHeader pageNum={6} totalPages={totalPdfPages} />
+            <h2 className="text-xl font-black uppercase tracking-tight text-slate-950 sm:text-2xl">
+              Conformidade Documental e Checklist de Habilitação
+            </h2>
+            <div className="mb-5 mt-3 h-1 w-16 bg-amber-500" />
+
+            <p className="mb-5 text-xs leading-relaxed text-slate-700 sm:text-sm">
+              Para garantir total segurança jurídica, idoneidade fiscal e conformidade legal na
+              contratação pelos condomínios, a Renovar SC disponibiliza, mediante solicitação
+              prévia ou no ato da formalização contratual, o seguinte conjunto de certidões,
+              registros e regularidades atualizadas:
+            </p>
+
+            <div className="space-y-4 text-xs leading-relaxed text-slate-700 sm:text-sm">
+              <section className="rounded-xl border border-slate-200 bg-slate-50 p-4 sm:p-5">
+                <h3 className="mb-2 font-extrabold uppercase tracking-wide text-slate-950">
+                  1. Regularidade Jurídica e Fiscal
+                </h3>
+                <ul className="list-disc space-y-1 pl-5">
+                  <li>Cartão de Inscrição no CNPJ regular e ativo (CNPJ: 57.293.244/0001-27).</li>
+                  <li>Contrato Social consolidado da empresa.</li>
+                  <li>
+                    Certidão Negativa de Débitos Relativos a Créditos Tributários Federais e à
+                    Dívida Ativa da União (CND Federal).
+                  </li>
+                  <li>Certidão Negativa de Débitos Estaduais e Municipais.</li>
+                  <li>Certidão Negativa de Débitos Trabalhistas (CNDT).</li>
+                  <li>Certidão de Regularidade do FGTS (CRF).</li>
+                </ul>
+              </section>
+
+              <section className="rounded-xl border border-amber-200 bg-amber-50/50 p-4 sm:p-5">
+                <h3 className="mb-2 font-extrabold uppercase tracking-wide text-slate-950">
+                  2. Regularidade Técnica e Profissional
+                </h3>
+                <ul className="list-disc space-y-1 pl-5">
+                  <li>
+                    Certidão de Registro e Quitação de Pessoa Jurídica junto ao Conselho Regional
+                    de Engenharia e Agronomia de Santa Catarina (CREA/SC).
+                  </li>
+                  <li>
+                    Anotação de Responsabilidade Técnica (ART) de Cargo/Função e execução de obras
+                    vinculada ao engenheiro responsável técnico (Eng. André Luiz da Rosa —
+                    CREA/SC: 105.402-1).
+                  </li>
+                </ul>
+              </section>
+
+              <section className="rounded-xl border border-sky-200 bg-sky-50/50 p-4 sm:p-5">
+                <h3 className="mb-2 font-extrabold uppercase tracking-wide text-slate-950">
+                  3. Apólices de Seguros e Garantia Operacional
+                </h3>
+                <ul className="list-disc space-y-1 pl-5">
+                  <li>
+                    Apólice de Seguro de Responsabilidade Civil (RCF) para cobertura de danos a
+                    terceiros e vizinhança durante a execução dos serviços de fachada.
+                  </li>
+                  <li>
+                    Apólice de Seguro de Acidentes Pessoais e de Vida para toda a equipe operante
+                    no canteiro de obras.
+                  </li>
+                </ul>
+              </section>
+            </div>
+          </div>
+
+          <div className="mt-6 border-t border-slate-200 pt-4 text-xs font-mono text-slate-600">
+            RENOVAR SC — Soluções Prediais • CNPJ: 57.293.244/0001-27 • CREA/SC: 105.402-1
+          </div>
+        </section>
+
+        {/* ========================================================================= */}
+        {/* PÁGINA 7+: LAUDO PATOLÓGICO FOTOGRÁFICO (1 FOLHA A4 POR REGISTRO)          */}
         {/* ========================================================================= */}
         {inspectionsList.length > 0 ? (
           inspectionsList.map((insp, inspIndex) => {
@@ -622,7 +781,7 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
                 className="print-document-sheet page-break-after bg-white text-slate-900 shadow-2xl rounded-2xl p-8 sm:p-12 min-h-[1050px] border border-slate-200 flex flex-col justify-between print:min-h-0 print:h-auto print:max-h-none print:overflow-visible print:block print:p-0 print:border-none print:shadow-none print:rounded-none"
               >
                 <div>
-                  <DocumentHeader pageNum={3} totalPages={6} />
+                  <DocumentHeader pageNum={7 + inspIndex} totalPages={totalPdfPages} />
 
                   <div className="mb-5">
                     <div className="flex items-center justify-between gap-2 flex-wrap">
@@ -760,7 +919,7 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
         ) : (
           <section className="print-document-sheet page-break-after bg-white text-slate-900 shadow-2xl rounded-2xl p-8 sm:p-14 min-h-[1050px] border border-slate-200 flex flex-col justify-between print:min-h-0 print:h-auto print:max-h-none print:overflow-visible print:block print:p-0 print:border-none print:shadow-none print:rounded-none">
             <div>
-              <DocumentHeader pageNum={3} totalPages={6} />
+              <DocumentHeader pageNum={7} totalPages={totalPdfPages} />
               <div className="mb-6">
                 <h2 className="text-2xl font-black text-slate-950 uppercase tracking-tight mb-2">
                   Laudo Pericial Fotográfico de Campo
@@ -777,11 +936,11 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
         )}
 
         {/* ========================================================================= */}
-        {/* PÁGINA 4: METODOLOGIA EXECUTIVA E PLANO DE SEGURANÇA (NR-18 E NR-35)       */}
+        {/* METODOLOGIA EXECUTIVA E PLANO DE SEGURANÇA (NR-18 E NR-35)                 */}
         {/* ========================================================================= */}
         <section className="print-document-sheet page-break-after bg-white text-slate-900 shadow-2xl rounded-2xl p-8 sm:p-14 min-h-[1050px] border border-slate-200 flex flex-col justify-between print:min-h-0 print:h-auto print:max-h-none print:overflow-visible print:block print:p-0 print:border-none print:shadow-none print:rounded-none">
           <div>
-            <DocumentHeader pageNum={4} totalPages={6} />
+            <DocumentHeader pageNum={methodologyPageNum} totalPages={totalPdfPages} />
 
             <h2 className="text-2xl font-black text-slate-950 uppercase tracking-tight mb-2">
               Metodologia Executiva e Plano de Segurança
@@ -880,7 +1039,7 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
                   <ul className="space-y-1 text-slate-600 text-[11px]">
                     <li>• Telas de proteção fachadeiras envolventes em todo o perímetro trabalhado.</li>
                     <li>• Bandejas primárias e secundárias de retenção de materiais e ferramentas.</li>
-                    <li>• Emissão de ART (Anotação de Responsabilidade Técnica) no CREA/SP.</li>
+                    <li>• Emissão de ART (Anotação de Responsabilidade Técnica) no CREA/SC.</li>
                     <li>• Elaboração prévia de PGR e PCMSO com seguro de Responsabilidade Civil Cruzada (RCF).</li>
                   </ul>
                 </div>
@@ -892,11 +1051,11 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
         </section>
 
         {/* ========================================================================= */}
-        {/* PÁGINA 5: PLANILHA DE MATERIAIS E ESCOPO DE EQUIPE                        */}
+        {/* PLANILHA DE MATERIAIS E ESCOPO DE EQUIPE                                 */}
         {/* ========================================================================= */}
         <section className="print-document-sheet page-break-after bg-white text-slate-900 shadow-2xl rounded-2xl p-8 sm:p-14 min-h-[1050px] border border-slate-200 flex flex-col justify-between print:min-h-0 print:h-auto print:max-h-none print:overflow-visible print:block print:p-0 print:border-none print:shadow-none print:rounded-none">
           <div>
-            <DocumentHeader pageNum={5} totalPages={6} />
+            <DocumentHeader pageNum={costsPageNum} totalPages={totalPdfPages} />
 
             <h2 className="text-2xl font-black text-slate-950 uppercase tracking-tight mb-2">
               Planilha de Materiais e Escopo de Equipe
@@ -989,11 +1148,11 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
         </section>
 
         {/* ========================================================================= */}
-        {/* PÁGINA 6: RESUMO FINANCEIRO, CONDIÇÕES, GARANTIA & PÓS-OBRA                 */}
+        {/* RESUMO FINANCEIRO, CONDIÇÕES, GARANTIA & PÓS-OBRA                         */}
         {/* ========================================================================= */}
         <section className="print-document-sheet page-break-after bg-white text-slate-900 shadow-2xl rounded-2xl p-8 sm:p-14 min-h-[1050px] border border-slate-200 flex flex-col justify-between print:min-h-0 print:h-auto print:max-h-none print:overflow-visible print:block print:p-0 print:border-none print:shadow-none print:rounded-none">
           <div>
-            <DocumentHeader pageNum={6} totalPages={6} />
+            <DocumentHeader pageNum={finalPageNum} totalPages={totalPdfPages} />
 
             <h2 className="text-2xl font-black text-slate-950 uppercase tracking-tight mb-2">
               Resumo Financeiro e Condições Comerciais
@@ -1133,33 +1292,6 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
               </div>
             </div>
 
-            {/* Termo de Garantia de 5 Anos */}
-            <div className="mb-4 p-3 bg-amber-50/70 border border-amber-300 rounded-lg text-[11px] text-slate-800 space-y-1">
-              <div className="font-bold text-amber-950 uppercase flex items-center gap-1.5">
-                <ShieldCheck className="w-4 h-4 text-amber-600" />
-                Termo de Garantia Quinquenal (05 Anos — Código Civil Art. 618):
-              </div>
-              <p className="text-slate-700">
-                A Renovar Engenharia assegura garantia técnica integral de <strong>05 (cinco) anos</strong> para solidez, estabilidade dos revestimentos tratados, impermeabilidade e estanqueidade das juntas seladas, em estrita conformidade com o <strong>Artigo 618 da Lei Federal nº 10.406/2002 (Código Civil Brasileiro)</strong>.
-              </p>
-            </div>
-
-            {/* Plano de Manutenção Pós-Obra (ABNT NBR 5674) */}
-            <div className="mb-6 p-3 bg-sky-50/70 border border-sky-300 rounded-lg text-[11px] text-slate-800 space-y-1.5">
-              <div className="font-bold text-sky-950 uppercase flex items-center gap-1.5">
-                <BookOpen className="w-4 h-4 text-sky-600" />
-                Plano de Manutenção Pós-Obra (ABNT NBR 5674):
-              </div>
-              <p className="text-slate-700">
-                Visando a longevidade dos serviços realizados e a manutenção contínua da garantia de 5 anos, o condomínio receberá o <strong>Manual de Uso e Manutenção da Fachada</strong> contendo as seguintes diretrizes:
-              </p>
-              <ul className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 text-[10px] text-slate-600 font-mono pt-1">
-                <li>• Inspeção anual preventiva gratuita realizada pela Renovar.</li>
-                <li>• Lavagem suave periódica a cada 24 meses com água neutra.</li>
-                <li>• Verificação dos mástiques de juntas a cada 2 anos.</li>
-                <li>• Canal direto de suporte técnico para a administração do condomínio.</li>
-              </ul>
-            </div>
           </div>
 
           {/* Assinaturas Formais */}
@@ -1188,6 +1320,96 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
             <div className="text-center text-[10px] font-mono text-slate-400 mt-5">
               Proposta nº {orcamentoId} • Documento emitido em {dataAtualExtenso} • Válida por {validadeDias} dias corridos
             </div>
+          </div>
+        </section>
+
+        {/* ========================================================================= */}
+        {/* PLANO DE MANUTENÇÃO PÓS-OBRA E DIRETRIZES DE GARANTIA GERAL                */}
+        {/* ========================================================================= */}
+        <section className="print-document-sheet page-break-after bg-white text-slate-900 shadow-2xl rounded-2xl p-7 sm:p-11 min-h-[1050px] border border-slate-200 flex flex-col justify-between print:min-h-0 print:h-auto print:max-h-none print:overflow-visible print:block print:p-0 print:border-none print:shadow-none print:rounded-none">
+          <div>
+            <DocumentHeader pageNum={maintenancePageNum} totalPages={totalPdfPages} />
+            <h2 className="text-xl font-black uppercase tracking-tight text-slate-950 sm:text-2xl">
+              Plano de Manutenção Pós-Obra e Diretrizes de Garantia Geral
+            </h2>
+            <div className="mb-5 mt-3 h-1 w-16 bg-amber-500" />
+
+            <p className="mb-5 text-xs leading-relaxed text-slate-700 sm:text-sm">
+              Visando assegurar a longevidade dos serviços executados, a preservação do patrimônio
+              e a vigência contínua da garantia técnica, o condomínio deverá observar as diretrizes
+              básicas do Manual de Uso, Operação e Manutenção da Edificação (em conformidade com a
+              ABNT NBR 5674):
+            </p>
+
+            <div className="space-y-3.5 text-[11px] leading-relaxed text-slate-700 sm:text-xs">
+              <section className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <h3 className="mb-1.5 font-extrabold uppercase tracking-wide text-slate-950">
+                  1. Inspeções e Vistorias Periódicas
+                </h3>
+                <ul className="list-disc space-y-1 pl-5">
+                  <li>
+                    Realização de inspeções visuais anuais nas áreas intervencionadas para
+                    identificação precoce de eventuais desgastes por intempéries, fissuração ou
+                    impactos mecânicos acidentais.
+                  </li>
+                  <li>
+                    Acompanhamento preventivo dos elementos de vedação, juntas de dilatação e
+                    sistemas impermeabilizados conforme periodicidade indicada em manual técnico
+                    específico.
+                  </li>
+                </ul>
+              </section>
+
+              <section className="rounded-xl border border-sky-200 bg-sky-50/50 p-4">
+                <h3 className="mb-1.5 font-extrabold uppercase tracking-wide text-slate-950">
+                  2. Diretrizes para Limpeza e Conservação
+                </h3>
+                <ul className="list-disc pl-5">
+                  <li>
+                    A limpeza e higienização periódica das áreas recuperadas devem ser executadas
+                    com produtos neutros e adequados ao substrato, evitando rigorosamente o uso de
+                    ácidos, solventes agressivos ou ferramentas abrasivas que possam danificar os
+                    revestimentos e películas protetoras.
+                  </li>
+                </ul>
+              </section>
+
+              <section className="rounded-xl border border-amber-200 bg-amber-50/50 p-4">
+                <h3 className="mb-1.5 font-extrabold uppercase tracking-wide text-slate-950">
+                  3. Interferências e Instalações de Terceiros
+                </h3>
+                <ul className="list-disc pl-5">
+                  <li>
+                    Quaisquer novas instalações ou intervenções posteriores (como furações,
+                    fixações de equipamentos, antenas ou elementos suspensos) nas áreas reformadas
+                    deverão ser executadas com prévia orientação técnica e rigorosa vedação dos
+                    pontos de fixação, evitando infiltrações ou rupturas que invalidem a garantia
+                    do trecho.
+                  </li>
+                </ul>
+              </section>
+
+              <section className="rounded-xl border border-emerald-300 bg-emerald-50/60 p-4">
+                <h3 className="mb-1.5 flex items-center gap-1.5 font-extrabold uppercase tracking-wide text-emerald-950">
+                  <ShieldCheck className="h-4 w-4 shrink-0 text-emerald-700" />
+                  4. Termo de Garantia Quinquenal (05 Anos)
+                </h3>
+                <ul className="list-disc pl-5">
+                  <li>
+                    A Renovar SC assegura garantia técnica integral de 05 (cinco) anos para a
+                    solidez e estabilidade dos elementos estruturais e revestimentos executados,
+                    bem como para a estanqueidade dos sistemas recuperados, em estrita conformidade
+                    com o Artigo 618 da Lei Federal nº 10.406/2002 (Código Civil Brasileiro),
+                    condicionada ao cumprimento das diretrizes deste Plano de Manutenção
+                    Preventiva.
+                  </li>
+                </ul>
+              </section>
+            </div>
+          </div>
+
+          <div className="mt-6 border-t border-slate-200 pt-4 text-xs font-mono text-slate-600">
+            RENOVAR SC — Soluções Prediais • CREA/SC: 105.402-1
           </div>
         </section>
       </div>

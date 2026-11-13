@@ -11,295 +11,14 @@ import {
 import {
   CONDICOES_COMERCIAIS_PADRAO,
   calcularOrcamento,
-  formatarMoeda,
 } from '../utils/budgetCalculator';
 import {
   obterConfigEtapaKanban,
   salvarOrcamentosNoStorage,
 } from '../utils/orcamentoKanbanUtils';
 
-export const GOOGLE_SHEETS_API_URL =
-  (typeof import.meta !== 'undefined' &&
-    (import.meta as any)?.env?.VITE_GOOGLE_SHEETS_API_URL) ||
-  'https://script.google.com/macros/s/AKfycbzicDbZ6t7c_flfGGBM4UII0pfL82GQ_GIkaWhUQUqKHwbdNPYxZWw9WVqlTBbU457Bnw/exec';
+export const GOOGLE_SHEETS_API_URL = '';
 
-async function respostaSheetsConfirmouGravacao(response: Response): Promise<boolean> {
-  if (!response.ok) return false;
-
-  const text = await response.clone().text();
-  if (!text.trim()) return true;
-  if (/<(?:!doctype|html|head|body)\b/i.test(text)) return false;
-
-  try {
-    const body = JSON.parse(text);
-    return body?.ok !== false && body?.success !== false && !body?.error;
-  } catch {
-    return true;
-  }
-}
-
-function respostaSheetsConfirmouExclusao(
-  body: unknown,
-  proposalId: string
-): boolean {
-  let resultado = body;
-  if (typeof resultado === 'string') {
-    try {
-      resultado = JSON.parse(resultado);
-    } catch {
-      return false;
-    }
-  }
-  if (!resultado || typeof resultado !== 'object') return false;
-  const confirmacao = resultado as Record<string, unknown>;
-  const deletedRows = Number(confirmacao.deletedRows);
-  return (
-    confirmacao.ok === true &&
-    confirmacao.action === 'delete' &&
-    confirmacao.id === proposalId &&
-    Number.isInteger(deletedRows) &&
-    deletedRows >= 0
-  );
-}
-
-const DELETED_IDS_STORAGE_KEY = 'patologias_orcamentos_excluidos_v1';
-
-function obterIdsExcluidosLocalmente(): Set<string> {
-  try {
-    const raw = localStorage.getItem(DELETED_IDS_STORAGE_KEY);
-    if (!raw) return new Set();
-    const parsed = JSON.parse(raw);
-    return new Set(Array.isArray(parsed) ? parsed : []);
-  } catch {
-    return new Set();
-  }
-}
-
-function registrarIdExcluidoLocalmente(id: string): void {
-  try {
-    const set = obterIdsExcluidosLocalmente();
-    set.add(id);
-    localStorage.setItem(DELETED_IDS_STORAGE_KEY, JSON.stringify(Array.from(set)));
-  } catch {
-    // Ignora falha de storage em aba anônima restrita
-  }
-}
-
-function removerIdExcluidoLocalmente(id: string): void {
-  try {
-    const set = obterIdsExcluidosLocalmente();
-    if (set.has(id)) {
-      set.delete(id);
-      localStorage.setItem(DELETED_IDS_STORAGE_KEY, JSON.stringify(Array.from(set)));
-    }
-  } catch {
-    // Ignora falha de storage em aba anônima restrita
-  }
-}
-
-/**
- * Retorna a primeira string não vazia dentre os candidatos passados.
- * Evita que strings vazias ("") retornadas por células em branco do Google Sheets bloqueiem fallbacks.
- */
-function primeiroTextoNaoVazio(...valores: any[]): string {
-  for (const v of valores) {
-    if (v !== undefined && v !== null && typeof v !== 'object') {
-      const s = String(v).trim();
-      if (s !== '' && s !== 'undefined' && s !== 'null') {
-        return s;
-      }
-    }
-  }
-  return '';
-}
-
-/**
- * Normaliza chaves de colunas da planilha (remove acentos, espaços, símbolos e converte para minúsculas)
- * para busca insensível a formatação de cabeçalhos no Google Sheets.
- */
-function normalizarChaveColuna(chave: string): string {
-  return String(chave || '')
-    .trim()
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^a-z0-9]/g, '');
-}
-
-/**
- * Busca um valor não vazio em um objeto de linha da planilha testando múltiplos nomes de colunas possíveis.
- */
-function obterCampoFlexivel(row: Record<string, any>, candidatos: string[]): any {
-  if (!row || typeof row !== 'object') return undefined;
-
-  for (const cand of candidatos) {
-    const val = row[cand];
-    if (val !== undefined && val !== null && String(val).trim() !== '') {
-      return val;
-    }
-  }
-
-  const alvosNormalizados = new Set(candidatos.map(normalizarChaveColuna));
-  for (const [k, v] of Object.entries(row)) {
-    if (k === '_rawCells') continue;
-    if (
-      v !== undefined &&
-      v !== null &&
-      String(v).trim() !== '' &&
-      alvosNormalizados.has(normalizarChaveColuna(k))
-    ) {
-      return v;
-    }
-  }
-
-  return undefined;
-}
-
-/**
- * Verifica se uma string corresponde explicitamente a um status/etapa do Kanban.
- */
-function pareceStatusKanbanExplicito(valorBruto: any): boolean {
-  if (!valorBruto || typeof valorBruto !== 'string') return false;
-  const limpo = valorBruto
-    .trim()
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '');
-
-  return (
-    limpo === 'em_elaboracao' ||
-    limpo === 'em elaboracao' ||
-    limpo === 'enviado_sindico' ||
-    limpo === 'enviado ao sindico' ||
-    limpo === 'aguardando_aprovacao' ||
-    limpo === 'aguardando aprovacao' ||
-    limpo === 'aprovado' ||
-    limpo === 'recusado'
-  );
-}
-
-/**
- * Converte qualquer variação de texto ou código de fase/status vinda da planilha
- * para o tipo padronizado `StatusOrcamentoKanban`.
- */
-export function normalizarStatusKanban(valorBruto: any): StatusOrcamentoKanban {
-  if (!valorBruto || typeof valorBruto !== 'string') return 'em_elaboracao';
-  const limpo = valorBruto
-    .trim()
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '');
-
-  if (
-    limpo === 'enviado_sindico' ||
-    limpo.includes('enviado') ||
-    limpo.includes('sindico')
-  ) {
-    return 'enviado_sindico';
-  }
-  if (
-    limpo === 'aguardando_aprovacao' ||
-    limpo.includes('aguardando') ||
-    limpo.includes('assembleia') ||
-    limpo.includes('analise')
-  ) {
-    return 'aguardando_aprovacao';
-  }
-  if (limpo === 'aprovado' || limpo.includes('aprovad') || limpo.includes('aceit')) {
-    return 'aprovado';
-  }
-  if (
-    limpo === 'recusado' ||
-    limpo.includes('recusad') ||
-    limpo.includes('reprovad') ||
-    limpo.includes('declinad') ||
-    limpo.includes('cancelad')
-  ) {
-    return 'recusado';
-  }
-  return 'em_elaboracao';
-}
-
-/**
- * Converte valores monetários numéricos ou strings formatadas ("R$ 145.200,50" ou "145200.50") em número.
- */
-function parseNumeroMonetario(val: any): number {
-  if (typeof val === 'number' && !Number.isNaN(val)) return val;
-  if (typeof val === 'string') {
-    const trimmed = val.trim();
-    if (!trimmed) return 0;
-    // Ignora códigos PROP- ou datas ou telefones
-    if (
-      /^PROP-/i.test(trimmed) ||
-      /^\d{2}\/\d{2}\/\d{4}/.test(trimmed) ||
-      /^\d{4}-\d{2}-\d{2}/.test(trimmed) ||
-      /^\(\d{2}\)/.test(trimmed) ||
-      /^\d{2}\.\d{3}\.\d{3}\//.test(trimmed)
-    ) {
-      return 0;
-    }
-    if (trimmed.includes(',')) {
-      const limpo = trimmed
-        .replace(/[R$\s]/g, '')
-        .replace(/\./g, '')
-        .replace(',', '.');
-      const num = Number(limpo);
-      if (!Number.isNaN(num)) return num;
-    } else {
-      const limpo = trimmed.replace(/[R$\s]/g, '');
-      const num = Number(limpo);
-      if (!Number.isNaN(num)) return num;
-    }
-  }
-  return 0;
-}
-
-function primeiroNumeroPositivo(...valores: any[]): number {
-  for (const v of valores) {
-    const n = parseNumeroMonetario(v);
-    if (n > 0) return n;
-  }
-  return 0;
-}
-
-/**
- * Faz o parse de datas vindas do Google Sheets (ISO 8601, Date serial ou formato brasileiro DD/MM/YYYY HH:mm:ss).
- */
-function parseDataPlanilhaIso(valorBruto: any): string | null {
-  if (!valorBruto) return null;
-  if (valorBruto instanceof Date && !Number.isNaN(valorBruto.getTime())) {
-    return valorBruto.toISOString();
-  }
-  const str = String(valorBruto).trim();
-  if (!str) return null;
-
-  // Formato brasileiro: DD/MM/YYYY ou DD/MM/YYYY, HH:mm:ss
-  const matchBr = str.match(
-    /^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:[,\s]+(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?)?/
-  );
-  if (matchBr) {
-    const dia = Number(matchBr[1]);
-    const mes = Number(matchBr[2]) - 1;
-    const ano = Number(matchBr[3]);
-    const hora = Number(matchBr[4] || 12);
-    const min = Number(matchBr[5] || 0);
-    const seg = Number(matchBr[6] || 0);
-    const dt = new Date(ano, mes, dia, hora, min, seg);
-    if (!Number.isNaN(dt.getTime())) {
-      return dt.toISOString();
-    }
-  }
-
-  const parsed = new Date(str);
-  if (!Number.isNaN(parsed.getTime())) {
-    return parsed.toISOString();
-  }
-  return null;
-}
-
-/**
- * Preserva as fotos embutidas nos registros e evita duplicá-las no campo selecionado.
- */
 export function compactarOrcamentoParaNuvem(orcamento: OrcamentoSalvo): OrcamentoSalvo {
   return {
     ...orcamento,
@@ -311,779 +30,27 @@ export function compactarOrcamentoParaNuvem(orcamento: OrcamentoSalvo): Orcament
   };
 }
 
-const LIMITE_CARACTERES_DETALHES = 49000;
-
-function reduzirImagemBase64(dataUrl: string, limiteCaracteres: number): Promise<string> {
-  if (dataUrl.length <= limiteCaracteres) return Promise.resolve(dataUrl);
-  if (limiteCaracteres < 512) {
-    return Promise.reject(
-      new Error(
-        'Há fotos demais para o limite de uma célula do Google Sheets. Reduza a quantidade de fotos e tente novamente.'
-      )
-    );
-  }
-
-  return new Promise((resolve, reject) => {
-    const image = new Image();
-    image.onload = () => {
-      const maxDimension = 1600;
-      const initialScale = Math.min(
-        1,
-        maxDimension / Math.max(image.naturalWidth, image.naturalHeight)
-      );
-      let scale = initialScale;
-
-      while (scale * Math.max(image.naturalWidth, image.naturalHeight) >= 128) {
-        const width = Math.max(1, Math.round(image.naturalWidth * scale));
-        const height = Math.max(1, Math.round(image.naturalHeight * scale));
-        const canvas = document.createElement('canvas');
-        canvas.width = width;
-        canvas.height = height;
-        const context = canvas.getContext('2d');
-        if (!context) {
-          reject(new Error('Não foi possível compactar uma das imagens para a planilha.'));
-          return;
-        }
-        context.fillStyle = '#fff';
-        context.fillRect(0, 0, width, height);
-        context.drawImage(image, 0, 0, width, height);
-
-        for (const quality of [0.76, 0.58, 0.4, 0.28]) {
-          const compressed = canvas.toDataURL('image/jpeg', quality);
-          if (compressed.length <= limiteCaracteres) {
-            resolve(compressed);
-            return;
-          }
-        }
-        scale *= 0.72;
-      }
-
-      reject(
-        new Error(
-          'As imagens selecionadas excedem o limite de armazenamento da célula Detalhes do Google Sheets. Reduza a quantidade de fotos.'
-        )
-      );
-    };
-    image.onerror = () => reject(new Error('Não foi possível ler uma das imagens selecionadas.'));
-    image.src = dataUrl;
-  });
-}
-
 export async function compactarImagensParaPlanilha(
   orcamento: OrcamentoSalvo
 ): Promise<OrcamentoSalvo> {
-  const registros = orcamento.registrosVistoria || [];
-  const imagensEmbutidas = registros.filter((registro) =>
-    registro.imagemUrl.startsWith('data:image/')
-  );
-  const base = compactarOrcamentoParaNuvem(orcamento);
-  const detalhesBase = JSON.stringify({
-    ...base,
-    registrosVistoria: registros.map((registro) => ({
-      ...registro,
-      imagemUrl: registro.imagemUrl.startsWith('data:image/') ? '' : registro.imagemUrl,
-    })),
-  });
-  const caracteresDisponiveis = LIMITE_CARACTERES_DETALHES - detalhesBase.length;
-
-  if (caracteresDisponiveis < 0) {
-    throw new Error(
-      'Os dados do laudo excedem o limite de uma célula do Google Sheets. Reduza o conteúdo do diagnóstico e tente novamente.'
-    );
-  }
-
-  if (imagensEmbutidas.length === 0) {
-    return base;
-  }
-
-  const limitePorImagem = Math.floor(caracteresDisponiveis / imagensEmbutidas.length);
-  const imagensCompactadas = new Map(
-    await Promise.all(
-      imagensEmbutidas.map(async (registro) => [
-        registro.id,
-        await reduzirImagemBase64(registro.imagemUrl, limitePorImagem),
-      ] as const)
-    )
-  );
-  const resultado: OrcamentoSalvo = {
-    ...base,
-    registrosVistoria: registros.map((registro) => ({
-      ...registro,
-      imagemUrl: imagensCompactadas.get(registro.id) || registro.imagemUrl || '',
-    })),
-  };
-
-  if (JSON.stringify(resultado).length > LIMITE_CARACTERES_DETALHES) {
-    throw new Error(
-      'O laudo ainda excede o limite de armazenamento do Google Sheets após compactar as imagens.'
-    );
-  }
-  return resultado;
+  return compactarOrcamentoParaNuvem(orcamento);
 }
 
-/**
- * Monta o payload completo para envio via POST ao Google Apps Script Web App.
- * Inclui campos planos em todos os formatos usuais de cabeçalho de planilha (camelCase, Português com/sem acento, MAIÚSCULAS),
- * um array `row` / `values` posicional e o objeto `detalhes` serializado em JSON.
- */
 export function montarPayloadPlanilha(
   orcamento: OrcamentoSalvo,
   action: 'save' | 'updateStatus' | 'delete' = 'save',
-  etapaFormulario?: number
+  _etapaFormulario?: number
 ) {
   const orcamentoCompacto = compactarOrcamentoParaNuvem(orcamento);
-  const etapaConfig = obterConfigEtapaKanban(orcamento.status);
-  const anomalias =
-    orcamento.diagnostico?.anomalias || orcamento.diagnostico?.patologias || [];
-
-  const nomeCondominio = orcamento.dadosCliente.nomeCondominio || '';
-  const nomeSindico = orcamento.dadosCliente.nomeSindico || '';
-  const telefone = orcamento.dadosCliente.telefone || '';
-  const email = orcamento.dadosCliente.email || '';
-  const cnpj = orcamento.dadosCliente.cnpj || '';
-  const endereco = orcamento.dadosCliente.endereco || '';
-  const anoConstrucao = orcamento.dadosCliente.anoConstrucao || '';
-  const pavimentos = orcamento.dadosCliente.pavimentos || '';
-  const valorGlobal = orcamento.calculos.valorGlobal;
-  const valorFormatado = formatarMoeda(valorGlobal);
-  const dataFormatada = new Date(orcamento.dataCriacao).toLocaleString('pt-BR');
-  const detalhesJson = JSON.stringify(orcamentoCompacto);
-  if (detalhesJson.length > LIMITE_CARACTERES_DETALHES) {
-    throw new Error(
-      'O laudo excede o limite de armazenamento de uma célula do Google Sheets (49.000 caracteres). Reduza as fotos ou o conteúdo do diagnóstico.'
-    );
-  }
-  const imagens = (orcamentoCompacto.registrosVistoria || [])
-    .filter((registro) => registro.imagemUrl)
-    .map(({ id, imagemUrl, nomeArquivo }) => ({
-      id,
-      nomeArquivo,
-      embutida: imagemUrl.startsWith('data:image/'),
-    }));
-
-  const resumoDetalhesTexto = [
-    `Condomínio: ${nomeCondominio}`,
-    `Síndico: ${nomeSindico || 'Não informado'}`,
-    `Valor Global: ${valorFormatado}`,
-    `Prazo: ${orcamento.calculos.mesesObra} meses`,
-    `Patologias: ${anomalias.map((a) => a.nome_patologia).join('; ') || 'Em diagnóstico'}`,
-  ].join(' | ');
-
   return {
     action,
-    acao:
-      action === 'save'
-        ? 'salvar'
-        : action === 'updateStatus'
-          ? 'atualizar_status'
-          : 'excluir',
-    sheet: 'Página1',
-    aba: 'Página1',
-    sheetName: 'Página1',
-    etapaFormulario: etapaFormulario || 4,
     id: orcamento.id,
-    ID: orcamento.id,
-    Id: orcamento.id,
-    orcamentoId: orcamento.id,
-    codigo: orcamento.id,
-    Codigo: orcamento.id,
-    'Código': orcamento.id,
-    dataCriacao: orcamento.dataCriacao,
-    dataAtualizacao: orcamento.dataAtualizacao || new Date().toISOString(),
-    data: dataFormatada,
-    Data: dataFormatada,
-    DATA: dataFormatada,
-    Timestamp: dataFormatada,
+    cliente: orcamento.dadosCliente.nomeCondominio || 'Cliente',
     status: orcamento.status,
-    Status: etapaConfig.titulo,
-    STATUS: orcamento.status,
-    fase: etapaConfig.titulo,
-    Fase: etapaConfig.titulo,
-    FASE: etapaConfig.titulo,
-    statusTitulo: etapaConfig.titulo,
-    etapa: orcamento.status,
-    Etapa: etapaConfig.titulo,
-    cliente: nomeCondominio,
-    Cliente: nomeCondominio,
-    CLIENTE: nomeCondominio,
-    nomeCondominio,
-    condominio: nomeCondominio,
-    Condominio: nomeCondominio,
-    'Condomínio': nomeCondominio,
-    'Nome do Condomínio': nomeCondominio,
-    cnpj,
-    CNPJ: cnpj,
-    endereco,
-    Endereco: endereco,
-    'Endereço': endereco,
-    sindico: nomeSindico,
-    Sindico: nomeSindico,
-    'Síndico': nomeSindico,
-    nomeSindico,
-    'Nome do Síndico': nomeSindico,
-    telefone,
-    Telefone: telefone,
-    TELEFONE: telefone,
-    WhatsApp: telefone,
-    email,
-    Email: email,
-    'E-mail': email,
-    anoConstrucao,
-    'Ano de Construção': anoConstrucao,
-    pavimentos,
-    Pavimentos: pavimentos,
-    valor: valorGlobal,
-    Valor: valorGlobal,
-    VALOR: valorGlobal,
-    valorGlobal,
-    'Valor Global': valorFormatado,
-    valorFormatado,
-    mesesObra: orcamento.calculos.mesesObra,
-    Prazo: `${orcamento.calculos.mesesObra} meses`,
-    margemLucroPercentual: orcamento.calculos.margemLucroPercentual,
-    resumoDetalhes: resumoDetalhesTexto,
-    imagens,
-    detalhes: detalhesJson,
-    Detalhes: detalhesJson,
-    DETALHES: detalhesJson,
-    json: detalhesJson,
-    JSON: detalhesJson,
-    dadosCliente: orcamento.dadosCliente,
-    calculos: orcamento.calculos,
-    condicoesComerciais: orcamento.condicoesComerciais,
-    row: [
-      orcamento.id,
-      dataFormatada,
-      nomeCondominio,
-      cnpj,
-      endereco,
-      nomeSindico,
-      telefone,
-      email,
-      valorGlobal,
-      etapaConfig.titulo,
-      detalhesJson,
-    ],
+    ...orcamentoCompacto,
   };
 }
 
-/**
- * Converte uma matriz 2D (ex: retorno de `sheet.getDataRange().getValues()`) ou objetos mal indexados
- * em uma lista uniforme de objetos de linha com `_rawCells`.
- */
-function converterLinhasBrutasPlanilha(listaBruta: any[]): any[] {
-  if (!Array.isArray(listaBruta) || listaBruta.length === 0) return [];
-
-  // Caso 1: Matriz 2D (Array de Arrays)
-  if (Array.isArray(listaBruta[0])) {
-    const primeiraLinha = listaBruta[0] as any[];
-    const palavrasCabecalho = new Set([
-      'id',
-      'codigo',
-      'proposta',
-      'orcamentoid',
-      'data',
-      'datacriacao',
-      'timestamp',
-      'cliente',
-      'condominio',
-      'nomedocondominio',
-      'nomecondominio',
-      'nomedocliente',
-      'sindico',
-      'nomesindico',
-      'telefone',
-      'whatsapp',
-      'email',
-      'cnpj',
-      'endereco',
-      'valor',
-      'valorglobal',
-      'valortotal',
-      'status',
-      'fase',
-      'etapa',
-      'detalhes',
-      'json',
-      'dados',
-    ]);
-
-    const pareceCabecalho = primeiraLinha.some(
-      (cell) =>
-        typeof cell === 'string' &&
-        palavrasCabecalho.has(normalizarChaveColuna(cell)) &&
-        !cell.trim().startsWith('{') &&
-        !cell.trim().toUpperCase().startsWith('PROP-')
-    );
-
-    if (pareceCabecalho) {
-      const cabecalhos = primeiraLinha.map((cell, idx) =>
-        String(cell || `col_${idx}`).trim()
-      );
-      return listaBruta.slice(1).map((linha) => {
-        if (!Array.isArray(linha)) return linha;
-        const obj: Record<string, any> = { _rawCells: linha };
-        cabecalhos.forEach((h, idx) => {
-          obj[h] = linha[idx];
-        });
-        return obj;
-      });
-    }
-
-    return listaBruta.map((linha) =>
-      Array.isArray(linha) ? { _rawCells: linha } : linha
-    );
-  }
-
-  // Caso 2: Array de Objetos — verifica se a 1ª linha de dados foi usada acidentalmente como chave pelo Apps Script
-  const primeiroObj = listaBruta[0];
-  if (primeiroObj && typeof primeiroObj === 'object') {
-    const chaves = Object.keys(primeiroObj);
-    const chavePareceDado = chaves.some(
-      (k) => k.trim().toUpperCase().startsWith('PROP-') || k.trim().startsWith('{')
-    );
-
-    if (chavePareceDado) {
-      const resultado: any[] = [{ _rawCells: chaves }];
-      for (const item of listaBruta) {
-        if (item && typeof item === 'object') {
-          resultado.push({ ...item, _rawCells: Object.values(item) });
-        }
-      }
-      return resultado;
-    }
-
-    return listaBruta.map((item) =>
-      item && typeof item === 'object'
-        ? { ...item, _rawCells: Array.isArray(item._rawCells) ? item._rawCells : Object.values(item) }
-        : item
-    );
-  }
-
-  return listaBruta;
-}
-
-/**
- * Procura em todas as propriedades ou células da linha se alguma contém o JSON serializado
- * completo do `OrcamentoSalvo`.
- */
-function extrairSnapshotJsonDaLinha(row: any): Partial<OrcamentoSalvo> | null {
-  const tentarParsear = (val: any): Partial<OrcamentoSalvo> | null => {
-    if (!val) return null;
-    if (typeof val === 'object' && !Array.isArray(val)) {
-      if (val.dadosCliente || val.calculos || (val.id && String(val.id).startsWith('PROP-'))) {
-        return val as Partial<OrcamentoSalvo>;
-      }
-    }
-    if (typeof val === 'string') {
-      const trimmed = val.trim();
-      if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
-        try {
-          const parsed = JSON.parse(trimmed);
-          if (parsed && typeof parsed === 'object') {
-            return parsed;
-          }
-        } catch {
-          return null;
-        }
-      }
-    }
-    return null;
-  };
-
-  const campoDireto = obterCampoFlexivel(row, [
-    'detalhes',
-    'json',
-    'payload',
-    'dados',
-    'orcamento',
-    'snapshot',
-    'resumo',
-  ]);
-  const direto = tentarParsear(campoDireto);
-  if (direto) return direto;
-
-  if (Array.isArray(row._rawCells)) {
-    for (const cell of row._rawCells) {
-      const p = tentarParsear(cell);
-      if (p) return p;
-    }
-  }
-
-  for (const [k, val] of Object.entries(row)) {
-    if (k === '_rawCells') continue;
-    const p = tentarParsear(val);
-    if (p) return p;
-  }
-
-  return null;
-}
-
-/**
- * Analisa células posicionais da linha quando os cabeçalhos da planilha são personalizados ou ausentes.
- */
-function analisarCelulasDaLinha(cells: any[]) {
-  let idDetectado = '';
-  let statusDetectado = '';
-  let valorDetectado = 0;
-  let dataDetectada = '';
-  let emailDetectado = '';
-  let cnpjDetectado = '';
-  let telefoneDetectado = '';
-  const textosLivres: string[] = [];
-
-  for (const raw of cells) {
-    if (raw === undefined || raw === null) continue;
-    if (typeof raw === 'number' && !Number.isNaN(raw)) {
-      // Ignora números pequenos ou anos (ex: 4 meses, 20%, 2026) se já houver valor maior
-      if (raw > 2100 || (raw > 50 && valorDetectado === 0 && (raw < 1900 || raw > 2100))) {
-        if (raw > valorDetectado) valorDetectado = raw;
-      }
-      continue;
-    }
-    if (typeof raw !== 'string') continue;
-    const str = raw.trim();
-    if (!str || str.startsWith('{')) continue;
-
-    if (/^PROP-[A-Z0-9-]+/i.test(str)) {
-      if (!idDetectado) idDetectado = str;
-      continue;
-    }
-    if (pareceStatusKanbanExplicito(str)) {
-      if (!statusDetectado) statusDetectado = str;
-      continue;
-    }
-    if (/^R\$\s*[\d.,]+/i.test(str) || /^\d{1,3}(\.\d{3})+,\d{2}$/.test(str)) {
-      const v = parseNumeroMonetario(str);
-      if (v > valorDetectado) valorDetectado = v;
-      continue;
-    }
-    const iso = parseDataPlanilhaIso(str);
-    if (iso && (/^\d{4}-\d{2}-\d{2}/.test(str) || /^\d{1,2}\/\d{1,2}\/\d{4}/.test(str))) {
-      if (!dataDetectada) dataDetectada = iso;
-      continue;
-    }
-    if (str.includes('@') && str.includes('.') && !str.includes(' ')) {
-      if (!emailDetectado) emailDetectado = str;
-      continue;
-    }
-    if (/^\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}$/.test(str)) {
-      if (!cnpjDetectado) cnpjDetectado = str;
-      continue;
-    }
-    if (/^\(?\d{2}\)?\s*\d{4,5}-?\d{4}$/.test(str)) {
-      if (!telefoneDetectado) telefoneDetectado = str;
-      continue;
-    }
-
-    // Se for string puramente numérica grande (ex: "145200.50")
-    if (/^\d+(\.\d+)?$/.test(str)) {
-      const n = Number(str);
-      if (n > 2100 && n > valorDetectado) {
-        valorDetectado = n;
-        continue;
-      }
-    }
-
-    // Se contiver resumo formatado "Condomínio: X | Síndico: Y"
-    if (str.includes('Condomínio:') && str.includes('|')) {
-      const partes = str.split('|').map((p) => p.trim());
-      for (const p of partes) {
-        if (p.toLowerCase().startsWith('condomínio:') || p.toLowerCase().startsWith('condominio:')) {
-          const nome = p.split(':').slice(1).join(':').trim();
-          if (nome && !textosLivres.includes(nome)) textosLivres.unshift(nome);
-        }
-      }
-      continue;
-    }
-
-    textosLivres.push(str);
-  }
-
-  return {
-    idDetectado,
-    statusDetectado,
-    valorDetectado,
-    dataDetectada,
-    emailDetectado,
-    cnpjDetectado,
-    telefoneDetectado,
-    clienteDetectado: textosLivres[0] || '',
-    sindicoDetectado: textosLivres[1] || '',
-  };
-}
-
-/**
- * Converte uma linha/objeto retornado pelo GET da API do Google Sheets
- * em um objeto `OrcamentoSalvo` completo para o painel Kanban e histórico.
- */
-export function normalizarLinhaPlanilhaParaOrcamento(
-  row: any,
-  _index: number
-): OrcamentoSalvo | null {
-  if (!row || typeof row !== 'object') return null;
-
-  const parsedDetalhes = extrairSnapshotJsonDaLinha(row);
-  const rawCells: any[] = Array.isArray(row._rawCells)
-    ? row._rawCells
-    : Object.values(row);
-  const scan = analisarCelulasDaLinha(rawCells);
-
-  // Ignora linhas marcadas como excluídas na planilha
-  const rawStatus = primeiroTextoNaoVazio(
-    obterCampoFlexivel(row, [
-      'status',
-      'fase',
-      'etapa',
-      'statusTitulo',
-      'situacao',
-      'estagio',
-      'status/fase',
-      'statusFase',
-    ]),
-    scan.statusDetectado
-  );
-
-  const statusCompleto = primeiroTextoNaoVazio(rawStatus, parsedDetalhes?.status);
-  const statusChave = normalizarChaveColuna(statusCompleto);
-  const marcadorExclusao = normalizarChaveColuna(
-    obterCampoFlexivel(row, ['deleted', 'excluido', 'excluida', 'acao', 'action'])
-  );
-  if (
-    ['deleted', 'excluido', 'rascunho', 'draft', 'obsolete', 'obsoleto'].some((status) =>
-      statusChave.includes(status)
-    ) ||
-    ['delete', 'excluir', 'deleted', 'true', '1'].includes(marcadorExclusao)
-  ) {
-    return null;
-  }
-
-  const idExtraido = primeiroTextoNaoVazio(
-    obterCampoFlexivel(row, [
-      'id',
-      'orcamentoId',
-      'codigo',
-      'proposta',
-      'numeroProposta',
-      'idOrcamento',
-    ]),
-    parsedDetalhes?.id,
-    scan.idDetectado
-  );
-
-  if (!idExtraido) return null;
-
-  // Status da linha da planilha tem prioridade (pois pode ter sido atualizado na planilha ou no Kanban)
-  const statusNormalizado = rawStatus
-    ? normalizarStatusKanban(rawStatus)
-    : parsedDetalhes?.status
-      ? normalizarStatusKanban(parsedDetalhes.status)
-      : 'em_elaboracao';
-
-  const nomeCondominio = primeiroTextoNaoVazio(
-    obterCampoFlexivel(row, [
-      'nomeCondominio',
-      'condominio',
-      'cliente',
-      'nomeDoCondominio',
-      'nomeDoCliente',
-      'nomeCliente',
-      'nome',
-      'edificio',
-      'nomeEdificio',
-      'contratante',
-      'empresa',
-      'razaoSocial',
-    ]),
-    parsedDetalhes?.dadosCliente?.nomeCondominio,
-    scan.clienteDetectado
-  );
-
-  const nomeSindico = primeiroTextoNaoVazio(
-    obterCampoFlexivel(row, [
-      'nomeSindico',
-      'sindico',
-      'nomeDoSindico',
-      'gestor',
-      'responsavel',
-    ]),
-    parsedDetalhes?.dadosCliente?.nomeSindico,
-    scan.sindicoDetectado
-  );
-
-  const telefone = primeiroTextoNaoVazio(
-    obterCampoFlexivel(row, [
-      'telefone',
-      'celular',
-      'whatsapp',
-      'fone',
-      'contato',
-    ]),
-    parsedDetalhes?.dadosCliente?.telefone,
-    scan.telefoneDetectado
-  );
-
-  const email = primeiroTextoNaoVazio(
-    obterCampoFlexivel(row, ['email', 'e-mail', 'correio']),
-    parsedDetalhes?.dadosCliente?.email,
-    scan.emailDetectado
-  );
-
-  const cnpj = primeiroTextoNaoVazio(
-    obterCampoFlexivel(row, ['cnpj', 'documento']),
-    parsedDetalhes?.dadosCliente?.cnpj,
-    scan.cnpjDetectado
-  );
-
-  const endereco = primeiroTextoNaoVazio(
-    obterCampoFlexivel(row, ['endereco', 'localizacao', 'logradouro', 'enderecoObra']),
-    parsedDetalhes?.dadosCliente?.endereco
-  );
-
-  const valorGlobal = primeiroNumeroPositivo(
-    obterCampoFlexivel(row, [
-      'valorGlobal',
-      'valor_global',
-      'valor',
-      'valorTotal',
-      'valorFormatado',
-      'preco',
-      'total',
-      'orcamento',
-    ]),
-    parsedDetalhes?.calculos?.valorGlobal,
-    scan.valorDetectado
-  );
-
-  // Ignora linhas totalmente vazias ou que sejam literalmente a linha de cabeçalho da planilha
-  const chaveCond = normalizarChaveColuna(nomeCondominio);
-  const chaveId = normalizarChaveColuna(idExtraido);
-  if (
-    !nomeCondominio ||
-    chaveCond === 'cliente' ||
-    chaveCond === 'condominio' ||
-    chaveCond === 'nomedocondominio' ||
-    chaveCond === 'condominioemcadastro' ||
-    chaveCond === 'condominiocadastrado' ||
-    chaveCond === 'rascunho' ||
-    chaveCond === 'draft' ||
-    chaveCond === 'obsoleto' ||
-    chaveId === 'id' ||
-    chaveId === 'codigo' ||
-    chaveId.startsWith('propcloud')
-  ) {
-    return null;
-  }
-
-  const dadosCliente: DadosCliente = {
-    nomeCondominio,
-    cnpj,
-    endereco,
-    nomeSindico,
-    anoConstrucao: primeiroTextoNaoVazio(
-      obterCampoFlexivel(row, ['anoConstrucao', 'idade', 'ano']),
-      parsedDetalhes?.dadosCliente?.anoConstrucao
-    ),
-    pavimentos: primeiroTextoNaoVazio(
-      obterCampoFlexivel(row, ['pavimentos', 'andares', 'numeroDePavimentos']),
-      parsedDetalhes?.dadosCliente?.pavimentos
-    ),
-    telefone,
-    email,
-  };
-
-  const materiais: ItemMaterial[] = parsedDetalhes?.materiais || [];
-  const equipe: CargoProfissional[] = parsedDetalhes?.equipe || [];
-  const mesesObra =
-    Number(
-      obterCampoFlexivel(row, ['mesesObra', 'prazo', 'meses']) ??
-        parsedDetalhes?.mesesObra ??
-        parsedDetalhes?.calculos?.mesesObra ??
-        4
-    ) || 4;
-  const margemLucroPercentual =
-    Number(
-      obterCampoFlexivel(row, ['margemLucroPercentual', 'margemLucro', 'lucro']) ??
-        parsedDetalhes?.margemLucroPercentual ??
-        parsedDetalhes?.calculos?.margemLucroPercentual ??
-        20
-    ) || 20;
-
-  const calculosBase =
-    parsedDetalhes?.calculos ||
-    calcularOrcamento(materiais, equipe, mesesObra, margemLucroPercentual);
-
-  const calculos: CalculosOrcamento = {
-    ...calculosBase,
-    valorGlobal: valorGlobal > 0 ? valorGlobal : calculosBase.valorGlobal,
-  };
-
-  const condicoesComerciais: CondicoesComerciais = {
-    ...CONDICOES_COMERCIAIS_PADRAO,
-    ...(parsedDetalhes?.condicoesComerciais || {}),
-    ...(row.condicoesComerciais && typeof row.condicoesComerciais === 'object'
-      ? row.condicoesComerciais
-      : {}),
-  };
-
-  const diagnostico: DiagnosticoResponse | null = parsedDetalhes?.diagnostico || null;
-
-  const dataCriacaoIso =
-    parseDataPlanilhaIso(
-      obterCampoFlexivel(row, ['dataCriacao', 'data_criacao', 'data', 'timestamp'])
-    ) ||
-    parseDataPlanilhaIso(parsedDetalhes?.dataCriacao) ||
-    parseDataPlanilhaIso(scan.dataDetectada) ||
-    new Date().toISOString();
-
-  const dataAtualizacaoIso =
-    parseDataPlanilhaIso(obterCampoFlexivel(row, ['dataAtualizacao', 'updatedAt'])) ||
-    parseDataPlanilhaIso(parsedDetalhes?.dataAtualizacao) ||
-    dataCriacaoIso;
-
-  return {
-    id: idExtraido,
-    dataCriacao: dataCriacaoIso,
-    dataAtualizacao: dataAtualizacaoIso,
-    status: statusNormalizado,
-    dadosCliente,
-    calculos,
-    condicoesComerciais,
-    materiais,
-    equipe,
-    mesesObra,
-    margemLucroPercentual,
-    diagnostico,
-    registrosVistoria: parsedDetalhes?.registrosVistoria || [],
-    selectedImage: parsedDetalhes?.selectedImage ?? null,
-  };
-}
-
-/**
- * Monta URL da planilha Google Sheets com query parameters principais para compatibilidade
- * com Google Apps Scripts que leem `e.parameter` além de `e.postData.contents`.
- */
-function montarUrlComQueryParamsPlanilha(payload: Record<string, any>): string {
-  const params = new URLSearchParams();
-  if (payload.action) params.set('action', String(payload.action));
-  if (payload.acao) params.set('acao', String(payload.acao));
-  if (payload.sheet) params.set('sheet', String(payload.sheet));
-  if (payload.id) params.set('id', String(payload.id));
-  if (payload.status) params.set('status', String(payload.status));
-  if (payload.fase) params.set('fase', String(payload.fase));
-  if (payload.cliente) params.set('cliente', String(payload.cliente));
-  if (payload.sindico) params.set('sindico', String(payload.sindico));
-  if (payload.telefone) params.set('telefone', String(payload.telefone));
-  if (payload.email) params.set('email', String(payload.email));
-  if (payload.cnpj) params.set('cnpj', String(payload.cnpj));
-  if (payload.valor !== undefined) params.set('valor', String(payload.valor));
-  return `${GOOGLE_SHEETS_API_URL}?${params.toString()}`;
-}
-
-/**
- * 1. SALVAR (POST): Envia o orçamento para o Web App do Google Sheets
- * e sincroniza com o espelho `/api/sheets/orcamentos`.
- */
 export async function salvarOrcamentoNaNuvem(
   orcamento: OrcamentoSalvo,
   etapaFormulario?: number
@@ -1092,251 +59,81 @@ export async function salvarOrcamentoNaNuvem(
     throw new Error('Informe o nome do condomínio antes de salvar o orçamento.');
   }
 
-  removerIdExcluidoLocalmente(orcamento.id);
   const payload = montarPayloadPlanilha(orcamento, 'save', etapaFormulario);
 
-  let salvouDireto = false;
+  const response = await fetch('/api/sheets/orcamentos', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
 
-  // 1. Envia diretamente do Front-End para o Web App do Google Sheets (text/plain evita preflight CORS)
-  try {
-    const targetUrl = montarUrlComQueryParamsPlanilha(payload);
-    const response = await fetch(targetUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'text/plain;charset=utf-8',
-      },
-      body: JSON.stringify(payload),
-      redirect: 'follow',
-      credentials: 'omit',
-    });
-
-    salvouDireto = await respostaSheetsConfirmouGravacao(response);
-  } catch (directErr) {
-    console.warn('[Google Sheets] Aviso no POST direto ao Apps Script:', directErr);
+  if (!response.ok) {
+    throw new Error('Erro ao salvar o orçamento no banco de dados.');
   }
 
-  // 2. Sincroniza também com o espelho do backend (/api/sheets/orcamentos) caso disponível
-  try {
-    const proxyRes = await fetch('/api/sheets/orcamentos', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
-    if (proxyRes.ok) {
-      const resultado = await proxyRes.json();
-      if (resultado?.sheetsOk === true) return true;
-    }
-  } catch (proxyErr) {
-    console.warn('[Google Sheets] Aviso no POST pelo servidor:', proxyErr);
-  }
-
-  if (salvouDireto) return true;
-  throw new Error('A API do Google Sheets não confirmou a gravação do orçamento.');
+  return true;
 }
 
-/**
- * Extrai a lista de linhas de qualquer formato de resposta JSON do Web App do Google Sheets.
- */
-export function extrairListaBrutaDeResposta(rawData: any): any[] {
-  if (!rawData) return [];
-  if (Array.isArray(rawData)) return rawData;
-
-  if (typeof rawData === 'object') {
-    const chavesConhecidas = [
-      'data',
-      'dados',
-      'orcamentos',
-      'propostas',
-      'values',
-      'rows',
-      'items',
-      'result',
-      'records',
-      'historico',
-      'lista',
-      'clientes',
-      'planilha',
-      'sheet',
-    ];
-
-    for (const chave of chavesConhecidas) {
-      if (Array.isArray(rawData[chave])) {
-        return rawData[chave];
-      }
-      if (rawData[chave] && typeof rawData[chave] === 'object') {
-        for (const subChave of chavesConhecidas) {
-          if (Array.isArray(rawData[chave][subChave])) {
-            return rawData[chave][subChave];
-          }
-        }
-      }
-    }
-
-    // Procura qualquer propriedade que seja um Array dentro do objeto retornado pelo Apps Script
-    for (const [k, val] of Object.entries(rawData)) {
-      if (k === 'deletedIds' || k === 'serverItems') continue;
-      if (Array.isArray(val)) {
-        return val;
-      }
-    }
-
-    // Se o próprio objeto for um único orçamento retornado
-    if (rawData.id || rawData.cliente || rawData.nomeCondominio || rawData.dadosCliente) {
-      return [rawData];
-    }
-  }
-
-  return [];
-}
-
-/**
- * Faz o fetch GET diretamente no Web App do Google Sheets (`GOOGLE_SHEETS_API_URL`)
- * e retorna as linhas brutas da planilha.
- */
-async function buscarLinhasDiretoDoGoogleSheetsWebApp(): Promise<any[] | null> {
-  const separador = GOOGLE_SHEETS_API_URL.includes('?') ? '&' : '?';
-  const url = `${GOOGLE_SHEETS_API_URL}${separador}t=${Date.now()}`;
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 15000);
-
-  try {
-    const response = await fetch(url, {
-      method: 'GET',
-      redirect: 'follow',
-      credentials: 'omit',
-      cache: 'no-store',
-      signal: controller.signal,
-    });
-
-    if (response.ok) {
-      const text = await response.text();
-      if (text && text.trim()) {
-        try {
-          const parsed = JSON.parse(text);
-          const extraidos = extrairListaBrutaDeResposta(parsed);
-          if (
-            Array.isArray(parsed) ||
-            extraidos.length > 0 ||
-            (typeof parsed === 'object' &&
-              parsed !== null &&
-              ['data', 'dados', 'orcamentos', 'values', 'rows', 'items'].some(
-                (key) => Array.isArray(parsed[key])
-              ))
-          ) {
-            return extraidos;
-          }
-        } catch {
-          console.warn('[Google Sheets GET] A resposta do Apps Script não contém JSON válido.');
-        }
-      }
-    }
-  } catch (err) {
-    console.warn(`[Google Sheets GET] Tentativa falhou para ${url}:`, err);
-  } finally {
-    clearTimeout(timeoutId);
-  }
-
-  return null;
-}
-
-/**
- * 2. CARREGAR (GET): Consome os dados diretamente do Web App do Google Sheets via método GET
- * para preencher dinamicamente o painel Kanban e as telas de consulta de orçamentos em qualquer
- * nova guia, aba anônima ou outro dispositivo.
- */
 export async function carregarOrcamentosDaNuvem(): Promise<OrcamentoSalvo[]> {
-  const excluidosSet = new Set<string>();
+  const response = await fetch(`/api/sheets/orcamentos?t=${Date.now()}`, {
+    cache: 'no-store',
+    headers: { 'Cache-Control': 'no-cache', Pragma: 'no-cache' },
+  });
 
-  // 1. Chamada GET direta do Front-End ao Web App do Google Sheets (GOOGLE_SHEETS_API_URL)
-  let linhasPlanilhaBrutas = await buscarLinhasDiretoDoGoogleSheetsWebApp();
-  let consultaServidorConcluida = false;
+  if (!response.ok) {
+    throw new Error('Não foi possível carregar os orçamentos do banco de dados.');
+  }
 
-  // 2. Consulta complementar ao endpoint `/api/sheets/orcamentos` para contornar CORS.
-  try {
-    const proxyRes = await fetch(`/api/sheets/orcamentos?t=${Date.now()}`, {
-      cache: 'no-store',
-      headers: { 'Cache-Control': 'no-cache', Pragma: 'no-cache' },
-    });
-    const contentType = proxyRes.headers.get('content-type') || '';
-    if (contentType.includes('application/json')) {
-      const json = await proxyRes.json();
-      if ((!proxyRes.ok || json?.ok === false) && linhasPlanilhaBrutas === null) {
-        throw new Error(
-          String(
-            json?.error ||
-              json?.warning ||
-              `O relay do Google Sheets respondeu com status ${proxyRes.status}.`
-          )
-        );
-      }
-      if (!proxyRes.ok || json?.ok === false) {
-        console.warn(
-          '[Google Sheets] O relay falhou, mas a consulta direta ao Apps Script foi concluída:',
-          json?.error || json?.warning
-        );
-      } else {
-        if (json?.warning && linhasPlanilhaBrutas === null) {
-          throw new Error(String(json.warning));
-        }
-        if (linhasPlanilhaBrutas === null) {
-          linhasPlanilhaBrutas = extrairListaBrutaDeResposta(json);
-        }
-        if (Array.isArray(json?.deletedIds)) {
-          json.deletedIds.forEach((id: string) => excluidosSet.add(String(id)));
-        }
-        consultaServidorConcluida = true;
+  const json = await response.json();
+  const rows = json.data || json.serverItems || [];
+
+  const lista: OrcamentoSalvo[] = rows.map((row: any) => {
+    let dados = row.dados;
+    if (typeof dados === 'string') {
+      try {
+        dados = JSON.parse(dados);
+      } catch {
+        dados = {};
       }
     }
-  } catch (error) {
-    if (linhasPlanilhaBrutas === null) {
-      throw new Error(
-        `Não foi possível consultar os orçamentos no Google Sheets: ${
-          error instanceof Error ? error.message : String(error)
-        }`
-      );
-    }
-  }
+    return {
+      id: row.id,
+      dataCriacao: dados?.dataCriacao || row.created_at || new Date().toISOString(),
+      dataAtualizacao: dados?.dataAtualizacao || new Date().toISOString(),
+      status: row.status || dados?.status || 'em_elaboracao',
+      dadosCliente: dados?.dadosCliente || {
+        nomeCondominio: row.cliente || '',
+        cnpj: '',
+        endereco: '',
+        nomeSindico: '',
+        anoConstrucao: '',
+        pavimentos: '',
+        telefone: '',
+        email: '',
+      },
+      calculos: dados?.calculos || { valorGlobal: 0, mesesObra: 4, margemLucroPercentual: 20 },
+      condicoesComerciais: dados?.condicoesComerciais || CONDICOES_COMERCIAIS_PADRAO,
+      materiais: dados?.materiais || [],
+      equipe: dados?.equipe || [],
+      mesesObra: dados?.mesesObra || 4,
+      margemLucroPercentual: dados?.margemLucroPercentual || 20,
+      diagnostico: dados?.diagnostico || null,
+      registrosVistoria: dados?.registrosVistoria || [],
+      selectedImage: null,
+    };
+  });
 
-  if (linhasPlanilhaBrutas === null && !consultaServidorConcluida) {
-    throw new Error('Não foi possível conectar à API do Google Sheets.');
-  }
-  if (linhasPlanilhaBrutas === null) linhasPlanilhaBrutas = [];
-
-  const mapaUnico = new Map<string, OrcamentoSalvo>();
-
-  // 3. Processa todas as linhas vindas diretamente da planilha do Google Sheets
-  const linhasConvertidas = converterLinhasBrutasPlanilha(linhasPlanilhaBrutas);
-  for (let i = 0; i < linhasConvertidas.length; i++) {
-    const normalizado = normalizarLinhaPlanilhaParaOrcamento(linhasConvertidas[i], i);
-    if (normalizado && !excluidosSet.has(normalizado.id)) {
-      mapaUnico.set(normalizado.id, normalizado);
-    }
-  }
-
-  const listaNuvem = Array.from(mapaUnico.values()).sort(
-    (a, b) =>
-      new Date(b.dataAtualizacao || b.dataCriacao).getTime() -
-      new Date(a.dataAtualizacao || a.dataCriacao).getTime()
-  );
-
-  salvarOrcamentosNoStorage(listaNuvem);
-  return listaNuvem;
+  salvarOrcamentosNoStorage(lista);
+  return lista;
 }
 
 export async function carregarOrcamentoDaNuvemPorId(
   proposalId: string
 ): Promise<OrcamentoSalvo | null> {
-  const id = proposalId.trim();
-  if (!id) {
-    throw new Error('O ID da proposta é obrigatório para carregar o orçamento.');
-  }
   const orcamentos = await carregarOrcamentosDaNuvem();
-  return orcamentos.find((orcamento) => orcamento.id === id) || null;
+  return orcamentos.find((orcamento) => orcamento.id === proposalId) || null;
 }
 
-/**
- * 3. ATUALIZAR STATUS / FASE (POST): Atualiza o estágio Kanban do orçamento na planilha.
- */
 export async function atualizarStatusOrcamentoNaNuvem(
   orcamento: OrcamentoSalvo,
   novoStatus: StatusOrcamentoKanban
@@ -1348,43 +145,15 @@ export async function atualizarStatusOrcamentoNaNuvem(
   };
   const payload = montarPayloadPlanilha(atualizado, 'updateStatus');
 
-  let okDireto = false;
-  try {
-    const url = montarUrlComQueryParamsPlanilha(payload);
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'text/plain;charset=utf-8',
-      },
-      body: JSON.stringify(payload),
-      redirect: 'follow',
-      credentials: 'omit',
-    });
-    okDireto = await respostaSheetsConfirmouGravacao(response);
-  } catch (err) {
-    console.warn('[Google Sheets] Aviso ao atualizar status diretamente:', err);
-  }
+  const response = await fetch('/api/sheets/orcamentos', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
 
-  try {
-    const proxyRes = await fetch('/api/sheets/orcamentos', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
-    if (proxyRes.ok) {
-      const resultado = await proxyRes.json();
-      if (resultado?.sheetsOk === true) return true;
-    }
-  } catch {
-    // Ignora caso backend não esteja presente
-  }
-
-  return okDireto;
+  return response.ok;
 }
 
-/**
- * 4. EXCLUIR ORÇAMENTO (POST): Solicita a exclusão do orçamento na planilha do Google Sheets.
- */
 export async function excluirOrcamentoNaNuvem(id: string): Promise<boolean> {
   const proposalId = id.trim();
   if (!proposalId) {
@@ -1393,71 +162,19 @@ export async function excluirOrcamentoNaNuvem(id: string): Promise<boolean> {
 
   const payload = {
     action: 'delete',
-    acao: 'excluir',
-    method: 'DELETE',
-    sheet: 'Página1',
-    aba: 'Página1',
-    sheetName: 'Página1',
     id: proposalId,
-    ID: proposalId,
-    orcamentoId: proposalId,
     status: 'deleted',
-    Status: 'deleted',
-    fase: 'deleted',
   };
 
-  let erroProxy: string | null = null;
-  try {
-    const proxyRes = await fetch('/api/sheets/orcamentos', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(payload),
-    });
-    if (proxyRes.ok) {
-      const resultado = await proxyRes.json();
-      if (
-        resultado?.sheetsOk === true &&
-        respostaSheetsConfirmouExclusao(resultado?.response, proposalId)
-      ) {
-        registrarIdExcluidoLocalmente(proposalId);
-        return true;
-      }
-      erroProxy = String(resultado?.error || 'O servidor não confirmou a exclusão no Google Sheets.');
-    }
-  } catch (err) {
-    erroProxy = err instanceof Error ? err.message : String(err);
-    console.warn('[Google Sheets] Aviso ao excluir orçamento pelo servidor:', err);
+  const response = await fetch('/api/sheets/orcamentos', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    throw new Error('Não foi possível excluir o orçamento do banco de dados.');
   }
 
-  try {
-    const url = `${GOOGLE_SHEETS_API_URL}?action=delete&acao=excluir&id=${encodeURIComponent(proposalId)}&sheet=${encodeURIComponent('Página1')}`;
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'text/plain;charset=utf-8',
-      },
-      body: JSON.stringify(payload),
-      redirect: 'follow',
-      credentials: 'omit',
-    });
-    if (response.ok) {
-      const resultado = await response.json();
-      if (!respostaSheetsConfirmouExclusao(resultado, proposalId)) {
-        throw new Error('O Apps Script não confirmou a exclusão do ID solicitado.');
-      }
-      registrarIdExcluidoLocalmente(proposalId);
-      return true;
-    }
-  } catch (err) {
-    console.warn('[Google Sheets] Aviso ao excluir orçamento diretamente:', err);
-  }
-
-  removerIdExcluidoLocalmente(proposalId);
-  throw new Error(
-    erroProxy
-      ? `Não foi possível excluir o orçamento no Google Sheets: ${erroProxy}`
-      : 'O Google Sheets não confirmou a exclusão do orçamento.'
-  );
+  return true;
 }

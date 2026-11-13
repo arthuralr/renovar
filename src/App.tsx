@@ -32,7 +32,6 @@ import {
 } from './types';
 import {
   calcularOrcamento,
-  MATERIAIS_PADRAO,
   CONDICOES_COMERCIAIS_PADRAO,
 } from './utils/budgetCalculator';
 import {
@@ -59,7 +58,6 @@ import {
   ArrowRight,
   ArrowLeft,
   CheckCircle2,
-  Building2,
   FileSpreadsheet,
   PlusCircle,
 } from 'lucide-react';
@@ -80,10 +78,8 @@ function gerarIdProposta(idsExistentes: Set<string>): string {
 }
 
 export default function App() {
-  // Wizard Navigation
   const [currentStep, setCurrentStep] = useState<WizardStep>(1);
 
-  // Step 1: Dados do Cliente
   const [dadosCliente, setDadosCliente] = useState<DadosCliente>({
     nomeCondominio: '',
     cnpj: '',
@@ -101,7 +97,6 @@ export default function App() {
     });
   };
 
-  // Step 2: Diagnóstico Pericial
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [selectedImageRecordId, setSelectedImageRecordId] = useState<string | null>(null);
   const [imageName, setImageName] = useState<string>('');
@@ -116,7 +111,6 @@ export default function App() {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  // Synchronize building name and age with diagnosis context
   useEffect(() => {
     setContexto((prev) => ({
       ...prev,
@@ -128,13 +122,11 @@ export default function App() {
     }));
   }, [dadosCliente.nomeCondominio, dadosCliente.anoConstrucao, dadosCliente.endereco]);
 
-  // Step 3: Materiais e Equipe
   const [materiais, setMateriais] = useState<ItemMaterial[]>([]);
   const [equipe, setEquipe] = useState<CargoProfissional[]>([]);
   const [mesesObra, setMesesObra] = useState<number>(0);
   const [margemLucroPercentual, setMargemLucroPercentual] = useState<number>(0);
 
-  // Condições Comerciais e Pagamento
   const [condicoesComerciais, setCondicoesComerciais] =
     useState<CondicoesComerciais>(CONDICOES_COMERCIAIS_PADRAO);
 
@@ -144,12 +136,10 @@ export default function App() {
     });
   };
 
-  // Step 4: Cálculos Automáticos de Backoffice
   const calculos = useMemo(() => {
     return calcularOrcamento(materiais, equipe, mesesObra, margemLucroPercentual);
   }, [materiais, equipe, mesesObra, margemLucroPercentual]);
 
-  // Modals
   const [isOrcamentoPdfOpen, setIsOrcamentoPdfOpen] = useState(false);
   const [isJsonModalOpen, setIsJsonModalOpen] = useState(false);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
@@ -157,10 +147,8 @@ export default function App() {
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [isKanbanModalOpen, setIsKanbanModalOpen] = useState(false);
   const [historico, setHistorico] = useState<HistoricoInspecao[]>([]);
-  // Registros fotográficos exatos da vistoria atual (1 item patológico por foto enviada)
   const [registrosVistoria, setRegistrosVistoria] = useState<HistoricoInspecao[]>([]);
 
-  // Histórico e Kanban de Orçamentos Gerados (sincronizado com Google Sheets Cloud)
   const [orcamentosSalvos, setOrcamentosSalvos] = useState<OrcamentoSalvo[]>([]);
   const [activeOrcamentoId, setActiveOrcamentoId] = useState<string | null>(null);
   const editLoadRequestRef = useRef(0);
@@ -168,7 +156,6 @@ export default function App() {
   const [cloudError, setCloudError] = useState<string | null>(null);
   const [cloudRetryAction, setCloudRetryAction] = useState<(() => void) | null>(null);
 
-  // Sincroniza o histórico remoto sem preencher ou alterar os campos do novo orçamento.
   const sincronizarOrcamentosDaNuvem = async () => {
     setIsSyncingCloud(true);
     try {
@@ -177,9 +164,9 @@ export default function App() {
       setCloudError(null);
       setCloudRetryAction(null);
     } catch (e) {
-      console.warn('Erro ao sincronizar orçamentos da nuvem (Google Sheets):', e);
+      console.warn('Erro ao sincronizar orçamentos do banco de dados:', e);
       setCloudError(
-        e instanceof Error ? e.message : 'Não foi possível sincronizar com o Google Sheets.'
+        e instanceof Error ? e.message : 'Não foi possível sincronizar com o banco de dados.'
       );
       setCloudRetryAction(() => () => void sincronizarOrcamentosDaNuvem());
     } finally {
@@ -187,7 +174,6 @@ export default function App() {
     }
   };
 
-  // Busca o estado atual da nuvem na inicialização e continua atualizando o Kanban aberto.
   useEffect(() => {
     void sincronizarOrcamentosDaNuvem();
     if (isKanbanModalOpen) {
@@ -203,7 +189,6 @@ export default function App() {
     }
   }, [isKanbanModalOpen]);
 
-  // Load history from localStorage
   useEffect(() => {
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
@@ -339,10 +324,15 @@ export default function App() {
 
     try {
       let data: DiagnosticoResponse | null = null;
+      let useClientFallback = false;
+      let requestTimedOut = false;
 
       try {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 12000);
+        const timeoutId = setTimeout(() => {
+          requestTimedOut = true;
+          controller.abort();
+        }, 45000);
 
         try {
           const response = await fetch('/api/diagnosticar', {
@@ -379,19 +369,25 @@ export default function App() {
         }
       } catch (serverErr: any) {
         if (serverErr instanceof ImagemConstrutivaInvalidaError) throw serverErr;
-        console.warn(
-          'Acionando contingência no cliente após falha na rota /api/diagnosticar:',
-          serverErr?.message || serverErr
-        );
+        if (requestTimedOut) {
+          throw new Error('A análise excedeu o tempo limite. Tente novamente.');
+        }
+        if (!(serverErr instanceof TypeError)) {
+          throw serverErr;
+        }
+        useClientFallback = true;
       }
 
-      if (!data) {
+      if (!data && useClientFallback) {
         data = await diagnosticarImagemClient(
           selectedImage,
           mimeType || 'image/jpeg',
           contexto,
           currentPhotoIdx
         );
+      }
+      if (!data) {
+        throw new Error('A API de diagnóstico não retornou um resultado válido.');
       }
 
       const items = data?.anomalias || data?.patologias;
@@ -440,7 +436,7 @@ export default function App() {
     if (item.resultado) {
       upsertRegistroVistoria(item.resultado, item.imagemUrl, item.nomeArquivo);
     }
-    setCurrentStep(2); // Jump to step 2 when selecting history
+    setCurrentStep(2);
   };
 
   const handleReset = () => {
@@ -460,7 +456,6 @@ export default function App() {
     setErrorMessage(null);
   };
 
-  // Diagnóstico consolidado da vistoria atual (1 item patológico por foto enviada)
   const diagnosticoConsolidado = useMemo<DiagnosticoResponse | null>(() => {
     if (registrosVistoria.length > 0) {
       const itens = registrosVistoria
@@ -476,7 +471,6 @@ export default function App() {
     return diagnostico;
   }, [registrosVistoria, diagnostico]);
 
-  // Salva (ou atualiza) o orçamento e dados do cliente na planilha do Google Sheets e retorna o registro salvo
   const salvarOrcamentoNoHistorico = async (
     forcarNovoId = false,
     etapaFormulario: WizardStep = currentStep
@@ -534,11 +528,11 @@ export default function App() {
       setCloudRetryAction(null);
       return novoRegistro;
     } catch (error) {
-      console.error('Erro ao salvar orçamento no Google Sheets:', error);
+      console.error('Erro ao salvar orçamento no banco de dados:', error);
       setCloudError(
         error instanceof Error
           ? error.message
-          : 'Não foi possível salvar o orçamento no Google Sheets.'
+          : 'Não foi possível salvar o orçamento no banco de dados.'
       );
       setCloudRetryAction(() =>
         () => void salvarOrcamentoNoHistorico(forcarNovoId, etapaFormulario)
@@ -547,7 +541,6 @@ export default function App() {
     }
   };
 
-  // Persist photo-bearing budgets when the user explicitly advances the wizard.
   const handleMudarEtapaFormulario = async (proximaEtapa: WizardStep) => {
     if (proximaEtapa === currentStep || isPersistingStepRef.current) return;
     const temFotosParaPersistir = registrosVistoria.some((registro) =>
@@ -569,7 +562,6 @@ export default function App() {
     setCurrentStep(proximaEtapa);
   };
 
-  // Limpa o formulário para iniciar o cadastro de um novo orçamento / cliente
   const handleNovoOrcamento = () => {
     const temDadosNoFormulario =
       Boolean(dadosCliente.nomeCondominio.trim()) ||
@@ -625,7 +617,6 @@ export default function App() {
     setCurrentStep(1);
   };
 
-  // Atualiza a etapa Kanban de um orçamento salvo (local + Google Sheets Cloud)
   const handleUpdateStatusOrcamento = async (
     id: string,
     novoStatus: StatusOrcamentoKanban
@@ -645,23 +636,22 @@ export default function App() {
     try {
       const atualizado = await atualizarStatusOrcamentoNaNuvem(alvo, novoStatus);
       if (!atualizado) {
-        throw new Error('O Google Sheets não confirmou a atualização da etapa.');
+        throw new Error('O banco de dados não confirmou a atualização da etapa.');
       }
       setCloudError(null);
       setCloudRetryAction(null);
     } catch (error) {
-      console.error(`Erro ao atualizar a etapa do orçamento ${id} no Google Sheets:`, error);
+      console.error(`Erro ao atualizar a etapa do orçamento ${id}:`, error);
       setCloudError(
         error instanceof Error
           ? error.message
-          : 'Não foi possível salvar a etapa do orçamento na nuvem.'
+          : 'Não foi possível salvar a etapa do orçamento.'
       );
       setCloudRetryAction(() => () => void sincronizarOrcamentosDaNuvem());
       void sincronizarOrcamentosDaNuvem();
     }
   };
 
-  // Exclui um orçamento salvo da lista e da nuvem (Google Sheets)
   const handleDeleteOrcamento = async (id: string) => {
     try {
       await excluirOrcamentoNaNuvem(id);
@@ -673,15 +663,14 @@ export default function App() {
       if (activeOrcamentoId === id) setActiveOrcamentoId(null);
       setCloudError(null);
     } catch (error) {
-      console.error(`Erro ao excluir orçamento ${id} do Google Sheets:`, error);
+      console.error(`Erro ao excluir orçamento ${id}:`, error);
       const message =
-        error instanceof Error ? error.message : 'Não foi possível excluir o orçamento da nuvem.';
+        error instanceof Error ? error.message : 'Não foi possível excluir o orçamento.';
       setCloudError(message);
       window.alert(message);
     }
   };
 
-  // Limpa todos os orçamentos salvos
   const handleClearAllOrcamentos = async () => {
     if (confirm('Deseja realmente excluir todos os orçamentos salvos do histórico?')) {
       const idsAtuais = orcamentosSalvos.map((o) => o.id);
@@ -691,7 +680,7 @@ export default function App() {
             await excluirOrcamentoNaNuvem(id);
             return { id, excluido: true };
           } catch (error) {
-            console.error(`Erro ao excluir orçamento ${id} do Google Sheets:`, error);
+            console.error(`Erro ao excluir orçamento ${id}:`, error);
             return { id, excluido: false };
           }
         })
@@ -705,16 +694,15 @@ export default function App() {
       if (activeOrcamentoId && excluidos.has(activeOrcamentoId)) setActiveOrcamentoId(null);
       setCloudError(
         restantes.length > 0
-          ? 'Alguns orçamentos não puderam ser excluídos da nuvem. Tente novamente.'
+          ? 'Alguns orçamentos não puderam ser excluídos. Tente novamente.'
           : null
       );
       if (restantes.length > 0) {
-        window.alert('Alguns orçamentos não puderam ser excluídos da nuvem. Tente novamente.');
+        window.alert('Alguns orçamentos não puderam ser excluídos. Tente novamente.');
       }
     }
   };
 
-  // Carrega do snapshot remoto correspondente ao ID selecionado, sem reutilizar o objeto da linha.
   const handleLoadOrcamento = async (proposalId: string): Promise<boolean> => {
     const requestId = ++editLoadRequestRef.current;
     const localSnapshot = orcamentosSalvos.find((orcamento) => orcamento.id === proposalId);
@@ -724,7 +712,7 @@ export default function App() {
       orcamento = await carregarOrcamentoDaNuvemPorId(proposalId);
       if (requestId !== editLoadRequestRef.current) return false;
       if (!orcamento) {
-        setCloudError(`O orçamento ${proposalId} não foi encontrado na planilha.`);
+        setCloudError(`O orçamento ${proposalId} não foi encontrado no banco de dados.`);
         return false;
       }
       if (orcamento.id !== proposalId) {
@@ -745,19 +733,19 @@ export default function App() {
       setCloudRetryAction(null);
     } catch (error) {
       if (requestId !== editLoadRequestRef.current) return false;
-      console.error(`Erro ao buscar o orçamento ${proposalId} na nuvem:`, error);
+      console.error(`Erro ao buscar o orçamento ${proposalId}:`, error);
       if (!localSnapshot) {
         setCloudError(
           error instanceof Error
             ? `Não foi possível carregar o orçamento ${proposalId}: ${error.message}`
-            : `Não foi possível carregar o orçamento ${proposalId} da nuvem.`
+            : `Não foi possível carregar o orçamento ${proposalId}.`
         );
         setCloudRetryAction(() => () => void handleLoadOrcamento(proposalId));
         return false;
       }
       orcamento = localSnapshot;
       setCloudError(
-        `Não foi possível atualizar o orçamento ${proposalId} da nuvem. O snapshot disponível foi carregado.`
+        `Não foi possível atualizar o orçamento ${proposalId}. O snapshot disponível foi carregado.`
       );
       setCloudRetryAction(() => () => void handleLoadOrcamento(proposalId));
     }
@@ -806,14 +794,12 @@ export default function App() {
     return true;
   };
 
-  // Abre diretamente o PDF de um orçamento salvo no histórico/Kanban
   const handleViewOrcamentoPdf = async (proposalId: string) => {
     if (await handleLoadOrcamento(proposalId)) {
       setIsOrcamentoPdfOpen(true);
     }
   };
 
-  // Gerar o PDF é uma visualização; a gravação formal ocorre em "Concluir Orçamento".
   const handleGerarOrcamento = () => {
     setIsOrcamentoPdfOpen(true);
   };
@@ -837,7 +823,6 @@ export default function App() {
     return true;
   };
 
-  // Completion check for stepper
   const isStepComplete = (step: WizardStep): boolean => {
     if (step === 1) {
       return !!dadosCliente.nomeCondominio.trim();
@@ -857,9 +842,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans">
-      {/* Main Interactive Screen Content (Hidden completely during document printing) */}
       <div id="app-screen-content" className="flex-1 flex flex-col no-print">
-        {/* Top Header */}
         <Header
           onOpenHistory={() => setIsHistoryOpen(true)}
           onOpenNormas={() => setIsNormasModalOpen(true)}
@@ -868,7 +851,6 @@ export default function App() {
           orcamentosCount={orcamentosSalvos.length}
         />
 
-        {/* Main Container */}
         <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
         {cloudError && (
           <div className="p-4 rounded-xl bg-red-950/60 border border-red-800 text-red-200 text-sm flex items-start gap-3 shadow-lg">
@@ -889,7 +871,7 @@ export default function App() {
             </button>
           </div>
         )}
-        {/* Wizard Stepper Bar */}
+
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <h2 className="text-sm font-bold text-white">Editor de Orçamentos</h2>
@@ -915,7 +897,6 @@ export default function App() {
           isStepComplete={isStepComplete}
         />
 
-        {/* STEP 1: DADOS DO CLIENTE */}
         {currentStep === 1 && (
           <div className="space-y-6">
             <Step1Cliente
@@ -929,10 +910,8 @@ export default function App() {
           </div>
         )}
 
-        {/* STEP 2: DIAGNÓSTICO PERICIAL (FOTOGRAFIAS & IA) */}
         {currentStep === 2 && (
           <div className="space-y-6">
-            {/* Header / Sub-banner for Step 2 */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-900/60 border border-slate-800 rounded-2xl p-4 sm:p-5">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 shrink-0">
@@ -953,7 +932,6 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Step Navigation buttons */}
               <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
                 <button
                   type="button"
@@ -974,7 +952,6 @@ export default function App() {
               </div>
             </div>
 
-            {/* TOP BAR: Upload / Adicionar Fotos da Vistoria (logo abaixo do título do Passo 2) */}
             <UploadSection
               onImageSelected={handleImageSelected}
               contexto={contexto}
@@ -989,7 +966,6 @@ export default function App() {
               onRemoveRegistro={handleRemoveRegistroVistoria}
             />
 
-            {/* Error notification if any */}
             {errorMessage && (
               <div className="p-4 rounded-xl bg-red-950/60 border border-red-800 text-red-200 text-sm flex items-start gap-3 shadow-lg">
                 <AlertTriangle className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
@@ -1006,15 +982,12 @@ export default function App() {
               </div>
             )}
 
-            {/* Dual Column Layout: Left Image Inspector, Right Diagnosis Output */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-              {/* Left Column (5 cols) */}
               <div className="lg:col-span-5 space-y-6">
                 {selectedImage ? (
                   <div className="space-y-4">
                     <ImageInspector imageUrl={selectedImage} imageName={imageName} />
 
-                    {/* Quick actions for image */}
                     <div className="flex items-center justify-between text-xs">
                       <button
                         onClick={handleReset}
@@ -1042,7 +1015,6 @@ export default function App() {
                 )}
               </div>
 
-              {/* Right Column (7 cols): Diagnostic Results */}
               <div className="lg:col-span-7">
                 {isLoading ? (
                   <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-12 text-center flex flex-col items-center justify-center min-h-[420px]">
@@ -1066,7 +1038,6 @@ export default function App() {
                       onOpenReport={() => setIsReportModalOpen(true)}
                       onReset={handleReset}
                     />
-                    {/* Prompt to proceed to budget */}
                     <div className="bg-emerald-950/30 border border-emerald-800/40 rounded-xl p-4 flex flex-col sm:flex-row items-center justify-between gap-3">
                       <div className="flex items-center gap-2.5">
                         <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
@@ -1112,7 +1083,6 @@ export default function App() {
           </div>
         )}
 
-        {/* STEP 3: MATERIAIS E EQUIPE (CUSTOS) */}
         {currentStep === 3 && (
           <div className="space-y-6">
             <Step3Custos
@@ -1131,7 +1101,6 @@ export default function App() {
           </div>
         )}
 
-        {/* STEP 4: RESUMO FINANCEIRO (VALOR GLOBAL & PDF) */}
         {currentStep === 4 && (
           <div className="space-y-6">
             <Step4Resumo
@@ -1154,7 +1123,6 @@ export default function App() {
         )}
       </main>
 
-        {/* Screen Footer */}
         <footer className="border-t border-slate-900 bg-slate-950 py-6 mt-12 text-center text-xs text-slate-500 font-mono no-print">
           <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
             <span>PATOLOGIAS.LAB • Sistema Integrado de Diagnóstico Pericial e Orçamentação de Fachadas</span>
@@ -1163,7 +1131,6 @@ export default function App() {
         </footer>
       </div>
 
-      {/* Structured JSON Modal */}
       {diagnostico && (
         <JsonModal
           isOpen={isJsonModalOpen}
@@ -1172,7 +1139,6 @@ export default function App() {
         />
       )}
 
-      {/* Official ABNT Report Printable Modal */}
       {diagnostico && selectedImage && (
         <OfficialReportModal
           isOpen={isReportModalOpen}
@@ -1184,7 +1150,6 @@ export default function App() {
         />
       )}
 
-      {/* Commercial Budget PDF Printable Modal */}
       <OrcamentoPdfModal
         isOpen={isOrcamentoPdfOpen}
         onClose={() => setIsOrcamentoPdfOpen(false)}
@@ -1207,7 +1172,6 @@ export default function App() {
         }}
       />
 
-      {/* Kanban & Saved Budgets Modal (Accessible from Header at any step) */}
       {isKanbanModalOpen && (
         <OrcamentosKanbanBoard
           orcamentos={orcamentosSalvos}
@@ -1233,13 +1197,11 @@ export default function App() {
         />
       )}
 
-      {/* ABNT Standards Reference Modal */}
       <NormasModal
         isOpen={isNormasModalOpen}
         onClose={() => setIsNormasModalOpen(false)}
       />
 
-      {/* History Drawer */}
       <HistoryDrawer
         isOpen={isHistoryOpen}
         onClose={() => setIsHistoryOpen(false)}

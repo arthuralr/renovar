@@ -10,23 +10,73 @@ export const GEMINI_FALLBACK_CHAIN = [
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-const withTimeout = <T>(promise: Promise<T>, timeoutMs: number, label: string): Promise<T> => {
-  return new Promise<T>((resolve, reject) => {
-    const timer = setTimeout(() => {
-      reject(new Error(`Timeout (${timeoutMs}ms) ao aguardar resposta de ${label}.`));
-    }, timeoutMs);
+const GEMINI_REQUEST_TIMEOUT_MS = 10_000;
+const SUPPORTED_IMAGE_MIME_TYPES = new Set([
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+  'image/gif',
+  'image/heic',
+  'image/heif',
+]);
 
-    promise
-      .then((val) => {
-        clearTimeout(timer);
-        resolve(val);
-      })
-      .catch((err) => {
-        clearTimeout(timer);
-        reject(err);
-      });
-  });
-};
+function normalizarImagemParaGemini(
+  imageData: string,
+  mimeType: string
+): { data: string; mimeType: string } {
+  const trimmed = imageData.trim();
+  const dataUrlMatch = trimmed.match(/^data:(image\/[a-z0-9.+-]+);base64,([\s\S]*)$/i);
+  const resolvedMimeType = (dataUrlMatch?.[1] || mimeType || 'image/jpeg')
+    .toLowerCase()
+    .replace('image/jpg', 'image/jpeg');
+  const data = (dataUrlMatch?.[2] || trimmed).replace(/\s/g, '');
+
+  if (!SUPPORTED_IMAGE_MIME_TYPES.has(resolvedMimeType)) {
+    throw new Error(`Formato de imagem não suportado pelo Gemini: ${resolvedMimeType}.`);
+  }
+  if (!data || !/^[a-z0-9+/]*={0,2}$/i.test(data) || data.length % 4 === 1) {
+    throw new Error('O conteúdo Base64 da imagem é inválido ou está incompleto.');
+  }
+  try {
+    atob(data.padEnd(Math.ceil(data.length / 4) * 4, '='));
+  } catch {
+    throw new Error('Não foi possível decodificar a imagem Base64 enviada ao Gemini.');
+  }
+
+  return { data, mimeType: resolvedMimeType };
+}
+
+async function generateContentWithTimeout(
+  geminiClient: GoogleGenAI,
+  model: string,
+  contents: any[],
+  config: any,
+  label: string
+): Promise<any> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), GEMINI_REQUEST_TIMEOUT_MS);
+  try {
+    return await geminiClient.models.generateContent({
+      model,
+      contents,
+      config: {
+        ...config,
+        abortSignal: controller.signal,
+        httpOptions: {
+          ...config?.httpOptions,
+          timeout: GEMINI_REQUEST_TIMEOUT_MS,
+        },
+      },
+    });
+  } catch (error) {
+    if (controller.signal.aborted) {
+      throw new Error(`Timeout de ${GEMINI_REQUEST_TIMEOUT_MS}ms durante ${label}.`);
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
 
 /**
  * Identifica se o erro é transitório (sobrecarga 503, limite de taxa 429, erro 5xx ou falha de rede)
@@ -255,7 +305,7 @@ export async function diagnosticarImagemClient(
   if (!isValidApiKey(apiKey)) {
     throw new Error('Não foi possível validar a imagem: a integração com o Gemini não está configurada.');
   }
-  const cleanBase64 = imageBase64.replace(/^data:image\/[a-zA-Z0-9+.-]+;base64,/, '');
+  const imagem = normalizarImagemParaGemini(imageBase64, mimeType);
 
   const geminiClient = new GoogleGenAI({
     apiKey,
@@ -263,21 +313,42 @@ export async function diagnosticarImagemClient(
   });
   const imagePart = {
     inlineData: {
-      mimeType: mimeType || 'image/jpeg',
-      data: cleanBase64,
+      mimeType: imagem.mimeType,
+      data: imagem.data,
     },
   };
 
-  const executarModelos = async (contents: any[], config: any, label: string) => {
-    let response: any = null;
+  const parseResponse = (text: string) => {
+    const trimmed = text.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
+    try {
+      return JSON.parse(trimmed);
+    } catch {
+      const jsonMatch = trimmed.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) throw new Error('O Gemini retornou uma resposta inválida.');
+      return JSON.parse(jsonMatch[0]);
+    }
+  };
+
+  const executarModelos = async (
+    contents: any[],
+    config: any,
+    label: string,
+    isValidResponse: (parsed: any) => boolean
+  ) => {
     for (const modelName of GEMINI_FALLBACK_CHAIN) {
       try {
-        response = await withTimeout(
-          geminiClient.models.generateContent({ model: modelName, contents, config }),
-          6500,
-          `${label} ${modelName}`
+        const response = await generateContentWithTimeout(
+          geminiClient,
+          modelName,
+          contents,
+          config,
+          `${label} (${modelName})`
         );
-        if (response?.text) return response;
+        if (response?.text) {
+          const parsed = parseResponse(response.text);
+          if (isValidResponse(parsed)) return parsed;
+          throw new Error('O Gemini retornou dados em formato inesperado.');
+        }
       } catch (error) {
         console.warn(`[${label}] Modelo ${modelName} indisponível:`, error);
       }
@@ -285,18 +356,8 @@ export async function diagnosticarImagemClient(
     throw new Error(`O Gemini não conseguiu concluir ${label.toLowerCase()}.`);
   };
 
-  const parseResponse = (text: string) => {
-    try {
-      return JSON.parse(text);
-    } catch {
-      const jsonMatch = text.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) throw new Error('O Gemini retornou uma resposta inválida.');
-      return JSON.parse(jsonMatch[0]);
-    }
-  };
-
   try {
-    const qualificationResponse = await executarModelos(
+    const qualification = await executarModelos(
       [
         {
           role: 'user',
@@ -312,9 +373,9 @@ export async function diagnosticarImagemClient(
         responseMimeType: 'application/json',
         responseSchema: qualificacaoImagemSchema,
       },
-      'Validação da imagem'
+      'Validação da imagem',
+      (parsed) => typeof parsed?.isValidConstructionImage === 'boolean'
     );
-    const qualification = parseResponse(qualificationResponse.text);
     if (qualification?.isValidConstructionImage !== true) {
       throw new ImagemConstrutivaInvalidaError();
     }
@@ -334,46 +395,87 @@ export async function diagnosticarImagemClient(
       }
     }
 
-    const response = await executarModelos(
+    const parsedData = await executarModelos(
       [{ role: 'user', parts: [imagePart, { text: userPrompt }] }],
       {
         systemInstruction,
         responseMimeType: 'application/json',
         responseSchema: anomaliasSchema,
       },
-      'Diagnóstico ABNT'
+      'Diagnóstico ABNT',
+      (parsed) => {
+        const items =
+          parsed?.anomalias ||
+          parsed?.patologias ||
+          parsed?.diagnostico?.anomalias ||
+          parsed?.diagnostico?.patologias;
+        return Array.isArray(items) && items.length > 0;
+      }
     );
 
-    const parsedData = parseResponse(response.text);
-
-    const rawList = parsedData?.anomalias || parsedData?.patologias || [];
-    if (!Array.isArray(rawList) || rawList.length === 0) {
-      throw new Error('O Gemini não identificou uma manifestação para compor o diagnóstico.');
-    }
-
-    const normalizedItems = rawList.slice(0, 1).map((item: any) => ({
-      nome_patologia: item.nome_patologia || 'Manifestação Patológica Não Classificada',
-      gravidade: item.gravidade || 'Média',
-      constatacao_visual: item.constatacao_visual || item.descricao || '',
-      descricao: item.constatacao_visual || item.descricao || '',
-      justificativa_tecnica_causa: item.justificativa_tecnica_causa || item.causa_provavel || '',
-      causa_provavel: item.justificativa_tecnica_causa || item.causa_provavel || '',
-      risco_evolutivo_consequencias: item.risco_evolutivo_consequencias || item.risco_evolutivo || '',
-      risco_evolutivo: item.risco_evolutivo_consequencias || item.risco_evolutivo || '',
-      normas_tecnicas_abnt: Array.isArray(item.normas_tecnicas_abnt) ? item.normas_tecnicas_abnt : [],
-      ensaios_complementares: Array.isArray(item.ensaios_complementares)
-        ? item.ensaios_complementares
-        : [],
-      diretrizes_reparo: Array.isArray(item.diretrizes_reparo) ? item.diretrizes_reparo : [],
-    }));
-
-    return {
-      anomalias: normalizedItems,
-      patologias: normalizedItems,
-    };
+    return normalizarDiagnosticoGemini(parsedData);
   } catch (error) {
     if (error instanceof ImagemConstrutivaInvalidaError) throw error;
     console.error('Não foi possível validar ou diagnosticar a imagem com o Gemini:', error);
     throw error;
   }
+}
+
+export function normalizarDiagnosticoGemini(payload: any): DiagnosticoResponse {
+  const rawItems =
+    payload?.anomalias ||
+    payload?.patologias ||
+    payload?.diagnostico?.anomalias ||
+    payload?.diagnostico?.patologias;
+  if (!Array.isArray(rawItems) || rawItems.length === 0) {
+    throw new Error('O Gemini não retornou patologias em um formato reconhecido.');
+  }
+
+  const toStringArray = (value: unknown): string[] =>
+    Array.isArray(value)
+      ? value.filter((entry): entry is string => typeof entry === 'string')
+      : typeof value === 'string' && value.trim()
+        ? [value.trim()]
+        : [];
+  const normalizedItems = rawItems.slice(0, 1).map((item: any) => {
+    const nome =
+      item?.nome_patologia || item?.nomePatologia || item?.patologia || item?.nome || '';
+    const constatacao =
+      item?.constatacao_visual ||
+      item?.constatacaoVisual ||
+      item?.descricao ||
+      item?.evidencia_visual ||
+      '';
+    const causa =
+      item?.justificativa_tecnica_causa ||
+      item?.justificativaTecnicaCausa ||
+      item?.causa_provavel ||
+      item?.causaProvavel ||
+      '';
+    const risco =
+      item?.risco_evolutivo_consequencias ||
+      item?.riscoEvolutivoConsequencias ||
+      item?.risco_evolutivo ||
+      item?.riscoEvolutivo ||
+      '';
+    const normas = toStringArray(item?.normas_tecnicas_abnt || item?.normasAbnt);
+    const ensaios = toStringArray(item?.ensaios_complementares || item?.ensaios);
+    const reparos = toStringArray(item?.diretrizes_reparo || item?.diretrizesReparo);
+
+    return {
+      nome_patologia: String(nome || 'Manifestação Patológica Não Classificada'),
+      gravidade: String(item?.gravidade || item?.severidade || 'Média'),
+      constatacao_visual: String(constatacao),
+      descricao: String(constatacao),
+      justificativa_tecnica_causa: String(causa),
+      causa_provavel: String(causa),
+      risco_evolutivo_consequencias: String(risco),
+      risco_evolutivo: String(risco),
+      normas_tecnicas_abnt: normas,
+      ensaios_complementares: ensaios,
+      diretrizes_reparo: reparos,
+    };
+  });
+
+  return { anomalias: normalizedItems, patologias: normalizedItems };
 }
