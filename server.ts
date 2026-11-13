@@ -4,7 +4,6 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { GoogleGenAI, Type } from '@google/genai';
 import dotenv from 'dotenv';
-import { gerarLaudoTecnicoAbntFallback } from './src/utils/abntEngine';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -155,6 +154,25 @@ DIRETRIZES DE ESTILO:
 - Seja objetivo, direto e não utilize jargões leigos.
 - Responda EXCLUSIVAMENTE em formato JSON estruturado. Não adicione saudações, observações ou qualquer texto fora do objeto JSON.`;
 
+const INVALID_CONSTRUCTION_IMAGE_MESSAGE =
+  'A imagem enviada não corresponde a uma patologia construtiva ou elemento de fachada válido';
+
+const imageQualificationSchema = {
+  type: Type.OBJECT,
+  properties: {
+    isValidConstructionImage: {
+      type: Type.BOOLEAN,
+      description:
+        'Verdadeiro somente se a imagem mostrar uma edificação, fachada, elemento construtivo ou manifestação patológica da construção civil.',
+    },
+    reason: {
+      type: Type.STRING,
+      description: 'Motivo breve da classificação visual.',
+    },
+  },
+  required: ['isValidConstructionImage', 'reason'],
+};
+
 const anomaliasSchema = {
   type: Type.OBJECT,
   properties: {
@@ -221,7 +239,7 @@ const handleDiagnosticar = async (req: express.Request, res: express.Response) =
   res.setHeader('Content-Type', 'application/json');
 
   try {
-    const { imageBase64, mimeType = 'image/jpeg', contexto, photoIndex = 0 } = req.body || {};
+    const { imageBase64, mimeType = 'image/jpeg', contexto } = req.body || {};
 
     if (!imageBase64 || typeof imageBase64 !== 'string' || imageBase64.trim().length === 0) {
       return res.status(400).json({ error: 'Nenhuma fotografia foi fornecida para a análise pericial.' });
@@ -253,30 +271,82 @@ const handleDiagnosticar = async (req: express.Request, res: express.Response) =
     const geminiClient = apiKey && apiKey === RESOLVED_API_KEY ? ai : createGeminiClient(apiKey);
 
     if (!geminiClient) {
-      console.info(
-        '[Contingência ABNT] Chave da API Gemini não configurada no ambiente. Acionando geração automatizada do laudo ABNT.'
-      );
-      const fallbackResult = gerarLaudoTecnicoAbntFallback(contexto, Number(photoIndex) || 0);
-      return res.json(fallbackResult);
+      return res.status(503).json({
+        code: 'IMAGE_VALIDATION_UNAVAILABLE',
+        error: 'Não foi possível validar a imagem porque a integração com o Gemini não está configurada.',
+      });
     }
 
-    const requestContents = [
+    const imagePart = {
+      inlineData: {
+        mimeType: mimeType || 'image/jpeg',
+        data: cleanBase64,
+      },
+    };
+    const qualificationContents = [
       {
         role: 'user',
         parts: [
+          imagePart,
           {
-            inlineData: {
-              mimeType: mimeType || 'image/jpeg',
-              data: cleanBase64,
-            },
-          },
-          {
-            text: userPrompt,
+            text: 'Classifique exclusivamente o conteúdo visual da imagem. É válida somente se mostrar uma edificação, fachada, elemento construtivo ou patologia da construção civil. Panfletos, pessoas, paisagens sem relação com obras, animais e objetos comuns são inválidos. Não gere diagnóstico nesta etapa.',
           },
         ],
       },
     ];
 
+    let qualificationResponse: any = null;
+    for (const modelName of GEMINI_FALLBACK_CHAIN) {
+      try {
+        qualificationResponse = await withTimeout(
+          geminiClient.models.generateContent({
+            model: modelName,
+            contents: qualificationContents,
+            config: {
+              responseMimeType: 'application/json',
+              responseSchema: imageQualificationSchema,
+            },
+          }),
+          6500,
+          `Validação Gemini ${modelName}`
+        );
+        if (qualificationResponse?.text) break;
+      } catch (modelErr: any) {
+        console.warn(
+          `[Validação de imagem] Modelo ${modelName} indisponível (${modelErr?.message || modelErr}).`
+        );
+      }
+    }
+
+    if (!qualificationResponse?.text) {
+      return res.status(503).json({
+        code: 'IMAGE_VALIDATION_UNAVAILABLE',
+        error: 'Não foi possível validar a imagem no momento. Tente novamente.',
+      });
+    }
+
+    let qualification: any;
+    try {
+      qualification = JSON.parse(qualificationResponse.text);
+    } catch {
+      return res.status(502).json({
+        code: 'IMAGE_VALIDATION_UNAVAILABLE',
+        error: 'O Gemini retornou uma resposta inválida durante a validação da imagem.',
+      });
+    }
+    if (qualification?.isValidConstructionImage !== true) {
+      return res.status(422).json({
+        code: 'INVALID_CONSTRUCTION_IMAGE',
+        error: INVALID_CONSTRUCTION_IMAGE_MESSAGE,
+      });
+    }
+
+    const requestContents = [
+      {
+        role: 'user',
+        parts: [imagePart, { text: userPrompt }],
+      },
+    ];
     const requestConfig = {
       systemInstruction,
       responseMimeType: 'application/json',
@@ -305,14 +375,11 @@ const handleDiagnosticar = async (req: express.Request, res: express.Response) =
       }
     }
 
-    // Fallback robusto imediato: se a API do Gemini falhar ou sofrer instabilidade (503/timeout/credenciais),
-    // gera imediatamente o laudo técnico estruturado com base nas normas ABNT
     if (!response?.text) {
-      console.info(
-        '[Contingência ABNT] Acionando geração automatizada imediata do laudo técnico estruturado conforme normas ABNT.'
-      );
-      const fallbackResult = gerarLaudoTecnicoAbntFallback(contexto, Number(photoIndex) || 0);
-      return res.json(fallbackResult);
+      return res.status(503).json({
+        code: 'DIAGNOSIS_UNAVAILABLE',
+        error: 'A imagem foi validada, mas o diagnóstico não pôde ser gerado. Tente novamente.',
+      });
     }
 
     const rawText = response.text;
@@ -324,15 +391,19 @@ const handleDiagnosticar = async (req: express.Request, res: express.Response) =
       if (jsonMatch) {
         parsedData = JSON.parse(jsonMatch[0]);
       } else {
-        const fallbackResult = gerarLaudoTecnicoAbntFallback(contexto, Number(photoIndex) || 0);
-        return res.json(fallbackResult);
+        return res.status(502).json({
+          code: 'DIAGNOSIS_INVALID_RESPONSE',
+          error: 'O Gemini retornou uma resposta inválida para o diagnóstico.',
+        });
       }
     }
 
     const rawList = parsedData?.anomalias || parsedData?.patologias || [];
     if (!Array.isArray(rawList) || rawList.length === 0) {
-      const fallbackResult = gerarLaudoTecnicoAbntFallback(contexto, Number(photoIndex) || 0);
-      return res.json(fallbackResult);
+      return res.status(422).json({
+        code: 'NO_PATHOLOGY_DETECTED',
+        error: 'A imagem é de um elemento construtivo, mas não foi possível identificar uma patologia para diagnosticar.',
+      });
     }
 
     const normalizedItems = rawList.slice(0, 1).map((item: any) => ({
@@ -354,15 +425,11 @@ const handleDiagnosticar = async (req: express.Request, res: express.Response) =
       patologias: normalizedItems,
     });
   } catch (error: any) {
-    console.warn(
-      'Acionando contingência ABNT imediata após exceção no endpoint /api/diagnosticar:',
-      error?.message || error
-    );
-    const fallbackResult = gerarLaudoTecnicoAbntFallback(
-      req.body?.contexto,
-      Number(req.body?.photoIndex) || 0
-    );
-    return res.json(fallbackResult);
+    console.error('Erro no endpoint /api/diagnosticar:', error?.message || error);
+    return res.status(502).json({
+      code: 'DIAGNOSIS_UNAVAILABLE',
+      error: 'Não foi possível validar ou diagnosticar a imagem. Tente novamente.',
+    });
   }
 };
 

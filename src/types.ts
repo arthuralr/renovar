@@ -34,7 +34,7 @@ export interface HistoricoInspecao {
   imagemUrl: string;
   nomeArquivo: string;
   contexto: InspecaoContexto;
-  resultado: DiagnosticoResponse;
+  resultado: DiagnosticoResponse | null;
 }
 
 export interface DetalhesPatologiaCalculados {

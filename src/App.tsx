@@ -35,8 +35,11 @@ import {
   MATERIAIS_PADRAO,
   CONDICOES_COMERCIAIS_PADRAO,
 } from './utils/budgetCalculator';
-import { gerarLaudoTecnicoAbntFallback } from './utils/abntEngine';
-import { diagnosticarImagemClient } from './services/geminiService';
+import {
+  diagnosticarImagemClient,
+  ImagemConstrutivaInvalidaError,
+  INVALID_CONSTRUCTION_IMAGE_MESSAGE,
+} from './services/geminiService';
 import { enviarOrcamentoWebhook } from './services/webhookService';
 import {
   salvarOrcamentosNoStorage,
@@ -278,18 +281,17 @@ export default function App() {
     setImageName(name);
     setMimeType(mType);
     setErrorMessage(null);
+    setDiagnostico(null);
 
     setRegistrosVistoria((prev) => {
       const nextIndex = prev.length;
-      const autoDiag = gerarLaudoTecnicoAbntFallback(contexto, nextIndex);
-      setDiagnostico(autoDiag);
       const newItem: HistoricoInspecao = {
         id: recordId,
         dataHora: new Date().toISOString(),
         imagemUrl: base64,
         nomeArquivo: name || `vistoria-foto-${nextIndex + 1}.jpg`,
         contexto,
-        resultado: autoDiag,
+        resultado: null,
       };
       return [...prev, newItem];
     });
@@ -358,20 +360,32 @@ export default function App() {
           });
 
           const contentType = response.headers.get('content-type') || '';
-          if (contentType.includes('application/json') && response.ok) {
-            data = await response.json();
+          if (contentType.includes('application/json')) {
+            const responseData = await response.json();
+            if (responseData?.code === 'INVALID_CONSTRUCTION_IMAGE') {
+              throw new ImagemConstrutivaInvalidaError();
+            }
+            if (!response.ok) {
+              throw new Error(
+                responseData?.error || 'A API de diagnóstico não conseguiu analisar a imagem.'
+              );
+            }
+            data = responseData;
+          } else if (response.ok) {
+            throw new Error('A API de diagnóstico retornou uma resposta inválida.');
           }
         } finally {
           clearTimeout(timeoutId);
         }
       } catch (serverErr: any) {
+        if (serverErr instanceof ImagemConstrutivaInvalidaError) throw serverErr;
         console.warn(
           'Acionando contingência no cliente após falha na rota /api/diagnosticar:',
           serverErr?.message || serverErr
         );
       }
 
-      if (!data || !Array.isArray(data.anomalias || data.patologias) || (data.anomalias || data.patologias || []).length === 0) {
+      if (!data) {
         data = await diagnosticarImagemClient(
           selectedImage,
           mimeType || 'image/jpeg',
@@ -382,16 +396,20 @@ export default function App() {
 
       const items = data?.anomalias || data?.patologias;
       if (!data || !Array.isArray(items) || items.length === 0) {
-        data = gerarLaudoTecnicoAbntFallback(contexto, currentPhotoIdx);
+        throw new Error('Não foi possível gerar um diagnóstico válido para esta imagem.');
       }
 
       setDiagnostico(data);
       saveToHistory(data, selectedImage, imageName);
     } catch (err: any) {
-      console.warn('Acionando geração imediata de laudo técnico ABNT por contingência:', err);
-      const fallbackData = gerarLaudoTecnicoAbntFallback(contexto, currentPhotoIdx);
-      setDiagnostico(fallbackData);
-      saveToHistory(fallbackData, selectedImage, imageName);
+      setDiagnostico(null);
+      setErrorMessage(
+        err instanceof ImagemConstrutivaInvalidaError
+          ? INVALID_CONSTRUCTION_IMAGE_MESSAGE
+          : err instanceof Error
+            ? err.message
+            : 'Não foi possível validar ou diagnosticar a imagem. Tente novamente.'
+      );
     } finally {
       setIsLoading(false);
     }
@@ -419,7 +437,9 @@ export default function App() {
     setContexto(item.contexto);
     setDiagnostico(item.resultado);
     setErrorMessage(null);
-    upsertRegistroVistoria(item.resultado, item.imagemUrl, item.nomeArquivo);
+    if (item.resultado) {
+      upsertRegistroVistoria(item.resultado, item.imagemUrl, item.nomeArquivo);
+    }
     setCurrentStep(2); // Jump to step 2 when selecting history
   };
 

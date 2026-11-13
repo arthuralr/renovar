@@ -1,6 +1,5 @@
 import { GoogleGenAI, Type } from '@google/genai';
 import { DiagnosticoResponse, InspecaoContexto } from '../types';
-import { gerarLaudoTecnicoAbntFallback } from '../utils/abntEngine';
 
 export const GEMINI_PRIMARY_MODEL = 'gemini-2.5-flash';
 export const GEMINI_BACKUP_MODEL = 'gemini-2.0-flash';
@@ -155,6 +154,32 @@ DIRETRIZES DE ESTILO:
 - Seja objetivo, direto e não utilize jargões leigos.
 - Responda EXCLUSIVAMENTE em formato JSON estruturado. Não adicione saudações, observações ou qualquer texto fora do objeto JSON.`;
 
+export const INVALID_CONSTRUCTION_IMAGE_MESSAGE =
+  'A imagem enviada não corresponde a uma patologia construtiva ou elemento de fachada válido';
+
+export class ImagemConstrutivaInvalidaError extends Error {
+  constructor() {
+    super(INVALID_CONSTRUCTION_IMAGE_MESSAGE);
+    this.name = 'ImagemConstrutivaInvalidaError';
+  }
+}
+
+const qualificacaoImagemSchema = {
+  type: Type.OBJECT,
+  properties: {
+    isValidConstructionImage: {
+      type: Type.BOOLEAN,
+      description:
+        'Verdadeiro somente se a imagem mostrar uma edificação, fachada, elemento construtivo ou manifestação patológica da construção civil.',
+    },
+    reason: {
+      type: Type.STRING,
+      description: 'Motivo breve da classificação visual.',
+    },
+  },
+  required: ['isValidConstructionImage', 'reason'],
+};
+
 const anomaliasSchema = {
   type: Type.OBJECT,
   properties: {
@@ -224,16 +249,78 @@ export async function diagnosticarImagemClient(
   imageBase64: string,
   mimeType: string = 'image/jpeg',
   contexto?: InspecaoContexto,
-  photoIndex: number = 0
+  _photoIndex: number = 0
 ): Promise<DiagnosticoResponse> {
-  try {
-    const apiKey = getClientGeminiApiKey();
-    if (!isValidApiKey(apiKey)) {
-      return gerarLaudoTecnicoAbntFallback(contexto, photoIndex);
-    }
-    const cleanBase64 = imageBase64.replace(/^data:image\/[a-zA-Z0-9+.-]+;base64,/, '');
+  const apiKey = getClientGeminiApiKey();
+  if (!isValidApiKey(apiKey)) {
+    throw new Error('Não foi possível validar a imagem: a integração com o Gemini não está configurada.');
+  }
+  const cleanBase64 = imageBase64.replace(/^data:image\/[a-zA-Z0-9+.-]+;base64,/, '');
 
-    let userPrompt = `Analise pericialmente a fotografia técnica desta edificação e formule 1 (um) registro de diagnóstico pericial consolidado correspondente a esta imagem, em estrita conformidade com as normas ABNT vigentes.`;
+  const geminiClient = new GoogleGenAI({
+    apiKey,
+    vertexai: false,
+  });
+  const imagePart = {
+    inlineData: {
+      mimeType: mimeType || 'image/jpeg',
+      data: cleanBase64,
+    },
+  };
+
+  const executarModelos = async (contents: any[], config: any, label: string) => {
+    let response: any = null;
+    for (const modelName of GEMINI_FALLBACK_CHAIN) {
+      try {
+        response = await withTimeout(
+          geminiClient.models.generateContent({ model: modelName, contents, config }),
+          6500,
+          `${label} ${modelName}`
+        );
+        if (response?.text) return response;
+      } catch (error) {
+        console.warn(`[${label}] Modelo ${modelName} indisponível:`, error);
+      }
+    }
+    throw new Error(`O Gemini não conseguiu concluir ${label.toLowerCase()}.`);
+  };
+
+  const parseResponse = (text: string) => {
+    try {
+      return JSON.parse(text);
+    } catch {
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) throw new Error('O Gemini retornou uma resposta inválida.');
+      return JSON.parse(jsonMatch[0]);
+    }
+  };
+
+  try {
+    const qualificationResponse = await executarModelos(
+      [
+        {
+          role: 'user',
+          parts: [
+            imagePart,
+            {
+              text: 'Classifique exclusivamente o conteúdo visual da imagem. É válida somente se mostrar uma edificação, fachada, elemento construtivo ou patologia da construção civil. Panfletos, pessoas, paisagens sem relação com obras, animais e objetos comuns são inválidos. Não gere diagnóstico nesta etapa.',
+            },
+          ],
+        },
+      ],
+      {
+        responseMimeType: 'application/json',
+        responseSchema: qualificacaoImagemSchema,
+      },
+      'Validação da imagem'
+    );
+    const qualification = parseResponse(qualificationResponse.text);
+    if (qualification?.isValidConstructionImage !== true) {
+      throw new ImagemConstrutivaInvalidaError();
+    }
+
+    let userPrompt =
+      'A imagem já foi validada como relacionada à construção civil. Analise-a pericialmente e formule um registro de diagnóstico consolidado, em conformidade com as normas ABNT vigentes.';
 
     if (contexto && typeof contexto === 'object') {
       const details: string[] = [];
@@ -247,78 +334,21 @@ export async function diagnosticarImagemClient(
       }
     }
 
-    const geminiClient = new GoogleGenAI({
-      apiKey,
-      vertexai: false,
-    });
-
-    const requestContents = [
+    const response = await executarModelos(
+      [{ role: 'user', parts: [imagePart, { text: userPrompt }] }],
       {
-        role: 'user',
-        parts: [
-          {
-            inlineData: {
-              mimeType: mimeType || 'image/jpeg',
-              data: cleanBase64,
-            },
-          },
-          {
-            text: userPrompt,
-          },
-        ],
+        systemInstruction,
+        responseMimeType: 'application/json',
+        responseSchema: anomaliasSchema,
       },
-    ];
+      'Diagnóstico ABNT'
+    );
 
-    const requestConfig = {
-      systemInstruction,
-      responseMimeType: 'application/json',
-      responseSchema: anomaliasSchema,
-    };
-
-    let response: any = null;
-
-    for (const modelName of GEMINI_FALLBACK_CHAIN) {
-      try {
-        response = await withTimeout(
-          geminiClient.models.generateContent({
-            model: modelName,
-            contents: requestContents,
-            config: requestConfig,
-          }),
-          6500,
-          `SDK ${modelName}`
-        );
-        if (response?.text) break;
-      } catch (modelErr: any) {
-        console.warn(
-          `[Contingência ABNT] Modelo ${modelName} indisponível (${modelErr?.message || modelErr}).`
-        );
-      }
-    }
-
-    if (!response?.text) {
-      console.info(
-        '[Contingência ABNT] Gerando automaticamente laudo técnico estruturado conforme normas ABNT.'
-      );
-      return gerarLaudoTecnicoAbntFallback(contexto, photoIndex);
-    }
-
-    const rawText = response.text;
-    let parsedData: any;
-    try {
-      parsedData = JSON.parse(rawText);
-    } catch {
-      const jsonMatch = rawText.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        parsedData = JSON.parse(jsonMatch[0]);
-      } else {
-        return gerarLaudoTecnicoAbntFallback(contexto, photoIndex);
-      }
-    }
+    const parsedData = parseResponse(response.text);
 
     const rawList = parsedData?.anomalias || parsedData?.patologias || [];
     if (!Array.isArray(rawList) || rawList.length === 0) {
-      return gerarLaudoTecnicoAbntFallback(contexto, photoIndex);
+      throw new Error('O Gemini não identificou uma manifestação para compor o diagnóstico.');
     }
 
     const normalizedItems = rawList.slice(0, 1).map((item: any) => ({
@@ -341,11 +371,9 @@ export async function diagnosticarImagemClient(
       anomalias: normalizedItems,
       patologias: normalizedItems,
     };
-  } catch (err) {
-    console.warn(
-      '[Contingência ABNT] Retornando laudo técnico estruturado ABNT após falha no cliente:',
-      err
-    );
-    return gerarLaudoTecnicoAbntFallback(contexto, photoIndex);
+  } catch (error) {
+    if (error instanceof ImagemConstrutivaInvalidaError) throw error;
+    console.error('Não foi possível validar ou diagnosticar a imagem com o Gemini:', error);
+    throw error;
   }
 }

@@ -14,6 +14,7 @@ import {
   Plus,
   Trash2,
   CheckCircle2,
+  Clock3,
   Image as ImageIcon,
 } from 'lucide-react';
 import { InspecaoContexto, HistoricoInspecao } from '../types';
@@ -278,10 +279,18 @@ export const UploadSection: React.FC<UploadSectionProps> = ({
                         <span className="text-[10px] font-mono font-bold px-1.5 py-0.2 rounded bg-slate-800 text-amber-400">
                           Foto #{idx + 1}
                         </span>
-                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                        {reg.resultado ? (
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                        ) : (
+                          <Clock3
+                            className="w-3.5 h-3.5 text-amber-400 shrink-0"
+                            aria-label="Aguardando validação e diagnóstico"
+                          />
+                        )}
                       </div>
                       <p className="text-xs font-semibold text-white truncate mt-0.5">
-                        {anomPrincipal?.nome_patologia || reg.nomeArquivo}
+                        {anomPrincipal?.nome_patologia ||
+                          (reg.resultado ? reg.nomeArquivo : 'Aguardando diagnóstico ABNT')}
                       </p>
                       <p className="text-[10px] text-slate-400 truncate font-mono">
                         {reg.nomeArquivo}
