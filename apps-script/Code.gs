@@ -110,6 +110,7 @@ function ensureHeaderRow_(sheet) {
   if (!headers.some(function (value) {
     return [
       'id',
+      'idorcamento',
       'codigo',
       'codigodaproposta',
       'orcamentoid',
@@ -182,19 +183,20 @@ function findProposalRow_(sheet, proposalId, headers) {
 }
 
 function deleteProposalRows_(sheet, proposalId) {
-  const lastRow = sheet.getLastRow();
-  if (lastRow < 2) return 0;
+  const values = sheet.getDataRange().getDisplayValues();
+  if (values.length < 2) return 0;
 
-  const headers = sheet.getRange(1, 1, 1, Math.max(sheet.getLastColumn(), 1)).getDisplayValues()[0];
+  const headers = values[0];
   const idColumn = proposalIdColumn_(headers);
-  const rows = sheet.getRange(2, 1, lastRow - 1, headers.length).getDisplayValues();
   const matchingRows = [];
-  for (let index = 0; index < rows.length; index++) {
-    if (String(rows[index][idColumn]).trim() === proposalId) matchingRows.push(index + 2);
+  for (let i = 1; i < values.length; i++) {
+    if (String(values[i][idColumn] || '').trim() === proposalId) {
+      matchingRows.push(i + 1);
+    }
   }
 
-  matchingRows.reverse().forEach(function (rowNumber) {
-    sheet.deleteRow(rowNumber);
+  matchingRows.reverse().forEach(function (rowIndex) {
+    sheet.deleteRow(rowIndex);
   });
   return matchingRows.length;
 }
@@ -204,6 +206,7 @@ function proposalIdColumn_(headers) {
   const column = normalized.findIndex(function (value) {
     return [
       'id',
+      'idorcamento',
       'codigo',
       'codigodaproposta',
       'orcamentoid',
@@ -212,12 +215,12 @@ function proposalIdColumn_(headers) {
       'proposta',
     ].indexOf(value) !== -1;
   });
-  return column === -1 ? 0 : column;
+  return column === -1 ? 1 : column;
 }
 
 function canonicalHeader_(header) {
   if (
-    ['id', 'codigo', 'codigodaproposta', 'orcamentoid', 'idproposta', 'numeroproposta', 'proposta']
+    ['id', 'idorcamento', 'codigo', 'codigodaproposta', 'orcamentoid', 'idproposta', 'numeroproposta', 'proposta']
       .indexOf(header) !== -1
   ) return 'id';
   if (['datacriacao', 'data', 'timestamp'].indexOf(header) !== -1) return 'datacriacao';

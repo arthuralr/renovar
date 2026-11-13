@@ -38,6 +38,30 @@ async function respostaSheetsConfirmouGravacao(response: Response): Promise<bool
   }
 }
 
+function respostaSheetsConfirmouExclusao(
+  body: unknown,
+  proposalId: string
+): boolean {
+  let resultado = body;
+  if (typeof resultado === 'string') {
+    try {
+      resultado = JSON.parse(resultado);
+    } catch {
+      return false;
+    }
+  }
+  if (!resultado || typeof resultado !== 'object') return false;
+  const confirmacao = resultado as Record<string, unknown>;
+  const deletedRows = Number(confirmacao.deletedRows);
+  return (
+    confirmacao.ok === true &&
+    confirmacao.action === 'delete' &&
+    confirmacao.id === proposalId &&
+    Number.isInteger(deletedRows) &&
+    deletedRows >= 0
+  );
+}
+
 const DELETED_IDS_STORAGE_KEY = 'patologias_orcamentos_excluidos_v1';
 
 function obterIdsExcluidosLocalmente(): Set<string> {
@@ -1393,7 +1417,10 @@ export async function excluirOrcamentoNaNuvem(id: string): Promise<boolean> {
     });
     if (proxyRes.ok) {
       const resultado = await proxyRes.json();
-      if (resultado?.sheetsOk === true) {
+      if (
+        resultado?.sheetsOk === true &&
+        respostaSheetsConfirmouExclusao(resultado?.response, proposalId)
+      ) {
         registrarIdExcluidoLocalmente(proposalId);
         return true;
       }
@@ -1415,7 +1442,11 @@ export async function excluirOrcamentoNaNuvem(id: string): Promise<boolean> {
       redirect: 'follow',
       credentials: 'omit',
     });
-    if (await respostaSheetsConfirmouGravacao(response)) {
+    if (response.ok) {
+      const resultado = await response.json();
+      if (!respostaSheetsConfirmouExclusao(resultado, proposalId)) {
+        throw new Error('O Apps Script não confirmou a exclusão do ID solicitado.');
+      }
       registrarIdExcluidoLocalmente(proposalId);
       return true;
     }

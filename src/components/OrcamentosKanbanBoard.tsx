@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Kanban,
   ListFilter,
@@ -51,6 +51,16 @@ interface OrcamentosKanbanBoardProps {
   onSelectStep?: (step: WizardStep) => void;
 }
 
+const VIEW_MODE_STORAGE_KEY = 'patologias_orcamentos_view_mode_v1';
+
+function obterModoVisualizacaoSalvo(): 'kanban' | 'lista' {
+  try {
+    return localStorage.getItem(VIEW_MODE_STORAGE_KEY) === 'lista' ? 'lista' : 'kanban';
+  } catch {
+    return 'kanban';
+  }
+}
+
 export const OrcamentosKanbanBoard: React.FC<OrcamentosKanbanBoardProps> = ({
   orcamentos,
   activeOrcamentoId,
@@ -68,9 +78,21 @@ export const OrcamentosKanbanBoard: React.FC<OrcamentosKanbanBoardProps> = ({
   isStepComplete,
   onSelectStep,
 }) => {
-  const [modoVisualizacao, setModoVisualizacao] = useState<'kanban' | 'lista'>('kanban');
+  const [modoVisualizacao, setModoVisualizacao] = useState<'kanban' | 'lista'>(
+    obterModoVisualizacaoSalvo
+  );
+  const [draggedProposalId, setDraggedProposalId] = useState<string | null>(null);
+  const [dragOverStatus, setDragOverStatus] = useState<StatusOrcamentoKanban | null>(null);
   const [busca, setBusca] = useState('');
   const [filtroEtapa, setFiltroEtapa] = useState<StatusOrcamentoKanban | 'todos'>('todos');
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(VIEW_MODE_STORAGE_KEY, modoVisualizacao);
+    } catch (error) {
+      console.warn('Não foi possível salvar a visualização de orçamentos:', error);
+    }
+  }, [modoVisualizacao]);
 
   const orcamentosFiltrados = useMemo(() => {
     const termo = busca.trim().toLowerCase();
@@ -172,10 +194,26 @@ export const OrcamentosKanbanBoard: React.FC<OrcamentosKanbanBoardProps> = ({
     return (
       <div
         key={orc.id}
+        draggable={modoVisualizacao === 'kanban'}
+        onDragStart={(event) => {
+          event.dataTransfer.setData('text/plain', orc.id);
+          event.dataTransfer.effectAllowed = 'move';
+          setDraggedProposalId(orc.id);
+        }}
+        onDragEnd={() => {
+          setDraggedProposalId(null);
+          setDragOverStatus(null);
+        }}
         className={`rounded-2xl bg-slate-950/90 border p-4 shadow-lg transition flex flex-col justify-between gap-3 ${
           isAtivo
             ? 'border-amber-400/80 ring-1 ring-amber-400/30'
             : 'border-slate-800/90 hover:border-slate-700'
+        } ${
+          draggedProposalId === orc.id
+            ? 'opacity-50 cursor-grabbing'
+            : modoVisualizacao === 'kanban'
+              ? 'cursor-grab'
+              : ''
         }`}
       >
         {/* Top Row: ID + Date + Delete */}
@@ -535,7 +573,34 @@ export const OrcamentosKanbanBoard: React.FC<OrcamentosKanbanBoardProps> = ({
             return (
               <div
                 key={etapa.id}
-                className="rounded-2xl bg-slate-950/50 border border-slate-800/90 flex flex-col min-h-[320px]"
+                onDragOver={(event) => {
+                  if (modoVisualizacao === 'kanban' && draggedProposalId) {
+                    event.preventDefault();
+                    event.dataTransfer.dropEffect = 'move';
+                    setDragOverStatus(etapa.id);
+                  }
+                }}
+                onDragLeave={(event) => {
+                  if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+                    setDragOverStatus(null);
+                  }
+                }}
+                onDrop={(event) => {
+                  event.preventDefault();
+                  const proposalId =
+                    event.dataTransfer.getData('text/plain') || draggedProposalId;
+                  const proposal = orcamentos.find((item) => item.id === proposalId);
+                  if (proposal && proposal.status !== etapa.id) {
+                    onUpdateStatus(proposal.id, etapa.id);
+                  }
+                  setDraggedProposalId(null);
+                  setDragOverStatus(null);
+                }}
+                className={`rounded-2xl bg-slate-950/50 border flex flex-col min-h-[320px] transition-colors ${
+                  dragOverStatus === etapa.id
+                    ? 'border-amber-400 bg-amber-500/5'
+                    : 'border-slate-800/90'
+                }`}
               >
                 {/* Column Header */}
                 <div className={`p-3.5 rounded-t-2xl border-b ${etapa.headerBorderClass}`}>

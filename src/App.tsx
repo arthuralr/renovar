@@ -58,9 +58,23 @@ import {
   CheckCircle2,
   Building2,
   FileSpreadsheet,
+  PlusCircle,
 } from 'lucide-react';
 
 const STORAGE_KEY = 'patologias_historico_v1';
+
+function gerarIdProposta(idsExistentes: Set<string>): string {
+  const ano = new Date().getFullYear();
+  let id: string;
+  do {
+    const token =
+      typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+        ? crypto.randomUUID().replace(/-/g, '').toUpperCase()
+        : `${Date.now().toString(36).toUpperCase()}${Math.random().toString(36).slice(2, 10).toUpperCase()}`;
+    id = `PROP-${ano}-${token}`;
+  } while (idsExistentes.has(id));
+  return id;
+}
 
 export default function App() {
   // Wizard Navigation
@@ -457,7 +471,7 @@ export default function App() {
     const idGerado =
       activeOrcamentoId && !forcarNovoId
         ? activeOrcamentoId
-        : `PROP-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
+        : gerarIdProposta(new Set(orcamentosSalvos.map((orcamento) => orcamento.id)));
 
     const existente = orcamentosSalvos.find((o) => o.id === idGerado);
     const statusPreservado: StatusOrcamentoKanban = existente?.status || 'em_elaboracao';
@@ -537,6 +551,23 @@ export default function App() {
 
   // Limpa o formulário para iniciar o cadastro de um novo orçamento / cliente
   const handleNovoOrcamento = () => {
+    const temDadosNoFormulario =
+      Boolean(dadosCliente.nomeCondominio.trim()) ||
+      Boolean(dadosCliente.cnpj || dadosCliente.endereco || dadosCliente.nomeSindico) ||
+      registrosVistoria.length > 0 ||
+      materiais.length > 0 ||
+      equipe.length > 0 ||
+      Boolean(diagnostico);
+    if (
+      temDadosNoFormulario &&
+      !window.confirm(
+        'Iniciar um novo orçamento? Os dados ainda não salvos deste formulário serão descartados. Os orçamentos já salvos não serão alterados.'
+      )
+    ) {
+      return;
+    }
+
+    editLoadRequestRef.current += 1;
     setActiveOrcamentoId(null);
     setCloudError(null);
     setCloudRetryAction(null);
@@ -575,8 +606,12 @@ export default function App() {
   };
 
   // Atualiza a etapa Kanban de um orçamento salvo (local + Google Sheets Cloud)
-  const handleUpdateStatusOrcamento = (id: string, novoStatus: StatusOrcamentoKanban) => {
+  const handleUpdateStatusOrcamento = async (
+    id: string,
+    novoStatus: StatusOrcamentoKanban
+  ) => {
     const alvo = orcamentosSalvos.find((orc) => orc.id === id);
+    if (!alvo || alvo.status === novoStatus) return;
     setOrcamentosSalvos((prev) => {
       const atualizados = prev.map((orc) =>
         orc.id === id
@@ -587,8 +622,22 @@ export default function App() {
       return atualizados;
     });
 
-    if (alvo) {
-      void atualizarStatusOrcamentoNaNuvem(alvo, novoStatus);
+    try {
+      const atualizado = await atualizarStatusOrcamentoNaNuvem(alvo, novoStatus);
+      if (!atualizado) {
+        throw new Error('O Google Sheets não confirmou a atualização da etapa.');
+      }
+      setCloudError(null);
+      setCloudRetryAction(null);
+    } catch (error) {
+      console.error(`Erro ao atualizar a etapa do orçamento ${id} no Google Sheets:`, error);
+      setCloudError(
+        error instanceof Error
+          ? error.message
+          : 'Não foi possível salvar a etapa do orçamento na nuvem.'
+      );
+      setCloudRetryAction(() => () => void sincronizarOrcamentosDaNuvem());
+      void sincronizarOrcamentosDaNuvem();
     }
   };
 
@@ -658,6 +707,11 @@ export default function App() {
         setCloudError(`O orçamento ${proposalId} não foi encontrado na planilha.`);
         return false;
       }
+      if (orcamento.id !== proposalId) {
+        throw new Error(
+          `A consulta retornou o ID ${orcamento.id}, diferente do ID solicitado ${proposalId}.`
+        );
+      }
       const orcamentoAtualizado = orcamento;
       setOrcamentosSalvos((anteriores) => {
         const existe = anteriores.some((item) => item.id === orcamentoAtualizado.id);
@@ -689,6 +743,10 @@ export default function App() {
     }
 
     if (!orcamento || requestId !== editLoadRequestRef.current) return false;
+    if (orcamento.id !== proposalId) {
+      setCloudError(`O orçamento carregado não corresponde ao ID selecionado ${proposalId}.`);
+      return false;
+    }
 
     const registros = orcamento.registrosVistoria || [];
     const selectedRecord =
@@ -812,6 +870,25 @@ export default function App() {
           </div>
         )}
         {/* Wizard Stepper Bar */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <h2 className="text-sm font-bold text-white">Editor de Orçamentos</h2>
+            <p className="text-xs text-slate-400">
+              {activeOrcamentoId
+                ? `Editando proposta ${activeOrcamentoId}`
+                : 'Preencha as etapas para montar uma nova proposta.'}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={handleNovoOrcamento}
+            className="px-4 py-2.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/40 text-sm font-bold flex items-center justify-center gap-2 transition cursor-pointer"
+            title="Descartar somente o formulário atual e iniciar uma nova proposta"
+          >
+            <PlusCircle className="w-4 h-4" />
+            <span>Gerar Novo Orçamento</span>
+          </button>
+        </div>
         <WizardStepper
           currentStep={currentStep}
           onSelectStep={handleMudarEtapaFormulario}

@@ -641,12 +641,26 @@ const handlePostOrcamentosSheets = async (req: express.Request, res: express.Res
       });
       const text = await response.text().catch(() => '');
       let apiIndicatesFailure = false;
+      let sheetsResult: Record<string, any> | null = null;
       try {
         const result = JSON.parse(text);
+        if (result && typeof result === 'object' && !Array.isArray(result)) {
+          sheetsResult = result;
+        }
         apiIndicatesFailure =
           result?.ok === false || result?.success === false || Boolean(result?.error);
       } catch {
         apiIndicatesFailure = /<(?:!doctype|html|head|body)\b/i.test(text);
+      }
+      if (isDelete) {
+        const deletedRows = Number(sheetsResult?.deletedRows);
+        apiIndicatesFailure =
+          apiIndicatesFailure ||
+          sheetsResult?.ok !== true ||
+          sheetsResult?.action !== 'delete' ||
+          sheetsResult?.id !== id ||
+          !Number.isInteger(deletedRows) ||
+          deletedRows < 0;
       }
       const sheetsOk = response.ok && !apiIndicatesFailure;
       if (isDelete) {
