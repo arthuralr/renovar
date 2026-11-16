@@ -119,7 +119,7 @@ const createGeminiClient = (apiKey?: string): GoogleGenAI | null => {
 };
 
 const ai = createGeminiClient(RESOLVED_API_KEY);
-const GEMINI_REQUEST_TIMEOUT_MS = 45_000;
+const GEMINI_REQUEST_TIMEOUT_MS = 60_000;
 const SUPPORTED_IMAGE_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/heic', 'image/heif']);
 
 const normalizarImagemParaGemini = (imageData: string, mimeType: string) => {
@@ -234,7 +234,7 @@ const handleDiagnosticar = async (req: express.Request, res: express.Response) =
       { systemInstruction, responseMimeType: 'application/json', responseSchema: anomaliasSchema },
       'diagnóstico'
     );
-    return res.json(normalizarDiagnosticoGemini(parseGeminiJson(resp.text)));
+    return res.json(normalizarDiagnosticoGemini(parseGeminiJson(resp.text || '')));
   } catch (err: any) {
     return res.status(502).json({ error: err?.message || 'Erro no diagnóstico.' });
   }
@@ -295,6 +295,43 @@ app.get('/api/orcamentos/', handleGetOrcamentos);
 app.post('/api/orcamentos', handlePostOrcamentos);
 app.post('/api/orcamentos/', handlePostOrcamentos);
 
+// Aliases para compatibilidade total com Google Sheets / Apps Script
+app.get('/api/sheets/orcamentos', handleGetOrcamentos);
+app.get('/api/sheets/orcamentos/', handleGetOrcamentos);
+app.post('/api/sheets/orcamentos', handlePostOrcamentos);
+app.post('/api/sheets/orcamentos/', handlePostOrcamentos);
+
+// Proxy para webhook n8n para contornar restrições de CORS no browser
+app.post('/api/webhook/renovar-proposta', async (req: express.Request, res: express.Response) => {
+  res.setHeader('Content-Type', 'application/json');
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 45000);
+    try {
+      const n8nResp = await fetch('https://n8n.ia01.online/webhook-test/renovar-proposta', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(req.body),
+        signal: controller.signal,
+      });
+      const text = await n8nResp.text().catch(() => '');
+      return res.status(n8nResp.status).json({
+        ok: n8nResp.ok,
+        status: n8nResp.status,
+        message: n8nResp.ok ? 'Enviado ao n8n via servidor.' : `Status ${n8nResp.status}`,
+        response: text,
+      });
+    } finally {
+      clearTimeout(timeoutId);
+    }
+  } catch (err: any) {
+    return res.status(502).json({
+      ok: false,
+      error: err?.message || 'Falha ao conectar ao webhook do n8n.',
+    });
+  }
+});
+
 if (process.env.NODE_ENV !== 'production') {
   const { createServer: createViteServer } = await import('vite');
   const vite = await createViteServer({ server: { middlewareMode: true }, appType: 'spa' });
@@ -304,6 +341,7 @@ if (process.env.NODE_ENV !== 'production') {
   app.get('*', (_req, res) => { res.sendFile(path.resolve(__dirname, 'dist', 'index.html')); });
 }
 
-app.listen(PORT, '0.0.0.0', () => {
+const server = app.listen(PORT, '0.0.0.0', () => {
   console.log(`Servidor rodando na porta ${PORT}`);
 });
+server.setTimeout(90_000);

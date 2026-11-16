@@ -52,6 +52,7 @@ interface OrcamentosKanbanBoardProps {
 }
 
 const VIEW_MODE_STORAGE_KEY = 'patologias_orcamentos_view_mode_v1';
+const KANBAN_FILTER_STORAGE_KEY = 'patologias_orcamentos_filtro_etapa_v1';
 
 function obterModoVisualizacaoSalvo(): 'kanban' | 'lista' {
   try {
@@ -59,6 +60,16 @@ function obterModoVisualizacaoSalvo(): 'kanban' | 'lista' {
   } catch {
     return 'kanban';
   }
+}
+
+function obterFiltroEtapaSalvo(): StatusOrcamentoKanban | 'todos' {
+  try {
+    const salvo = localStorage.getItem(KANBAN_FILTER_STORAGE_KEY);
+    if (salvo && (salvo === 'todos' || ETAPAS_KANBAN.some((e) => e.id === salvo))) {
+      return salvo as StatusOrcamentoKanban | 'todos';
+    }
+  } catch {}
+  return 'todos';
 }
 
 export const OrcamentosKanbanBoard: React.FC<OrcamentosKanbanBoardProps> = ({
@@ -84,7 +95,9 @@ export const OrcamentosKanbanBoard: React.FC<OrcamentosKanbanBoardProps> = ({
   const [draggedProposalId, setDraggedProposalId] = useState<string | null>(null);
   const [dragOverStatus, setDragOverStatus] = useState<StatusOrcamentoKanban | null>(null);
   const [busca, setBusca] = useState('');
-  const [filtroEtapa, setFiltroEtapa] = useState<StatusOrcamentoKanban | 'todos'>('todos');
+  const [filtroEtapa, setFiltroEtapa] = useState<StatusOrcamentoKanban | 'todos'>(
+    obterFiltroEtapaSalvo
+  );
 
   useEffect(() => {
     try {
@@ -93,6 +106,14 @@ export const OrcamentosKanbanBoard: React.FC<OrcamentosKanbanBoardProps> = ({
       console.warn('Não foi possível salvar a visualização de orçamentos:', error);
     }
   }, [modoVisualizacao]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(KANBAN_FILTER_STORAGE_KEY, filtroEtapa);
+    } catch (error) {
+      console.warn('Não foi possível salvar o filtro de etapa:', error);
+    }
+  }, [filtroEtapa]);
 
   const orcamentosFiltrados = useMemo(() => {
     const termo = busca.trim().toLowerCase();

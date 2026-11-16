@@ -42,6 +42,7 @@ import {
 import { enviarOrcamentoWebhook } from './services/webhookService';
 import {
   salvarOrcamentosNoStorage,
+  carregarOrcamentosSalvos,
 } from './utils/orcamentoKanbanUtils';
 import {
   carregarOrcamentoDoBancoPorId,
@@ -63,6 +64,7 @@ import {
 } from 'lucide-react';
 
 const STORAGE_KEY = 'patologias_historico_v1';
+const WIZARD_STEP_STORAGE_KEY = 'patologias_wizard_step_ativo_v1';
 
 function gerarIdProposta(idsExistentes: Set<string>): string {
   const ano = new Date().getFullYear();
@@ -78,7 +80,21 @@ function gerarIdProposta(idsExistentes: Set<string>): string {
 }
 
 export default function App() {
-  const [currentStep, setCurrentStep] = useState<WizardStep>(1);
+  const [currentStep, setCurrentStep] = useState<WizardStep>(() => {
+    try {
+      const saved = localStorage.getItem(WIZARD_STEP_STORAGE_KEY);
+      const stepNum = Number(saved);
+      if (stepNum >= 1 && stepNum <= 4) return stepNum as WizardStep;
+    } catch {}
+    return 1;
+  });
+
+  const mudarStepComPersistencia = (novoStep: WizardStep) => {
+    setCurrentStep(novoStep);
+    try {
+      localStorage.setItem(WIZARD_STEP_STORAGE_KEY, String(novoStep));
+    } catch {}
+  };
 
   const [dadosCliente, setDadosCliente] = useState<DadosCliente>({
     nomeCondominio: '',
@@ -149,7 +165,7 @@ export default function App() {
   const [historico, setHistorico] = useState<HistoricoInspecao[]>([]);
   const [registrosVistoria, setRegistrosVistoria] = useState<HistoricoInspecao[]>([]);
 
-  const [orcamentosSalvos, setOrcamentosSalvos] = useState<OrcamentoSalvo[]>([]);
+  const [orcamentosSalvos, setOrcamentosSalvos] = useState<OrcamentoSalvo[]>(carregarOrcamentosSalvos);
   const [activeOrcamentoId, setActiveOrcamentoId] = useState<string | null>(null);
   const editLoadRequestRef = useRef(0);
   const [isSyncingCloud, setIsSyncingCloud] = useState<boolean>(false);
@@ -160,14 +176,19 @@ export default function App() {
     setIsSyncingCloud(true);
     try {
       const listaNuvem = await carregarOrcamentosDoBanco();
-      setOrcamentosSalvos(listaNuvem);
+      if (Array.isArray(listaNuvem) && listaNuvem.length > 0) {
+        setOrcamentosSalvos(listaNuvem);
+      }
       setCloudError(null);
       setCloudRetryAction(null);
-    } catch (e) {
+    } catch (e: any) {
       console.warn('Erro ao sincronizar orçamentos do banco de dados:', e);
-      setCloudError(
-        e instanceof Error ? e.message : 'Não foi possível sincronizar com o banco de dados.'
-      );
+      const msg = e instanceof Error ? e.message : String(e || '');
+      const msgAmigavel =
+        msg.toLowerCase().includes('failed to fetch') || msg.toLowerCase().includes('fetch failed')
+          ? 'O serviço de sincronização demorou para responder ou está offline. Seus orçamentos continuam salvos e acessíveis localmente.'
+          : msg || 'Não foi possível sincronizar com o banco de dados.';
+      setCloudError(msgAmigavel);
       setCloudRetryAction(() => () => void sincronizarOrcamentosDaNuvem());
     } finally {
       setIsSyncingCloud(false);
@@ -399,13 +420,18 @@ export default function App() {
       saveToHistory(data, selectedImage, imageName);
     } catch (err: any) {
       setDiagnostico(null);
-      setErrorMessage(
+      const rawMsg =
         err instanceof ImagemConstrutivaInvalidaError
           ? INVALID_CONSTRUCTION_IMAGE_MESSAGE
           : err instanceof Error
             ? err.message
-            : 'Não foi possível validar ou diagnosticar a imagem. Tente novamente.'
-      );
+            : 'Não foi possível validar ou diagnosticar a imagem. Tente novamente.';
+      const lower = rawMsg.toLowerCase();
+      const msgAmigavel =
+        lower.includes('failed to fetch') || lower.includes('fetch failed') || lower.includes('networkerror')
+          ? 'O envio da fotografia ou o retorno da IA demorou além do limite ou sofreu oscilação de rede. Por favor, tente novamente.'
+          : rawMsg;
+      setErrorMessage(msgAmigavel);
     } finally {
       setIsLoading(false);
     }
@@ -436,7 +462,7 @@ export default function App() {
     if (item.resultado) {
       upsertRegistroVistoria(item.resultado, item.imagemUrl, item.nomeArquivo);
     }
-    setCurrentStep(2);
+    mudarStepComPersistencia(2);
   };
 
   const handleReset = () => {
@@ -559,7 +585,7 @@ export default function App() {
         isPersistingStepRef.current = false;
       }
     }
-    setCurrentStep(proximaEtapa);
+    mudarStepComPersistencia(proximaEtapa);
   };
 
   const handleNovoOrcamento = () => {
@@ -614,7 +640,7 @@ export default function App() {
     setMesesObra(0);
     setMargemLucroPercentual(0);
     setCondicoesComerciais(CONDICOES_COMERCIAIS_PADRAO);
-    setCurrentStep(1);
+    mudarStepComPersistencia(1);
   };
 
   const handleUpdateStatusOrcamento = async (
@@ -789,7 +815,7 @@ export default function App() {
     setImageName(selectedRecord?.nomeArquivo || '');
     setMimeType(imageMimeType || 'image/jpeg');
     setErrorMessage(null);
-    setCurrentStep(4);
+    mudarStepComPersistencia(4);
     setIsKanbanModalOpen(false);
     return true;
   };

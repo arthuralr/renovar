@@ -261,7 +261,7 @@ export async function enviarOrcamentoWebhook(
   // 1. Disparo HTTP POST direto em JSON para a URL do n8n
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000);
+    const timeoutId = setTimeout(() => controller.abort(), 45000);
 
     try {
       const response = await fetch(N8N_WEBHOOK_URL, {
@@ -305,13 +305,21 @@ export async function enviarOrcamentoWebhook(
     );
 
     try {
-      const proxyResponse = await fetch('/api/webhook/renovar-proposta', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-      });
+      const proxyController = new AbortController();
+      const proxyTimeoutId = setTimeout(() => proxyController.abort(), 45000);
+      let proxyResponse: Response;
+      try {
+        proxyResponse = await fetch('/api/webhook/renovar-proposta', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(payload),
+          signal: proxyController.signal,
+        });
+      } finally {
+        clearTimeout(proxyTimeoutId);
+      }
 
       const proxyData = await proxyResponse.json().catch(() => ({}));
       return {
@@ -329,7 +337,7 @@ export async function enviarOrcamentoWebhook(
       return {
         ok: false,
         url: N8N_WEBHOOK_URL,
-        message: 'Não foi possível conectar ao webhook do n8n.',
+        message: 'O webhook está temporariamente demorando a responder. O orçamento foi preservado localmente.',
       };
     }
   }

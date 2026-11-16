@@ -10,7 +10,7 @@ export const GEMINI_FALLBACK_CHAIN = [
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-const GEMINI_REQUEST_TIMEOUT_MS = 10_000;
+export const GEMINI_REQUEST_TIMEOUT_MS = 45_000;
 const SUPPORTED_IMAGE_MIME_TYPES = new Set([
   'image/jpeg',
   'image/png',
@@ -70,7 +70,7 @@ async function generateContentWithTimeout(
     });
   } catch (error) {
     if (controller.signal.aborted) {
-      throw new Error(`Timeout de ${GEMINI_REQUEST_TIMEOUT_MS}ms durante ${label}.`);
+      throw new Error(`Tempo limite de ${GEMINI_REQUEST_TIMEOUT_MS / 1000}s excedido durante ${label}. O envio ou processamento da imagem demorou mais que o esperado.`);
     }
     throw error;
   } finally {
