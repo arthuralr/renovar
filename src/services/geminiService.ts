@@ -34,13 +34,8 @@ function normalizarImagemParaGemini(
   if (!SUPPORTED_IMAGE_MIME_TYPES.has(resolvedMimeType)) {
     throw new Error(`Formato de imagem não suportado pelo Gemini: ${resolvedMimeType}.`);
   }
-  if (!data || !/^[a-z0-9+/]*={0,2}$/i.test(data) || data.length % 4 === 1) {
+  if (!data || data.length < 8) {
     throw new Error('O conteúdo Base64 da imagem é inválido ou está incompleto.');
-  }
-  try {
-    atob(data.padEnd(Math.ceil(data.length / 4) * 4, '='));
-  } catch {
-    throw new Error('Não foi possível decodificar a imagem Base64 enviada ao Gemini.');
   }
 
   return { data, mimeType: resolvedMimeType };
@@ -310,6 +305,7 @@ export async function diagnosticarImagemClient(
   const geminiClient = new GoogleGenAI({
     apiKey,
     vertexai: false,
+    httpOptions: { apiVersion: 'v1beta' },
   });
   const imagePart = {
     inlineData: {

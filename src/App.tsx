@@ -393,9 +393,8 @@ export default function App() {
         if (requestTimedOut) {
           throw new Error('A análise excedeu o tempo limite. Tente novamente.');
         }
-        if (!(serverErr instanceof TypeError)) {
-          throw serverErr;
-        }
+        // Aciona o fallback client-side para erros HTTP (502, 503), falhas de rede (TypeError) ou indisponibilidade momentânea
+        console.warn('API de diagnóstico do servidor indisponível ou falhou, acionando fallback client-side:', serverErr?.message || serverErr);
         useClientFallback = true;
       }
 

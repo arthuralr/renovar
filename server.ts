@@ -29,11 +29,18 @@ const allowedCorsOrigins = (process.env.CORS_ORIGIN || '')
 
 app.use((req, res, next) => {
   const origin = req.headers.origin;
-  if (origin && allowedCorsOrigins.includes(origin)) {
+  const isAllowed =
+    !origin ||
+    allowedCorsOrigins.includes(origin) ||
+    /^https?:\/\/localhost(:\d+)?$/.test(origin) ||
+    /^https?:\/\/127\.0\.0\.1(:\d+)?$/.test(origin) ||
+    /\.vercel\.app$/.test(origin);
+
+  if (origin && isAllowed) {
     res.setHeader('Access-Control-Allow-Origin', origin);
     res.setHeader('Vary', 'Origin');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Cache-Control, Pragma');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, DELETE');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Cache-Control, Pragma, Authorization');
   }
   if (req.method === 'OPTIONS') return res.sendStatus(204);
   next();
@@ -47,19 +54,27 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false }
 });
 
+pool.on('error', (err: any) => {
+  console.error('[Banco de Dados] Erro no pool do Postgres:', err?.message || err);
+});
+
 async function garantirTabela() {
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS propostas_renovar (
-      id VARCHAR(255) PRIMARY KEY,
-      cliente TEXT,
-      status VARCHAR(100),
-      dados JSONB,
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    );
-  `);
-  console.log('[Banco de Dados] Tabela propostas_renovar pronta no Neon.tech.');
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS propostas_renovar (
+        id VARCHAR(255) PRIMARY KEY,
+        cliente TEXT,
+        status VARCHAR(100),
+        dados JSONB,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+    console.log('[Banco de Dados] Tabela propostas_renovar pronta no Neon.tech.');
+  } catch (err: any) {
+    console.warn('[Banco de Dados] Aviso ao verificar/criar tabela inicial no Neon:', err?.message || err);
+  }
 }
-await garantirTabela();
+void garantirTabela();
 
 const GEMINI_PRIMARY_MODEL = 'gemini-2.5-flash';
 const GEMINI_BACKUP_MODEL = 'gemini-2.0-flash';
@@ -227,13 +242,29 @@ const handleDiagnosticar = async (req: express.Request, res: express.Response) =
     }
 
     const imagePart = { inlineData: { mimeType: imagem.mimeType, data: imagem.data } };
-    const resp = await generateContentWithTimeout(
-      geminiClient,
-      GEMINI_PRIMARY_MODEL,
-      [{ role: 'user', parts: [imagePart, { text: userPrompt }] }],
-      { systemInstruction, responseMimeType: 'application/json', responseSchema: anomaliasSchema },
-      'diagnóstico'
-    );
+    let resp: any = null;
+    let lastError: any = null;
+
+    for (const modelName of GEMINI_FALLBACK_CHAIN) {
+      try {
+        resp = await generateContentWithTimeout(
+          geminiClient,
+          modelName,
+          [{ role: 'user', parts: [imagePart, { text: userPrompt }] }],
+          { systemInstruction, responseMimeType: 'application/json', responseSchema: anomaliasSchema },
+          `diagnóstico (${modelName})`
+        );
+        if (resp?.text) break;
+      } catch (e: any) {
+        lastError = e;
+        console.warn(`[server.ts] Modelo ${modelName} falhou, tentando próximo da cadeia...`, e?.message || e);
+      }
+    }
+
+    if (!resp?.text) {
+      throw lastError || new Error('Não foi possível obter resposta de nenhum modelo Gemini.');
+    }
+
     return res.json(normalizarDiagnosticoGemini(parseGeminiJson(resp.text || '')));
   } catch (err: any) {
     return res.status(502).json({ error: err?.message || 'Erro no diagnóstico.' });
@@ -261,28 +292,31 @@ const handlePostOrcamentos = async (req: express.Request, res: express.Response)
   const isDelete = action === 'delete' || payload.status === 'deleted' || payload.acao === 'excluir';
 
   try {
-    if (isDelete && id) {
+    if (isDelete) {
+      if (!id) {
+        return res.status(400).json({ ok: false, error: 'O ID da proposta é obrigatório para exclusão.' });
+      }
       await pool.query('DELETE FROM propostas_renovar WHERE id = $1', [id]);
       return res.status(200).json({ ok: true, success: true, message: 'Excluído com sucesso.' });
     }
 
-    if (id) {
-      const clienteNome = payload.cliente || payload.dadosCliente?.nomeCondominio || 'Cliente';
-      const statusProposta = payload.status || 'em_elaboracao';
-      
-      const check = await pool.query('SELECT id FROM propostas_renovar WHERE id = $1', [id]);
-      if (check.rows.length > 0) {
-        await pool.query(
-          'UPDATE propostas_renovar SET cliente = $1, status = $2, dados = $3 WHERE id = $4',
-          [clienteNome, statusProposta, JSON.stringify(payload), id]
-        );
-      } else {
-        await pool.query(
-          'INSERT INTO propostas_renovar (id, cliente, status, dados) VALUES ($1, $2, $3, $4)',
-          [id, clienteNome, statusProposta, JSON.stringify(payload)]
-        );
-      }
+    if (!id) {
+      return res.status(400).json({ ok: false, error: 'O ID da proposta é obrigatório para salvamento.' });
     }
+
+    const clienteNome = payload.cliente || payload.dadosCliente?.nomeCondominio || 'Cliente';
+    const statusProposta = payload.status || 'em_elaboracao';
+
+    await pool.query(
+      `INSERT INTO propostas_renovar (id, cliente, status, dados)
+       VALUES ($1, $2, $3, $4)
+       ON CONFLICT (id) DO UPDATE
+       SET cliente = EXCLUDED.cliente,
+           status = EXCLUDED.status,
+           dados = EXCLUDED.dados;`,
+      [id, clienteNome, statusProposta, JSON.stringify(payload)]
+    );
+
     return res.status(200).json({ ok: true, success: true, message: 'Salvo com sucesso.' });
   } catch (err: any) {
     console.error('Erro ao salvar no banco:', err);
