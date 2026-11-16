@@ -22,27 +22,31 @@ delete process.env.GCLOUD_PROJECT;
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
 
-const allowedCorsOrigins = (process.env.CORS_ORIGIN || '')
-  .split(',')
-  .map((origin) => origin.trim())
-  .filter(Boolean);
-
+// Middleware CORS universal para permitir acesso de qualquer origem autorizada
+// (incluindo https://renovar-rosy.vercel.app, subdomínios Vercel, localhost e clientes externos)
 app.use((req, res, next) => {
   const origin = req.headers.origin;
-  const isAllowed =
-    !origin ||
-    allowedCorsOrigins.includes(origin) ||
-    /^https?:\/\/localhost(:\d+)?$/.test(origin) ||
-    /^https?:\/\/127\.0\.0\.1(:\d+)?$/.test(origin) ||
-    /\.vercel\.app$/.test(origin);
 
-  if (origin && isAllowed) {
+  if (origin) {
     res.setHeader('Access-Control-Allow-Origin', origin);
-    res.setHeader('Vary', 'Origin');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, DELETE');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Cache-Control, Pragma, Authorization');
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+  } else {
+    res.setHeader('Access-Control-Allow-Origin', '*');
   }
-  if (req.method === 'OPTIONS') return res.sendStatus(204);
+
+  res.setHeader('Vary', 'Origin, Access-Control-Request-Headers');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
+  res.setHeader(
+    'Access-Control-Allow-Headers',
+    req.headers['access-control-request-headers'] ||
+      'Content-Type, Authorization, X-Requested-With, Cache-Control, Pragma, Accept'
+  );
+  res.setHeader('Access-Control-Max-Age', '86400');
+
+  // Responde com status 204 aos preflight requests OPTIONS antes de qualquer processamento
+  if (req.method === 'OPTIONS') {
+    return res.status(204).end();
+  }
   next();
 });
 
