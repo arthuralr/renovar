@@ -356,7 +356,8 @@ export default function App() {
         }, 45000);
 
         try {
-          const response = await fetch('/api/diagnosticar', {
+          const apiUrl = import.meta.env.VITE_API_URL || '';
+          const response = await fetch(`${apiUrl}/api/diagnosticar`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
