@@ -98,7 +98,6 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
   );
   const orcamentoId = orcamentoIdProp || fallbackOrcamentoId;
 
-  // Compila exclusivamente os registros correspondentes às fotos enviadas pelo usuário (1 foto = 1 registro patológico, sem duplicação nem itens vazios)
   const inspectionsList = useMemo(() => {
     const list: {
       id: string;
@@ -110,7 +109,6 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
 
     const seenImages = new Set<string>();
 
-    // 1. Prioriza os registros de fotos enviadas na vistoria atual (em ordem de envio)
     if (historico && historico.length > 0) {
       historico.forEach((h, idx) => {
         const items = h.resultado?.anomalias || h.resultado?.patologias || [];
@@ -128,7 +126,6 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
       });
     }
 
-    // 2. Caso a imagem selecionada atual ainda não esteja na lista acima, adiciona como registro único
     const currentItems = diagnostico?.anomalias || diagnostico?.patologias || [];
     const currentImg = selectedImage?.trim() || '';
     if (currentImg && currentItems.length > 0 && !seenImages.has(currentImg)) {
@@ -162,7 +159,6 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
     .replace(/[/\\?%*:|"<>]/g, '')
     .trim();
 
-  // Download direto do arquivo .pdf utilizando cópia isolada do container da proposta
   const handleDownloadPdf = async (e?: React.MouseEvent) => {
     if (e) {
       e.preventDefault();
@@ -172,7 +168,6 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
 
     setIsDownloadingPdf(true);
     try {
-      // Dispara o POST em JSON para o webhook do n8n no momento da geração do PDF
       void enviarOrcamentoWebhook({
         orcamentoId,
         dadosCliente,
@@ -199,7 +194,6 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
 
   const totalPatologias = inspectionsList.length;
 
-  // Ação simultânea ao clicar no botão WhatsApp: baixa o PDF para o dispositivo e abre o WhatsApp com o texto formatado
   const handleShareWhatsAppAndDownloadPdf = (e?: React.MouseEvent) => {
     if (e) {
       e.preventDefault();
@@ -215,14 +209,10 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
       totalPatologias,
     });
 
-    // 1. Abre imediatamente a janela/aba do WhatsApp com a mensagem executiva formatada
     window.open(url, '_blank', 'noopener,noreferrer');
-
-    // 2. Simultaneamente dispara o download automático do arquivo PDF do orçamento
     void handleDownloadPdf();
   };
 
-  // Corporate Renovar Header Component for Inner Pages
   const DocumentHeader = ({ pageNum, totalPages }: { pageNum: number; totalPages: number }) => (
     <div className="border-b-2 border-slate-900 pb-3 mb-6 flex items-center justify-between">
       <div className="flex items-center gap-2">
@@ -243,7 +233,6 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
     </div>
   );
 
-  // Corporate Renovar Footer Component for Inner Pages
   const DocumentFooter = () => (
     <div className="border-t border-slate-300 pt-3 mt-8 flex flex-col sm:flex-row items-center justify-between text-[10px] font-mono text-slate-700">
       <div>RENOVAR SC — Soluções Prediais • CREA/SC: 105.402-1</div>
@@ -265,7 +254,6 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
         <style>{`@media print { body * { visibility: hidden; } #pdf-content, #pdf-content * { visibility: visible; } #pdf-content { position: absolute; left: 0; top: 0; width: 100%; } }`}</style>
       )}
 
-      {/* Barra Superior Única de Ações (Sempre Oculta na Impressão) */}
       {isOpen && (
         <header className="sticky top-0 z-50 w-full max-w-4xl bg-slate-900/95 border border-slate-700/80 backdrop-blur-md rounded-2xl px-4 sm:px-6 py-3.5 mb-6 flex flex-wrap items-center justify-between gap-3 shadow-2xl no-print">
           <div className="flex items-center gap-3">
@@ -312,7 +300,6 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
               disabled={isDownloadingPdf}
               onClick={handleShareWhatsAppAndDownloadPdf}
               className="flex items-center gap-1.5 px-3.5 py-2.5 bg-emerald-500/20 hover:bg-emerald-500/30 disabled:opacity-70 text-emerald-300 border border-emerald-500/40 font-bold text-xs sm:text-sm rounded-xl transition cursor-pointer"
-              title="Baixar automaticamente o PDF do orçamento e abrir o WhatsApp do síndico com a mensagem pronta"
             >
               <MessageCircle className="w-4 h-4 text-emerald-400" />
               <span>{isDownloadingPdf ? 'Baixando PDF + WhatsApp...' : 'WhatsApp + PDF'}</span>
@@ -342,7 +329,6 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
               type="button"
               onClick={onClose}
               className="p-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-xl border border-slate-700 transition cursor-pointer"
-              title="Fechar Visualização"
             >
               <X className="w-5 h-5" />
             </button>
@@ -350,14 +336,11 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
         </header>
       )}
 
-      {/* Multipage Document Container */}
       <div
         id="pdf-content"
         className="print-document-container w-full max-w-4xl space-y-8 print:w-full print:max-w-none print:m-0 print:p-0 print:space-y-0 print:block"
       >
-        {/* ========================================================================= */}
-        {/* PÁGINA 1: CAPA E IDENTIFICAÇÃO DO CONDOMÍNIO                              */}
-        {/* ========================================================================= */}
+        {/* PÁGINA 1 */}
         <section className="print-document-sheet page-break-after bg-white text-slate-900 shadow-2xl rounded-2xl p-8 sm:p-14 min-h-[1050px] flex flex-col justify-between border border-slate-300 relative overflow-hidden print:min-h-0 print:h-auto print:max-h-none print:overflow-visible print:block print:p-0 print:border-none print:shadow-none print:rounded-none">
           <div className="flex items-start justify-between gap-5 border-b-2 border-slate-900 pb-5">
             <div>
@@ -386,7 +369,7 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
             <div className="mt-6 h-1.5 w-24 bg-amber-500" />
           </div>
 
-          <div className="space-y-4 border-l-4 border-amber-500 bg-slate-100 p-6 rounded-r-xl">
+          <div className="space-y-4 border-l-4 border-amber-500 bg-white p-6 rounded-r-xl border border-slate-200">
             <div>
               <div className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-600">
                 Condomínio / Edifício
@@ -426,23 +409,19 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
           <div className="mt-8 border-t border-slate-300 pt-5 text-xs font-mono text-slate-800 font-medium">
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <div>
-                <span className="font-extrabold text-slate-950">Data de emissão:</span>{' '}
-                {dataAtualExtenso}
+                <span className="font-extrabold text-slate-950">Data de emissão:</span> {dataAtualExtenso}
               </div>
               <div>
                 <span className="font-extrabold text-slate-950">Validade:</span> 30 dias
               </div>
               <div>
-                <span className="font-extrabold text-slate-950">Prazo estimado:</span>{' '}
-                {calculos.mesesObra} {calculos.mesesObra === 1 ? 'mês' : 'meses'}
+                <span className="font-extrabold text-slate-950">Prazo estimado:</span> {calculos.mesesObra} {calculos.mesesObra === 1 ? 'mês' : 'meses'}
               </div>
             </div>
           </div>
         </section>
 
-        {/* ========================================================================= */}
-        {/* PÁGINA 2: CARTA DE APRESENTAÇÃO TÉCNICA                                   */}
-        {/* ========================================================================= */}
+        {/* PÁGINA 2 */}
         <section className="print-document-sheet page-break-after bg-white text-slate-900 shadow-2xl rounded-2xl p-8 sm:p-14 min-h-[1050px] border border-slate-300 flex flex-col justify-between print:min-h-0 print:h-auto print:max-h-none print:overflow-visible print:block print:p-0 print:border-none print:shadow-none print:rounded-none">
           <div>
             <DocumentHeader pageNum={2} totalPages={totalPdfPages} />
@@ -498,9 +477,7 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
           </div>
         </section>
 
-        {/* ========================================================================= */}
-        {/* PÁGINA 3: APRESENTAÇÃO INSTITUCIONAL E MODELO DE GESTÃO                   */}
-        {/* ========================================================================= */}
+        {/* PÁGINA 3 */}
         <section className="print-document-sheet page-break-after bg-white text-slate-900 shadow-2xl rounded-2xl p-8 sm:p-14 min-h-[1050px] border border-slate-300 flex flex-col justify-between print:min-h-0 print:h-auto print:max-h-none print:overflow-visible print:block print:p-0 print:border-none print:shadow-none print:rounded-none">
           <div>
             <DocumentHeader pageNum={3} totalPages={totalPdfPages} />
@@ -537,9 +514,7 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
           </div>
         </section>
 
-        {/* ========================================================================= */}
-        {/* PÁGINA 4: OS TRÊS PILARES INEGOCIÁVEIS                                    */}
-        {/* ========================================================================= */}
+        {/* PÁGINA 4 (Pilar com fundo 100% branco) */}
         <section className="print-document-sheet page-break-after bg-white text-slate-900 shadow-2xl rounded-2xl p-8 sm:p-14 min-h-[1050px] border border-slate-300 flex flex-col justify-between print:min-h-0 print:h-auto print:max-h-none print:overflow-visible print:block print:p-0 print:border-none print:shadow-none print:rounded-none">
           <div>
             <DocumentHeader pageNum={4} totalPages={totalPdfPages} />
@@ -549,7 +524,7 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
             <div className="w-16 h-1 bg-amber-500 mb-7" />
 
             <div className="space-y-5 text-xs leading-relaxed text-slate-900 font-medium sm:text-sm">
-              <article className="rounded-xl border border-amber-300 bg-amber-50/80 p-5 shadow-sm">
+              <article className="rounded-xl border border-slate-300 bg-white p-5 shadow-sm">
                 <h3 className="mb-2 font-black uppercase text-slate-950 text-sm">
                   1. Segurança acima de tudo
                 </h3>
@@ -564,7 +539,7 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
                 </p>
               </article>
 
-              <article className="rounded-xl border border-emerald-300 bg-emerald-50/80 p-5 shadow-sm">
+              <article className="rounded-xl border border-slate-300 bg-white p-5 shadow-sm">
                 <h3 className="mb-2 font-black uppercase text-slate-950 text-sm">
                   2. Qualidade como padrão mínimo
                 </h3>
@@ -577,7 +552,7 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
                 </p>
               </article>
 
-              <article className="rounded-xl border border-sky-300 bg-sky-50/80 p-5 shadow-sm">
+              <article className="rounded-xl border border-slate-300 bg-white p-5 shadow-sm">
                 <h3 className="mb-2 font-black uppercase text-slate-950 text-sm">
                   3. Respeito no dia a dia da obra
                 </h3>
@@ -598,9 +573,7 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
           </div>
         </section>
 
-        {/* ========================================================================= */}
-        {/* PÁGINA 5: MEMORIAL DESCRITIVO DE MATERIAIS E MARCAS HOMOLOGADAS           */}
-        {/* ========================================================================= */}
+        {/* PÁGINA 5 */}
         <section className="print-document-sheet page-break-after bg-white text-slate-900 shadow-2xl rounded-2xl p-7 sm:p-11 min-h-[1050px] border border-slate-300 flex flex-col justify-between print:min-h-0 print:h-auto print:max-h-none print:overflow-visible print:block print:p-0 print:border-none print:shadow-none print:rounded-none">
           <div>
             <DocumentHeader pageNum={5} totalPages={totalPdfPages} />
@@ -611,7 +584,7 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
 
             <p className="mb-5 text-xs leading-relaxed text-slate-900 font-medium sm:text-sm">
               A Renovar SC adota rigorosos critérios na seleção dos insumos aplicados em suas
-              obras. Todos os materiais utilizados possuem laudos técnicos de conformidade, fichas
+              obras. Todos os materials utilizados possuem laudos técnicos de conformidade, fichas
               técnicas atualizadas e são fornecidos por fabricantes consolidados no mercado da
               construção civil, garantindo durabilidade, desempenho mecânico, proteção contra
               intempéries e aderência perfeita aos substratos existentes.
@@ -630,7 +603,7 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
               </thead>
               <tbody className="divide-y divide-slate-300 font-medium">
                 <tr className="align-top">
-                  <td className="border border-slate-300 bg-slate-100 p-2 font-black text-slate-950">
+                  <td className="border border-slate-300 bg-white p-2 font-black text-slate-950">
                     1. Tratamento de Fissuras e Trincas Dinâmicas
                   </td>
                   <td className="border border-slate-300 p-2 text-slate-900">
@@ -642,7 +615,7 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
                   </td>
                 </tr>
                 <tr className="align-top">
-                  <td className="border border-slate-300 bg-slate-100 p-2 font-black text-slate-950">
+                  <td className="border border-slate-300 bg-white p-2 font-black text-slate-950">
                     2. Recuperação de Concreto e Argamassa (Recomposição)
                   </td>
                   <td className="border border-slate-300 p-2 text-slate-900">
@@ -654,7 +627,7 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
                   </td>
                 </tr>
                 <tr className="align-top">
-                  <td className="border border-slate-300 bg-slate-100 p-2 font-black text-slate-950">
+                  <td className="border border-slate-300 bg-white p-2 font-black text-slate-950">
                     3. Tratamento de Armaduras Expostas (Oxidação)
                   </td>
                   <td className="border border-slate-300 p-2 text-slate-900">
@@ -665,7 +638,7 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
                   </td>
                 </tr>
                 <tr className="align-top">
-                  <td className="border border-slate-300 bg-slate-100 p-2 font-black text-slate-950">
+                  <td className="border border-slate-300 bg-white p-2 font-black text-slate-950">
                     4. Sistema de Pintura Externa e Impermeabilização de Fachada
                   </td>
                   <td className="border border-slate-300 p-2 text-slate-900">
@@ -686,9 +659,7 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
           </div>
         </section>
 
-        {/* ========================================================================= */}
-        {/* PÁGINA 6: CONFORMIDADE DOCUMENTAL E CHECKLIST DE HABILITAÇÃO               */}
-        {/* ========================================================================= */}
+        {/* PÁGINA 6 (Checklist com fundo 100% branco) */}
         <section className="print-document-sheet page-break-after bg-white text-slate-900 shadow-2xl rounded-2xl p-7 sm:p-11 min-h-[1050px] border border-slate-300 flex flex-col justify-between print:min-h-0 print:h-auto print:max-h-none print:overflow-visible print:block print:p-0 print:border-none print:shadow-none print:rounded-none">
           <div>
             <DocumentHeader pageNum={6} totalPages={totalPdfPages} />
@@ -705,7 +676,7 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
             </p>
 
             <div className="space-y-4 text-xs leading-relaxed text-slate-900 font-medium sm:text-sm">
-              <section className="rounded-xl border border-slate-300 bg-slate-100 p-4 sm:p-5 shadow-sm">
+              <section className="rounded-xl border border-slate-300 bg-white p-4 sm:p-5 shadow-sm">
                 <h3 className="mb-2 font-black uppercase tracking-wide text-slate-950">
                   1. Regularidade Jurídica e Fiscal
                 </h3>
@@ -722,7 +693,7 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
                 </ul>
               </section>
 
-              <section className="rounded-xl border border-amber-300 bg-amber-50/70 p-4 sm:p-5 shadow-sm">
+              <section className="rounded-xl border border-slate-300 bg-white p-4 sm:p-5 shadow-sm">
                 <h3 className="mb-2 font-black uppercase tracking-wide text-slate-950">
                   2. Regularidade Técnica e Profissional
                 </h3>
@@ -739,7 +710,7 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
                 </ul>
               </section>
 
-              <section className="rounded-xl border border-sky-300 bg-sky-50/70 p-4 sm:p-5 shadow-sm">
+              <section className="rounded-xl border border-slate-300 bg-white p-4 sm:p-5 shadow-sm">
                 <h3 className="mb-2 font-black uppercase tracking-wide text-slate-950">
                   3. Apólices de Seguros e Garantia Operacional
                 </h3>
@@ -762,9 +733,7 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
           </div>
         </section>
 
-        {/* ========================================================================= */}
-        {/* PÁGINA 7+: LAUDO PATOLÓGICO FOTOGRÁFICO (1 FOLHA A4 POR REGISTRO)          */}
-        {/* ========================================================================= */}
+        {/* PÁGINAS DE LAUDO FOTOGRÁFICO */}
         {inspectionsList.length > 0 ? (
           inspectionsList.map((insp, inspIndex) => {
             const anom = insp.anomalia;
@@ -799,8 +768,7 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
                     </p>
                   </div>
 
-                  <div className="avoid-break border-2 border-slate-300 rounded-2xl bg-slate-50 p-5 space-y-4 shadow-sm overflow-visible">
-                    {/* Finding Header */}
+                  <div className="avoid-break border-2 border-slate-300 rounded-2xl bg-white p-5 space-y-4 shadow-sm overflow-visible">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-300 pb-3">
                       <div className="flex items-center gap-2.5">
                         <span className="w-7 h-7 rounded-lg bg-slate-900 text-amber-400 flex items-center justify-center font-mono font-bold text-xs shrink-0">
@@ -820,9 +788,7 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
                       </div>
                     </div>
 
-                    {/* Top Row: Photo + Constatação Visual & Causa Provável */}
                     <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-start">
-                      {/* Image Column */}
                       <div className="md:col-span-5 space-y-2.5">
                         <div className="border border-slate-400 rounded-xl overflow-hidden bg-slate-900 shadow-inner">
                           <img
@@ -836,7 +802,6 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
                           </div>
                         </div>
 
-                        {/* Applied ABNT Standards */}
                         {anom.normas_tecnicas_abnt && anom.normas_tecnicas_abnt.length > 0 && (
                           <div className="p-3 bg-white border border-slate-300 rounded-xl shadow-xs">
                             <span className="text-[10px] font-mono font-black text-slate-900 block mb-1.5 uppercase">
@@ -856,7 +821,6 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
                         )}
                       </div>
 
-                      {/* Constatação Visual & Causa Provável */}
                       <div className="md:col-span-7 space-y-3 text-xs">
                         <div className="bg-white p-3.5 rounded-xl border border-slate-300 shadow-xs">
                           <h4 className="font-black text-slate-950 text-[11px] uppercase tracking-wide flex items-center gap-1.5 mb-1.5">
@@ -880,22 +844,20 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
                       </div>
                     </div>
 
-                    {/* Full-Width Row: Risco Evolutivo e Consequências */}
-                    <div className="bg-rose-50 p-4 rounded-xl border-2 border-rose-300 overflow-visible avoid-break shadow-xs">
+                    <div className="bg-white p-4 rounded-xl border-2 border-rose-300 overflow-visible avoid-break shadow-xs">
                       <h4 className="font-black text-rose-950 text-xs uppercase tracking-wide flex items-center gap-2 mb-1.5">
                         <AlertTriangle className="w-4 h-4 text-rose-700 shrink-0" />
                         <span>
                           3. Risco Evolutivo e Consequências (Impacto Estrutural, Segurança e Financeiro):
                         </span>
                       </h4>
-                      <p className="text-rose-950 font-medium leading-relaxed text-xs break-words whitespace-normal">
+                      <p className="text-slate-900 font-medium leading-relaxed text-xs break-words whitespace-normal">
                         {anom.risco_evolutivo_consequencias || anom.risco_evolutivo}
                       </p>
                     </div>
 
-                    {/* Full-Width Row: Diretrizes Técnicas de Reparo */}
                     {anom.diretrizes_reparo && anom.diretrizes_reparo.length > 0 && (
-                      <div className="bg-emerald-50 p-4 rounded-xl border border-emerald-300 overflow-visible avoid-break shadow-xs">
+                      <div className="bg-white p-4 rounded-xl border border-emerald-300 overflow-visible avoid-break shadow-xs">
                         <h4 className="font-black text-emerald-950 text-xs uppercase tracking-wide flex items-center gap-2 mb-2">
                           <FileCheck className="w-4 h-4 text-emerald-700 shrink-0" />
                           <span>4. Diretrizes Técnicas de Reparo (Metodologia Executiva ABNT):</span>
@@ -926,7 +888,7 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
                 </h2>
                 <div className="w-16 h-1 bg-amber-500 mb-3" />
               </div>
-              <div className="p-8 text-center bg-slate-100 border border-slate-300 rounded-xl text-slate-700 font-medium text-xs">
+              <div className="p-8 text-center bg-white border border-slate-300 rounded-xl text-slate-700 font-medium text-xs">
                 <Camera className="w-8 h-8 opacity-60 mx-auto mb-2 text-slate-600" />
                 Nenhum registro fotográfico anexado no Passo 2. As manifestações serão cadastradas na vistoria preliminar da obra.
               </div>
@@ -935,9 +897,7 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
           </section>
         )}
 
-        {/* ========================================================================= */}
-        {/* METODOLOGIA EXECUTIVA E PLANO DE SEGURANÇA (NR-18 E NR-35)                */}
-        {/* ========================================================================= */}
+        {/* METODOLOGIA */}
         <section className="print-document-sheet page-break-after bg-white text-slate-900 shadow-2xl rounded-2xl p-8 sm:p-14 min-h-[1050px] border border-slate-300 flex flex-col justify-between print:min-h-0 print:h-auto print:max-h-none print:overflow-visible print:block print:p-0 print:border-none print:shadow-none print:rounded-none">
           <div>
             <DocumentHeader pageNum={methodologyPageNum} totalPages={totalPdfPages} />
@@ -947,9 +907,8 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
             </h2>
             <div className="w-16 h-1 bg-amber-500 mb-6" />
 
-            {/* Fases Executivas */}
             <div className="space-y-3.5 text-xs sm:text-sm text-slate-900 leading-relaxed mb-6">
-              <div className="p-3.5 rounded-xl border border-slate-300 bg-slate-50 shadow-xs">
+              <div className="p-3.5 rounded-xl border border-slate-300 bg-white shadow-xs">
                 <h3 className="font-black text-slate-950 text-xs uppercase mb-1 flex items-center gap-2">
                   <span className="w-5 h-5 rounded-full bg-slate-900 text-amber-400 flex items-center justify-center font-mono text-[10px]">
                     1
@@ -961,7 +920,7 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
                 </p>
               </div>
 
-              <div className="p-3.5 rounded-xl border border-slate-300 bg-slate-50 shadow-xs">
+              <div className="p-3.5 rounded-xl border border-slate-300 bg-white shadow-xs">
                 <h3 className="font-black text-slate-950 text-xs uppercase mb-1 flex items-center gap-2">
                   <span className="w-5 h-5 rounded-full bg-slate-900 text-amber-400 flex items-center justify-center font-mono text-[10px]">
                     2
@@ -973,7 +932,7 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
                 </p>
               </div>
 
-              <div className="p-3.5 rounded-xl border border-slate-300 bg-slate-50 shadow-xs">
+              <div className="p-3.5 rounded-xl border border-slate-300 bg-white shadow-xs">
                 <h3 className="font-black text-slate-950 text-xs uppercase mb-1 flex items-center gap-2">
                   <span className="w-5 h-5 rounded-full bg-slate-900 text-amber-400 flex items-center justify-center font-mono text-[10px]">
                     3
@@ -985,7 +944,7 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
                 </p>
               </div>
 
-              <div className="p-3.5 rounded-xl border border-slate-300 bg-slate-50 shadow-xs">
+              <div className="p-3.5 rounded-xl border border-slate-300 bg-white shadow-xs">
                 <h3 className="font-black text-slate-950 text-xs uppercase mb-1 flex items-center gap-2">
                   <span className="w-5 h-5 rounded-full bg-slate-900 text-amber-400 flex items-center justify-center font-mono text-[10px]">
                     4
@@ -997,7 +956,7 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
                 </p>
               </div>
 
-              <div className="p-3.5 rounded-xl border border-slate-300 bg-slate-50 shadow-xs">
+              <div className="p-3.5 rounded-xl border border-slate-300 bg-white shadow-xs">
                 <h3 className="font-black text-slate-950 text-xs uppercase mb-1 flex items-center gap-2">
                   <span className="w-5 h-5 rounded-full bg-slate-900 text-amber-400 flex items-center justify-center font-mono text-[10px]">
                     5
@@ -1010,7 +969,6 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
               </div>
             </div>
 
-            {/* Exigências NR-18 e NR-35 */}
             <div className="border-t border-slate-300 pt-5">
               <h3 className="text-sm font-mono font-black text-slate-950 uppercase tracking-wider mb-3 flex items-center gap-2">
                 <ShieldCheck className="w-4 h-4 text-emerald-700" />
@@ -1018,7 +976,7 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
               </h3>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-                <div className="p-4 rounded-xl bg-slate-50 border border-slate-300 space-y-2 shadow-xs">
+                <div className="p-4 rounded-xl bg-white border border-slate-300 space-y-2 shadow-xs">
                   <h4 className="font-black text-slate-950 uppercase text-xs flex items-center gap-2">
                     <span className="w-2 h-2 rounded-full bg-amber-500" />
                     NR-35 — Trabalho em Altura
@@ -1031,7 +989,7 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
                   </ul>
                 </div>
 
-                <div className="p-4 rounded-xl bg-slate-50 border border-slate-300 space-y-2 shadow-xs">
+                <div className="p-4 rounded-xl bg-white border border-slate-300 space-y-2 shadow-xs">
                   <h4 className="font-black text-slate-950 uppercase text-xs flex items-center gap-2">
                     <span className="w-2 h-2 rounded-full bg-emerald-600" />
                     NR-18 — Indústria da Construção & RCF
@@ -1050,9 +1008,7 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
           <DocumentFooter />
         </section>
 
-        {/* ========================================================================= */}
-        {/* PLANILHA DE MATERIAIS E ESCOPO DE EQUIPE                                  */}
-        {/* ========================================================================= */}
+        {/* PLANILHA DE MATERIAIS */}
         <section className="print-document-sheet page-break-after bg-white text-slate-900 shadow-2xl rounded-2xl p-8 sm:p-14 min-h-[1050px] border border-slate-300 flex flex-col justify-between print:min-h-0 print:h-auto print:max-h-none print:overflow-visible print:block print:p-0 print:border-none print:shadow-none print:rounded-none">
           <div>
             <DocumentHeader pageNum={costsPageNum} totalPages={totalPdfPages} />
@@ -1062,15 +1018,14 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
             </h2>
             <div className="w-16 h-1 bg-amber-500 mb-6" />
 
-            {/* Planilha de Materiais */}
             <div className="mb-6 avoid-break">
-              <h3 className="text-xs font-black uppercase tracking-wider bg-slate-200 text-slate-950 px-3 py-1.5 rounded border-l-4 border-slate-900 mb-2 font-mono flex items-center justify-between">
+              <h3 className="text-xs font-black uppercase tracking-wider bg-slate-100 text-slate-950 px-3 py-1.5 rounded border-l-4 border-slate-900 mb-2 font-mono flex items-center justify-between border border-slate-200">
                 <span>1. Relação Consolidada de Materiais & Insumos Homologados</span>
                 <span className="text-slate-800 font-bold">Total: {materiais.length} itens</span>
               </h3>
 
               <table className="w-full text-left text-xs border border-slate-300 shadow-xs">
-                <thead className="bg-slate-200 text-slate-900 font-mono font-bold text-[11px]">
+                <thead className="bg-slate-100 text-slate-900 font-mono font-bold text-[11px]">
                   <tr>
                     <th className="py-2 px-3 border-b border-slate-300">Descrição do Item / Especificação</th>
                     <th className="py-2 px-2 border-b border-slate-300">Unid.</th>
@@ -1091,7 +1046,7 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
                       </td>
                     </tr>
                   ))}
-                  <tr className="bg-slate-200 font-black font-mono text-slate-950">
+                  <tr className="bg-slate-100 font-black font-mono text-slate-950">
                     <td colSpan={4} className="py-2 px-3 text-right">
                       CUSTO TOTAL DE MATERIAIS:
                     </td>
@@ -1103,19 +1058,18 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
               </table>
             </div>
 
-            {/* Escopo da Equipe Alocada */}
             <div className="mb-6 avoid-break">
-              <h3 className="text-xs font-black uppercase tracking-wider bg-slate-200 text-slate-950 px-3 py-1.5 rounded border-l-4 border-slate-900 mb-2 font-mono flex items-center justify-between">
+              <h3 className="text-xs font-black uppercase tracking-wider bg-slate-100 text-slate-950 px-3 py-1.5 rounded border-l-4 border-slate-900 mb-2 font-mono flex items-center justify-between border border-slate-200">
                 <span>2. Dimensionamento da Equipe Técnica Especializada</span>
                 <span className="text-slate-800 font-bold">Cronograma: {calculos.mesesObra} Meses de Obra</span>
               </h3>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 text-xs font-mono">
                 {equipe.map((prof) => (
-                  <div key={prof.id} className="p-3 bg-slate-50 rounded-xl border border-slate-300 shadow-xs">
+                  <div key={prof.id} className="p-3 bg-white rounded-xl border border-slate-300 shadow-xs">
                     <div className="font-black text-slate-950 text-xs uppercase flex items-center justify-between">
                       <span>{prof.cargo}</span>
-                      <span className="px-1.5 py-0.5 rounded bg-slate-200 text-slate-900 font-bold text-[10px]">
+                      <span className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-900 font-bold text-[10px] border border-slate-200">
                         {prof.quantidade} un.
                       </span>
                     </div>
@@ -1133,8 +1087,7 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
               </div>
             </div>
 
-            {/* Resumo da Folha Direta */}
-            <div className="p-3.5 bg-slate-200/80 border border-slate-300 rounded-xl flex items-center justify-between font-mono text-xs shadow-xs">
+            <div className="p-3.5 bg-white border border-slate-300 rounded-xl flex items-center justify-between font-mono text-xs shadow-xs">
               <span className="font-black text-slate-950">
                 Total Acumulado de Mão de Obra Direta ({calculos.mesesObra} meses):
               </span>
@@ -1147,9 +1100,7 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
           <DocumentFooter />
         </section>
 
-        {/* ========================================================================= */}
-        {/* RESUMO FINANCEIRO, CONDIÇÕES, GARANTIA & PÓS-OBRA                         */}
-        {/* ========================================================================= */}
+        {/* RESUMO FINANCEIRO */}
         <section className="print-document-sheet page-break-after bg-white text-slate-900 shadow-2xl rounded-2xl p-8 sm:p-14 min-h-[1050px] border border-slate-300 flex flex-col justify-between print:min-h-0 print:h-auto print:max-h-none print:overflow-visible print:block print:p-0 print:border-none print:shadow-none print:rounded-none">
           <div>
             <DocumentHeader pageNum={finalPageNum} totalPages={totalPdfPages} />
@@ -1159,9 +1110,8 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
             </h2>
             <div className="w-16 h-1 bg-amber-500 mb-6" />
 
-            {/* Memória de Cálculo Financeiro Completa */}
             <div className="mb-6 avoid-break">
-              <h3 className="text-xs font-black uppercase tracking-wider bg-slate-200 text-slate-950 px-3 py-1.5 rounded border-l-4 border-slate-900 mb-2 font-mono">
+              <h3 className="text-xs font-black uppercase tracking-wider bg-slate-100 text-slate-950 px-3 py-1.5 rounded border-l-4 border-slate-900 mb-2 font-mono border border-slate-200">
                 1. Memória de Cálculo e Formação do Preço Global
               </h3>
 
@@ -1197,7 +1147,7 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
                       {formatarMoeda(calculos.encargosSociais)}
                     </td>
                   </tr>
-                  <tr className="bg-slate-200 font-black text-slate-950">
+                  <tr className="bg-slate-100 font-black text-slate-950">
                     <td className="py-2 px-3">SUBTOTAL: CUSTO TOTAL DIRETO</td>
                     <td className="py-2 px-3 text-right">
                       {formatarMoeda(calculos.custoTotalDireto)}
@@ -1229,16 +1179,14 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
               </table>
             </div>
 
-            {/* 2. Condições Comerciais, Parcelamento e Faturamento Customizado */}
             <div className="mb-4 avoid-break">
-              <h3 className="text-xs font-black uppercase tracking-wider bg-slate-200 text-slate-950 px-3 py-1.5 rounded border-l-4 border-slate-900 mb-2 font-mono flex items-center justify-between">
+              <h3 className="text-xs font-black uppercase tracking-wider bg-slate-100 text-slate-950 px-3 py-1.5 rounded border-l-4 border-slate-900 mb-2 font-mono flex items-center justify-between border border-slate-200">
                 <span>2. Condições Comerciais, Cronograma de Desembolso e Faturamento</span>
                 <span className="text-slate-800 font-bold">Validade: {validadeDias} dias</span>
               </h3>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 mb-2.5 text-xs font-mono">
-                {/* Card Entrada */}
-                <div className="p-3 bg-slate-50 border border-slate-300 rounded-lg shadow-xs">
+                <div className="p-3 bg-white border border-slate-300 rounded-lg shadow-xs">
                   <span className="text-[10px] font-black uppercase text-slate-700 block">
                     Entrada / Mobilização ({parcelamento.percentualEntrada}%)
                   </span>
@@ -1252,8 +1200,7 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
                   </span>
                 </div>
 
-                {/* Card Saldo Remanescente */}
-                <div className="p-3 bg-slate-50 border border-slate-300 rounded-lg shadow-xs">
+                <div className="p-3 bg-white border border-slate-300 rounded-lg shadow-xs">
                   <span className="text-[10px] font-black uppercase text-slate-700 block">
                     Saldo Remanescente ({parcelamento.percentualSaldo}%)
                   </span>
@@ -1266,8 +1213,7 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
                   </span>
                 </div>
 
-                {/* Card Forma de Faturamento */}
-                <div className="p-3 bg-slate-50 border border-slate-300 rounded-lg shadow-xs">
+                <div className="p-3 bg-white border border-slate-300 rounded-lg shadow-xs">
                   <span className="text-[10px] font-black uppercase text-slate-700 block">
                     Modalidade de Faturamento
                   </span>
@@ -1281,7 +1227,7 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
                 </div>
               </div>
 
-              <div className="p-3 bg-slate-100 border border-slate-300 rounded-lg text-[11px] text-slate-900 font-medium space-y-1 shadow-xs">
+              <div className="p-3 bg-white border border-slate-300 rounded-lg text-[11px] text-slate-900 font-medium space-y-1 shadow-xs">
                 <div className="font-black text-slate-950 uppercase">
                   Observações de Faturamento e Condições de Pagamento:
                 </div>
@@ -1294,7 +1240,6 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
 
           </div>
 
-          {/* Assinaturas Formais */}
           <div className="pt-6 border-t-2 border-slate-900 avoid-break">
             <div className="flex flex-col sm:flex-row items-center justify-between gap-10">
               <div className="text-center w-72">
@@ -1323,9 +1268,7 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
           </div>
         </section>
 
-        {/* ========================================================================= */}
-        {/* PLANO DE MANUTENÇÃO PÓS-OBRA E DIRETRIZES DE GARANTIA GERAL               */}
-        {/* ========================================================================= */}
+        {/* PÁGINA 11 (Manutenção com fundo 100% branco) */}
         <section className="print-document-sheet page-break-after bg-white text-slate-900 shadow-2xl rounded-2xl p-7 sm:p-11 min-h-[1050px] border border-slate-300 flex flex-col justify-between print:min-h-0 print:h-auto print:max-h-none print:overflow-visible print:block print:p-0 print:border-none print:shadow-none print:rounded-none">
           <div>
             <DocumentHeader pageNum={maintenancePageNum} totalPages={totalPdfPages} />
@@ -1342,7 +1285,7 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
             </p>
 
             <div className="space-y-3.5 text-[11px] leading-relaxed text-slate-900 font-medium sm:text-xs">
-              <section className="rounded-xl border border-slate-300 bg-slate-100 p-4 shadow-xs">
+              <section className="rounded-xl border border-slate-300 bg-white p-4 shadow-xs">
                 <h3 className="mb-1.5 font-black uppercase tracking-wide text-slate-950">
                   1. Inspeções e Vistorias Periódicas
                 </h3>
@@ -1360,7 +1303,7 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
                 </ul>
               </section>
 
-              <section className="rounded-xl border border-sky-300 bg-sky-50/70 p-4 shadow-xs">
+              <section className="rounded-xl border border-slate-300 bg-white p-4 shadow-xs">
                 <h3 className="mb-1.5 font-black uppercase tracking-wide text-slate-950">
                   2. Diretrizes para Limpeza e Conservação
                 </h3>
@@ -1374,7 +1317,7 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
                 </ul>
               </section>
 
-              <section className="rounded-xl border border-amber-300 bg-amber-50/70 p-4 shadow-xs">
+              <section className="rounded-xl border border-slate-300 bg-white p-4 shadow-xs">
                 <h3 className="mb-1.5 font-black uppercase tracking-wide text-slate-950">
                   3. Interferências e Instalações de Terceiros
                 </h3>
@@ -1389,8 +1332,8 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
                 </ul>
               </section>
 
-              <section className="rounded-xl border border-emerald-400 bg-emerald-50/80 p-4 shadow-xs">
-                <h3 className="mb-1.5 flex items-center gap-1.5 font-black uppercase tracking-wide text-emerald-950">
+              <section className="rounded-xl border border-slate-300 bg-white p-4 shadow-xs">
+                <h3 className="mb-1.5 flex items-center gap-1.5 font-black uppercase tracking-wide text-slate-950">
                   <ShieldCheck className="h-4 w-4 shrink-0 text-emerald-700" />
                   4. Termo de Garantia Quinquenal (05 Anos)
                 </h3>
