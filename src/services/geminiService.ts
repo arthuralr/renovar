@@ -417,6 +417,151 @@ export async function diagnosticarImagemClient(
   }
 }
 
+function escapeXml(unsafe: string): string {
+  return unsafe.replace(/[<>&'"]/g, (c) => {
+    switch (c) {
+      case '<':
+        return '&lt;';
+      case '>':
+        return '&gt;';
+      case '&':
+        return '&amp;';
+      case "'":
+        return '&apos;';
+      case '"':
+        return '&quot;';
+      default:
+        return c;
+    }
+  });
+}
+
+function wrapTextToSvgSpans(
+  text: string,
+  maxCharsPerLine: number = 75,
+  x: number = 72,
+  startY: number = 210,
+  lineHeight: number = 22
+): string {
+  const words = text.split(/\s+/);
+  const lines: string[] = [];
+  let currentLine = '';
+
+  for (const word of words) {
+    if ((currentLine + ' ' + word).trim().length <= maxCharsPerLine) {
+      currentLine = (currentLine + ' ' + word).trim();
+    } else {
+      if (currentLine) lines.push(currentLine);
+      currentLine = word;
+    }
+    if (lines.length >= 7) break;
+  }
+  if (currentLine && lines.length < 7) lines.push(currentLine);
+
+  return lines
+    .map(
+      (line, idx) =>
+        `<tspan x="${x}" y="${startY + idx * lineHeight}">${escapeXml(line)}</tspan>`
+    )
+    .join('');
+}
+
+export function gerarPlaceholderRegistroTexto(titulo: string, descricao: string): string {
+  const safeTitle = escapeXml((titulo || 'Registro Técnico Descritivo').slice(0, 55));
+  const spans = wrapTextToSvgSpans(descricao || '', 75, 72, 210, 22);
+
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="800" height="500" viewBox="0 0 800 500">
+    <rect width="800" height="500" fill="#020617"/>
+    <rect x="24" y="24" width="752" height="452" rx="16" fill="#0f172a" stroke="#f59e0b" stroke-width="2" stroke-opacity="0.5"/>
+    <rect x="48" y="48" width="704" height="64" rx="12" fill="#1e293b"/>
+    <circle cx="76" cy="80" r="14" fill="#f59e0b"/>
+    <text x="76" y="85" fill="#020617" font-family="sans-serif" font-size="14" font-weight="900" text-anchor="middle">R</text>
+    <text x="104" y="78" fill="#ffffff" font-family="monospace" font-size="15" font-weight="bold">RENOVAR ENGENHARIA DIAGNÓSTICA</text>
+    <text x="104" y="96" fill="#94a3b8" font-family="monospace" font-size="11">LAUDO TÉCNICO PERICIAL • REGISTRO DESCRITIVO</text>
+    <rect x="48" y="132" width="704" height="280" rx="12" fill="#020617" stroke="#334155" stroke-width="1"/>
+    <text x="72" y="172" fill="#f59e0b" font-family="sans-serif" font-size="17" font-weight="bold">${safeTitle}</text>
+    <text fill="#e2e8f0" font-family="sans-serif" font-size="13">
+      ${spans}
+    </text>
+    <line x1="48" y1="430" x2="752" y2="430" stroke="#1e293b" stroke-width="1"/>
+    <text x="48" y="455" fill="#64748b" font-family="monospace" font-size="11">DIRETRIZES DA ABNT NBR 16747 • ENGENHARIA DIAGNÓSTICA</text>
+  </svg>`;
+
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+}
+
+export async function diagnosticarTextoClient(
+  textoManual: string,
+  contexto?: InspecaoContexto
+): Promise<DiagnosticoResponse> {
+  const apiKey = getClientGeminiApiKey();
+  if (!isValidApiKey(apiKey)) {
+    throw new Error('Não foi possível emitir o laudo: a integração com o Gemini não está configurada.');
+  }
+
+  const geminiClient = new GoogleGenAI({
+    apiKey,
+    vertexai: false,
+    httpOptions: { apiVersion: 'v1beta' },
+  });
+
+  const parseResponse = (text: string) => {
+    const trimmed = text.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
+    try {
+      return JSON.parse(trimmed);
+    } catch {
+      const jsonMatch = trimmed.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) throw new Error('O Gemini retornou uma resposta inválida.');
+      return JSON.parse(jsonMatch[0]);
+    }
+  };
+
+  let userPrompt = `O perito ou cliente forneceu o seguinte relato/escopo técnico descritivo de manifestações patológicas ou serviços de reforma predial/fachadas:\n\n"""\n${textoManual.trim()}\n"""\n\nAnalise tecnicamente esse relato descritivo, identifique a manifestação patológica principal e formule um laudo de diagnóstico pericial consolidado, em estrita conformidade com as normas ABNT vigentes.`;
+
+  if (contexto && typeof contexto === 'object') {
+    const details: string[] = [];
+    if (contexto.nomeEdificio) details.push(`Identificação do Imóvel: ${contexto.nomeEdificio}`);
+    if (contexto.tipoElemento) details.push(`Elemento/Substrato inspecionado: ${contexto.tipoElemento}`);
+    if (contexto.idadeEdificio) details.push(`Idade aproximada da edificação: ${contexto.idadeEdificio}`);
+    if (contexto.localizacao) details.push(`Localização / Orientação solar: ${contexto.localizacao}`);
+    if (contexto.observacoes) details.push(`Observações periciais preliminares: ${contexto.observacoes}`);
+    if (details.length > 0) {
+      userPrompt += `\n\nDados cadastrais e contexto preliminar informado pelo perito inspetor:\n- ${details.join('\n- ')}`;
+    }
+  }
+
+  for (const modelName of GEMINI_FALLBACK_CHAIN) {
+    try {
+      const response = await generateContentWithTimeout(
+        geminiClient,
+        modelName,
+        [{ role: 'user', parts: [{ text: userPrompt }] }],
+        {
+          systemInstruction,
+          responseMimeType: 'application/json',
+          responseSchema: anomaliasSchema,
+        },
+        `Diagnóstico Descritivo ABNT (${modelName})`
+      );
+      if (response?.text) {
+        const parsed = parseResponse(response.text);
+        const items =
+          parsed?.anomalias ||
+          parsed?.patologias ||
+          parsed?.diagnostico?.anomalias ||
+          parsed?.diagnostico?.patologias;
+        if (Array.isArray(items) && items.length > 0) {
+          return normalizarDiagnosticoGemini(parsed);
+        }
+      }
+    } catch (error) {
+      console.warn(`[Diagnóstico Descritivo] Modelo ${modelName} indisponível:`, error);
+    }
+  }
+
+  throw new Error('O Gemini não conseguiu processar o diagnóstico do texto descritivo.');
+}
+
 export function normalizarDiagnosticoGemini(payload: any): DiagnosticoResponse {
   const rawItems =
     payload?.anomalias ||

@@ -36,6 +36,8 @@ import {
 } from './utils/budgetCalculator';
 import {
   diagnosticarImagemClient,
+  diagnosticarTextoClient,
+  gerarPlaceholderRegistroTexto,
   ImagemConstrutivaInvalidaError,
   INVALID_CONSTRUCTION_IMAGE_MESSAGE,
 } from './services/geminiService';
@@ -124,6 +126,8 @@ export default function App() {
     crea: 'CREA Ativo',
   });
   const [diagnostico, setDiagnostico] = useState<DiagnosticoResponse | null>(null);
+  const [modoEntrada, setModoEntrada] = useState<'foto' | 'texto'>('foto');
+  const [textoManual, setTextoManual] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -325,7 +329,113 @@ export default function App() {
     });
   };
 
+  const handleAnalyzeTexto = async (textoInformado?: string) => {
+    const texto = (textoInformado !== undefined ? textoInformado : textoManual).trim();
+    if (!texto) {
+      setErrorMessage(
+        'Por favor, digite a descrição da patologia ou o escopo da obra para prosseguir com a perícia.'
+      );
+      return;
+    }
+
+    setIsLoading(true);
+    setErrorMessage(null);
+
+    try {
+      let data: DiagnosticoResponse | null = null;
+      let useClientFallback = false;
+      let requestTimedOut = false;
+
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => {
+          requestTimedOut = true;
+          controller.abort();
+        }, 45000);
+
+        try {
+          const apiUrl = import.meta.env.VITE_API_URL || '';
+          const response = await fetch(`${apiUrl}/api/diagnosticar`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              textoManual: texto,
+              contexto,
+            }),
+            signal: controller.signal,
+          });
+
+          const contentType = response.headers.get('content-type') || '';
+          if (contentType.includes('application/json')) {
+            const responseData = await response.json();
+            if (!response.ok) {
+              throw new Error(
+                responseData?.error || 'A API de diagnóstico não conseguiu analisar o relato descritivo.'
+              );
+            }
+            data = responseData;
+          } else if (response.ok) {
+            throw new Error('A API de diagnóstico retornou uma resposta inválida.');
+          }
+        } finally {
+          clearTimeout(timeoutId);
+        }
+      } catch (serverErr: any) {
+        if (requestTimedOut) {
+          throw new Error('A análise excedeu o tempo limite. Tente novamente.');
+        }
+        console.warn(
+          'API de diagnóstico do servidor indisponível para texto, acionando fallback client-side:',
+          serverErr?.message || serverErr
+        );
+        useClientFallback = true;
+      }
+
+      if (!data && useClientFallback) {
+        data = await diagnosticarTextoClient(texto, contexto);
+      }
+
+      if (!data) {
+        throw new Error('A API de diagnóstico não retornou um resultado válido.');
+      }
+
+      const items = data?.anomalias || data?.patologias;
+      if (!Array.isArray(items) || items.length === 0) {
+        throw new Error(
+          'Não foi possível gerar um diagnóstico pericial válido a partir do texto informado.'
+        );
+      }
+
+      const anomaliaPrincipal = items[0];
+      const placeholderImg = gerarPlaceholderRegistroTexto(
+        anomaliaPrincipal?.nome_patologia || 'Registro Técnico Descritivo',
+        anomaliaPrincipal?.constatacao_visual || texto
+      );
+      const recordId = `insp-txt-${Date.now()}`;
+      const nomeRegistro = `Registro Descritivo #${registrosVistoria.length + 1}`;
+
+      setSelectedImage(placeholderImg);
+      setSelectedImageRecord(recordId);
+      setImageName(nomeRegistro);
+      setDiagnostico(data);
+      saveToHistory(data, placeholderImg, nomeRegistro);
+    } catch (err: any) {
+      setDiagnostico(null);
+      const rawMsg = err instanceof Error ? err.message : 'Falha ao processar o diagnóstico pelo texto.';
+      setErrorMessage(rawMsg);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleAnalyze = async () => {
+    if (modoEntrada === 'texto') {
+      await handleAnalyzeTexto();
+      return;
+    }
+
     if (!selectedImage) return;
 
     if (!selectedImage.startsWith('data:image/')) {
@@ -990,6 +1100,11 @@ export default function App() {
               selectedRegistroId={selectedImageRecordId}
               onSelectRegistro={handleSelectHistoryItem}
               onRemoveRegistro={handleRemoveRegistroVistoria}
+              modoEntrada={modoEntrada}
+              onModoEntradaChange={setModoEntrada}
+              textoManual={textoManual}
+              onTextoManualChange={setTextoManual}
+              onAnalyzeTexto={handleAnalyzeTexto}
             />
 
             {errorMessage && (
@@ -1035,7 +1150,17 @@ export default function App() {
                 ) : (
                   <div className="bg-slate-900/40 border border-dashed border-slate-800 rounded-2xl p-8 text-center flex flex-col items-center justify-center min-h-[260px]">
                     <p className="text-xs text-slate-400 max-w-xs leading-relaxed">
-                      Utilize o botão <strong className="text-amber-400">"Selecionar Fotos"</strong> no topo desta seção para enviar 1 ou mais fotografias da vistoria técnica.
+                      {modoEntrada === 'texto' ? (
+                        <>
+                          Digite a descrição da patologia ou escopo da obra no campo acima e clique em{' '}
+                          <strong className="text-amber-400">"Executar Diagnóstico ABNT"</strong>{' '}
+                          para formular o laudo pericial com IA.
+                        </>
+                      ) : (
+                        <>
+                          Utilize o botão <strong className="text-amber-400">"Selecionar Fotos"</strong> no topo desta seção para enviar 1 ou mais fotografias da vistoria técnica.
+                        </>
+                      )}
                     </p>
                   </div>
                 )}
@@ -1069,7 +1194,7 @@ export default function App() {
                         <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
                         <span className="text-xs text-slate-200">
                           Diagnóstico pericial concluído com sucesso ({registrosVistoria.length}{' '}
-                          {registrosVistoria.length === 1 ? 'foto registrada' : 'fotos registradas'}). Avance para dimensionar os insumos e a equipe de obra.
+                          {registrosVistoria.length === 1 ? 'registro' : 'registros'}). Avance para dimensionar os insumos e a equipe de obra.
                         </span>
                       </div>
                       <button
@@ -1087,14 +1212,24 @@ export default function App() {
                       <FileSpreadsheet className="w-8 h-8 opacity-40 text-amber-400" />
                     </div>
                     <h3 className="text-base font-bold text-slate-200 mb-2">
-                      Aguardando Registro Fotográfico para Perícia
+                      {modoEntrada === 'texto'
+                        ? 'Aguardando Descrição Técnica para Perícia'
+                        : 'Aguardando Registro Fotográfico para Perícia'}
                     </h3>
                     <p className="text-xs text-slate-400 max-w-md leading-relaxed mb-6">
-                      Carregue ou capture uma fotografia na barra superior e clique em{' '}
-                      <strong className="text-amber-400">
-                        "Executar Diagnóstico ABNT"
-                      </strong>{' '}
-                      para processar a análise pericial completa com IA.
+                      {modoEntrada === 'texto' ? (
+                        <>
+                          Descreva o relato patológico ou o escopo dos serviços no campo superior e clique em{' '}
+                          <strong className="text-amber-400">"Executar Diagnóstico ABNT"</strong>{' '}
+                          para processar a análise pericial completa com IA.
+                        </>
+                      ) : (
+                        <>
+                          Carregue ou capture uma fotografia na barra superior e clique em{' '}
+                          <strong className="text-amber-400">"Executar Diagnóstico ABNT"</strong>{' '}
+                          para processar a análise pericial completa com IA.
+                        </>
+                      )}
                     </p>
                     <button
                       onClick={() => handleMudarEtapaFormulario(3)}

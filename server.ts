@@ -231,13 +231,14 @@ const normalizarDiagnosticoGemini = (payload: any) => {
 const handleDiagnosticar = async (req: express.Request, res: express.Response) => {
   res.setHeader('Content-Type', 'application/json');
   try {
-    const { imageBase64, mimeType = 'image/jpeg', contexto } = req.body || {};
-    if (!imageBase64) return res.status(400).json({ error: 'Nenhuma foto fornecida.' });
-    const imagem = normalizarImagemParaGemini(imageBase64, mimeType);
+    const { imageBase64, mimeType = 'image/jpeg', contexto, textoManual } = req.body || {};
+    if (!imageBase64 && !textoManual) return res.status(400).json({ error: 'Nenhuma foto ou descrição textual fornecida.' });
     const geminiClient = ai || createGeminiClient();
     if (!geminiClient) return res.status(503).json({ error: 'Gemini não configurado.' });
 
-    let userPrompt = `Faça a análise e o diagnóstico pericial técnico desta fotografia de fachada ou elemento construtivo.`;
+    let userPrompt = textoManual
+      ? `O perito ou cliente forneceu o seguinte relato/escopo técnico descritivo de manifestações patológicas ou serviços de reforma predial/fachadas:\n\n"""\n${String(textoManual).trim()}\n"""\n\nAnalise tecnicamente esse relato descritivo, identifique a manifestação patológica principal e formule um laudo de diagnóstico pericial consolidado, em estrita conformidade com as normas ABNT vigentes.`
+      : `Faça a análise e o diagnóstico pericial técnico desta fotografia de fachada ou elemento construtivo.`;
     if (contexto && typeof contexto === 'object') {
       const details: string[] = [];
       if (contexto.nomeEdificio) details.push(`Imóvel: ${contexto.nomeEdificio}`);
@@ -245,7 +246,13 @@ const handleDiagnosticar = async (req: express.Request, res: express.Response) =
       if (details.length > 0) userPrompt += `\nContexto:\n- ${details.join('\n- ')}`;
     }
 
-    const imagePart = { inlineData: { mimeType: imagem.mimeType, data: imagem.data } };
+    const parts: any[] = [];
+    if (imageBase64) {
+      const imagem = normalizarImagemParaGemini(imageBase64, mimeType);
+      parts.push({ inlineData: { mimeType: imagem.mimeType, data: imagem.data } });
+    }
+    parts.push({ text: userPrompt });
+
     let resp: any = null;
     let lastError: any = null;
 
@@ -254,7 +261,7 @@ const handleDiagnosticar = async (req: express.Request, res: express.Response) =
         resp = await generateContentWithTimeout(
           geminiClient,
           modelName,
-          [{ role: 'user', parts: [imagePart, { text: userPrompt }] }],
+          [{ role: 'user', parts }],
           { systemInstruction, responseMimeType: 'application/json', responseSchema: anomaliasSchema },
           `diagnóstico (${modelName})`
         );
