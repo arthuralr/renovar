@@ -19,25 +19,25 @@ const createColorNormalizer = () => {
     const cached = cache.get(trimmed);
     if (cached) return cached;
 
-    if (!ctx) return 'rgb(15, 23, 42)';
+    if (!ctx) return 'rgb(255, 255, 255)';
 
     try {
       ctx.clearRect(0, 0, 1, 1);
-      ctx.fillStyle = '#000000';
+      ctx.fillStyle = '#ffffff';
       ctx.fillStyle = trimmed;
       ctx.fillRect(0, 0, 1, 1);
       const [r, g, b, a] = ctx.getImageData(0, 0, 1, 1).data;
       const alpha = +(a / 255).toFixed(3);
       const result =
         alpha === 0
-          ? 'rgba(0, 0, 0, 0)'
+          ? 'rgba(255, 255, 255, 0)'
           : alpha < 1
             ? `rgba(${r}, ${g}, ${b}, ${alpha})`
             : `rgb(${r}, ${g}, ${b})`;
       cache.set(trimmed, result);
       return result;
     } catch {
-      return 'rgb(15, 23, 42)';
+      return 'rgb(255, 255, 255)';
     }
   };
 
@@ -85,7 +85,7 @@ const sanitizeClonedDocumentForHtml2Canvas = (
   clonedDoc: Document,
   replaceUnsupportedCssColors: (cssText: string) => string
 ) => {
-  // Garante visibilidade plena no clone sem jamais afetar o DOM real do usuário
+  // Garante visibilidade plena e fundo branco no clone sem jamais afetar o DOM real do usuário
   if (clonedDoc.body) {
     clonedDoc.body.style.visibility = 'visible';
     clonedDoc.body.style.opacity = '1';
@@ -152,7 +152,7 @@ export interface DownloadPdfOptions {
 /**
  * Cria uma cópia isolada (off-screen) do container `#pdf-content` e de suas folhas A4
  * (`.print-document-sheet`), preservando 100% da interface ativa do usuário visível e intocada,
- * e faz o download direto do arquivo `.pdf` para o computador do usuário.
+ * com fundo estritamente branco, e faz o download direto do arquivo `.pdf`.
  */
 export async function downloadProposalPdf(options: DownloadPdfOptions = {}): Promise<void> {
   const { elementId = 'pdf-content', filename = 'Proposta-Tecnica-Renovar-Engenharia.pdf' } =
@@ -175,7 +175,7 @@ export async function downloadProposalPdf(options: DownloadPdfOptions = {}): Pro
   const { replaceUnsupportedCssColors } = createColorNormalizer();
   const targetWidthPx = 850; // Largura A4 de referência em pixels para layout consistente
 
-  // Cria um wrapper off-screen totalmente isolado para clonar a proposta sem alterar o DOM visível
+  // Cria um wrapper off-screen totalmente isolado com fundo BRANCO sólido
   const isolatedSandbox = document.createElement('div');
   isolatedSandbox.setAttribute('aria-hidden', 'true');
   isolatedSandbox.style.cssText = [
@@ -199,6 +199,7 @@ export async function downloadProposalPdf(options: DownloadPdfOptions = {}): Pro
   clonedContainer.style.margin = '0';
   clonedContainer.style.padding = '0';
   clonedContainer.style.visibility = 'visible';
+  clonedContainer.style.background = '#ffffff';
 
   // Remove elementos .no-print e tags <style> de impressão apenas dentro da cópia isolada
   clonedContainer.querySelectorAll('.no-print, style').forEach((el) => el.remove());
@@ -207,8 +208,6 @@ export async function downloadProposalPdf(options: DownloadPdfOptions = {}): Pro
   document.body.appendChild(isolatedSandbox);
 
   try {
-    // Identifica se a cópia isolada é composta por múltiplas folhas A4 (.print-document-sheet)
-    // ou se é uma folha única (ex: OfficialReportModal)
     const clonedSheets = Array.from(
       clonedContainer.querySelectorAll<HTMLElement>('.print-document-sheet')
     );
@@ -230,7 +229,7 @@ export async function downloadProposalPdf(options: DownloadPdfOptions = {}): Pro
     for (let i = 0; i < targetsToCapture.length; i++) {
       const targetEl = targetsToCapture[i];
 
-      // Configura dimensões e estilo diretamente na cópia isolada off-screen
+      // Configura dimensões e fundo branco estrito diretamente na cópia isolada off-screen
       targetEl.style.width = `${targetWidthPx}px`;
       targetEl.style.maxWidth = `${targetWidthPx}px`;
       targetEl.style.margin = '0';
@@ -290,14 +289,13 @@ export async function downloadProposalPdf(options: DownloadPdfOptions = {}): Pro
         const imgData = canvas.toDataURL('image/jpeg', 0.95);
         pdf.addImage(imgData, 'JPEG', 0, 0, imgWidthMm, imgHeightMm, undefined, 'FAST');
       } else {
-        // Fatia verticalmente em múltiplas páginas A4 sem perder conteúdo
+        // Fatia verticalmente em múltiplas páginas A4 preenchendo o fundo de branco
         const pageCanvasHeightPx = Math.floor((canvas.width * pdfPageHeightMm) / pdfPageWidthMm);
         let renderedHeightPx = 0;
 
         while (renderedHeightPx < canvas.height) {
           const sliceHeightPx = Math.min(pageCanvasHeightPx, canvas.height - renderedHeightPx);
 
-          // Evita criar página residual quase vazia (< 20px)
           if (sliceHeightPx < 20 && renderedHeightPx > 0) {
             break;
           }
@@ -336,14 +334,12 @@ export async function downloadProposalPdf(options: DownloadPdfOptions = {}): Pro
         }
       }
 
-      // Cede um frame ao navegador entre páginas para manter a UI responsiva e sem travamentos
       await new Promise((resolve) => setTimeout(resolve, 15));
     }
 
     const sanitizedFilename = filename.endsWith('.pdf') ? filename : `${filename}.pdf`;
     pdf.save(sanitizedFilename);
   } finally {
-    // Remove apenas o container temporário off-screen, mantendo o DOM ativo intacto
     if (isolatedSandbox.parentNode) {
       isolatedSandbox.parentNode.removeChild(isolatedSandbox);
     }
