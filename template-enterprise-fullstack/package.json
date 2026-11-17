@@ -1,0 +1,39 @@
+{
+  "name": "enterprise-fullstack-starter",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "dev:server": "tsx watch server/index.ts",
+    "dev:full": "npm run dev & npm run dev:server",
+    "build": "vite build",
+    "start": "tsx server/index.ts",
+    "lint": "tsc --noEmit",
+    "pm2:start": "pm2 start ecosystem.config.cjs",
+    "pm2:restart": "pm2 restart ecosystem.config.cjs",
+    "pm2:stop": "pm2 stop ecosystem.config.cjs"
+  },
+  "dependencies": {
+    "@google/genai": "^3.2.0",
+    "dotenv": "^17.2.3",
+    "express": "^4.21.2",
+    "lucide-react": "^0.546.0",
+    "pg": "^8.23.1",
+    "react": "^19.0.1",
+    "react-dom": "^19.0.1"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.3.3",
+    "@types/express": "^4.17.21",
+    "@types/node": "^22.14.0",
+    "@types/pg": "^8.11.11",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.1",
+    "tailwindcss": "^4.3.3",
+    "tsx": "^4.21.0",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.0"
+  }
+}

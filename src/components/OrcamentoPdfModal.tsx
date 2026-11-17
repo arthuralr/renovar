@@ -232,12 +232,12 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
         <span className="font-extrabold text-slate-950 tracking-tight text-xs uppercase font-mono">
           Renovar Engenharia Diagnóstica
         </span>
-        <span className="text-slate-300 mx-1">|</span>
-        <span className="text-slate-600 text-[11px] truncate max-w-xs">
+        <span className="text-slate-400 mx-1">|</span>
+        <span className="text-slate-800 text-[11px] truncate max-w-xs font-medium">
           {dadosCliente.nomeCondominio || 'Proposta Técnica'}
         </span>
       </div>
-      <div className="font-mono text-[10px] text-slate-500">
+      <div className="font-mono text-[10px] text-slate-700 font-semibold">
         Pág. {pageNum} de {totalPages} • {orcamentoId}
       </div>
     </div>
@@ -245,7 +245,7 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
 
   // Corporate Renovar Footer Component for Inner Pages
   const DocumentFooter = () => (
-    <div className="border-t border-slate-200 pt-3 mt-8 flex flex-col sm:flex-row items-center justify-between text-[10px] font-mono text-slate-500">
+    <div className="border-t border-slate-300 pt-3 mt-8 flex flex-col sm:flex-row items-center justify-between text-[10px] font-mono text-slate-700">
       <div>RENOVAR SC — Soluções Prediais • CREA/SC: 105.402-1</div>
       <div>Validade: {validadeDias} dias • Emissão: {dataAtualExtenso}</div>
     </div>
@@ -279,7 +279,7 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
                   {orcamentoId}
                 </span>
               </div>
-              <div className="text-[11px] text-slate-400 font-mono hidden sm:block truncate max-w-sm">
+              <div className="text-[11px] text-slate-300 font-mono hidden sm:block truncate max-w-sm">
                 {dadosCliente.nomeCondominio || 'Condomínio'} • Formato A4
               </div>
             </div>
@@ -358,16 +358,16 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
         {/* ========================================================================= */}
         {/* PÁGINA 1: CAPA E IDENTIFICAÇÃO DO CONDOMÍNIO                              */}
         {/* ========================================================================= */}
-        <section className="print-document-sheet page-break-after bg-white text-slate-900 shadow-2xl rounded-2xl p-8 sm:p-14 min-h-[1050px] flex flex-col justify-between border border-slate-200 relative overflow-hidden print:min-h-0 print:h-auto print:max-h-none print:overflow-visible print:block print:p-0 print:border-none print:shadow-none print:rounded-none">
+        <section className="print-document-sheet page-break-after bg-white text-slate-900 shadow-2xl rounded-2xl p-8 sm:p-14 min-h-[1050px] flex flex-col justify-between border border-slate-300 relative overflow-hidden print:min-h-0 print:h-auto print:max-h-none print:overflow-visible print:block print:p-0 print:border-none print:shadow-none print:rounded-none">
           <div className="flex items-start justify-between gap-5 border-b-2 border-slate-900 pb-5">
             <div>
               <div className="text-2xl font-black tracking-tight text-slate-950">
                 RENOVAR SC — SOLUÇÕES PREDIAIS
               </div>
-              <div className="mt-2 text-xs font-mono text-slate-600">
+              <div className="mt-2 text-xs font-mono text-slate-700 font-semibold">
                 CNPJ: 57.293.244/0001-27
               </div>
-              <div className="text-xs font-mono font-bold text-slate-900">
+              <div className="text-xs font-mono font-extrabold text-slate-900">
                 CREA/SC: 105.402-1
               </div>
             </div>
@@ -386,9 +386,9 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
             <div className="mt-6 h-1.5 w-24 bg-amber-500" />
           </div>
 
-          <div className="space-y-4 border-l-4 border-amber-500 bg-slate-50 p-6">
+          <div className="space-y-4 border-l-4 border-amber-500 bg-slate-100 p-6 rounded-r-xl">
             <div>
-              <div className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-500">
+              <div className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-600">
                 Condomínio / Edifício
               </div>
               <div className="mt-1 break-words text-xl font-extrabold text-slate-950">
@@ -396,44 +396,44 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
               </div>
             </div>
             <div>
-              <div className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-500">
+              <div className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-600">
                 Endereço da Obra
               </div>
-              <div className="mt-1 break-words text-sm font-medium text-slate-800">
+              <div className="mt-1 break-words text-sm font-semibold text-slate-900">
                 {dadosCliente.endereco || 'Não informado'}
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <div className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-500">
+                <div className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-600">
                   Síndico(a)
                 </div>
-                <div className="mt-1 break-words text-sm font-semibold text-slate-900">
+                <div className="mt-1 break-words text-sm font-bold text-slate-950">
                   {dadosCliente.nomeSindico || 'Não informado'}
                 </div>
               </div>
               <div>
-                <div className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-500">
+                <div className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-600">
                   Número da Proposta
                 </div>
-                <div className="mt-1 break-words text-sm font-bold text-slate-900">
+                <div className="mt-1 break-words text-sm font-bold text-slate-950 font-mono">
                   {orcamentoId}
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="mt-8 border-t border-slate-200 pt-5 text-xs font-mono text-slate-600">
+          <div className="mt-8 border-t border-slate-300 pt-5 text-xs font-mono text-slate-800 font-medium">
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <div>
-                <span className="font-bold text-slate-900">Data de emissão:</span>{' '}
+                <span className="font-extrabold text-slate-950">Data de emissão:</span>{' '}
                 {dataAtualExtenso}
               </div>
               <div>
-                <span className="font-bold text-slate-900">Validade:</span> 30 dias
+                <span className="font-extrabold text-slate-950">Validade:</span> 30 dias
               </div>
               <div>
-                <span className="font-bold text-slate-900">Prazo estimado:</span>{' '}
+                <span className="font-extrabold text-slate-950">Prazo estimado:</span>{' '}
                 {calculos.mesesObra} {calculos.mesesObra === 1 ? 'mês' : 'meses'}
               </div>
             </div>
@@ -443,7 +443,7 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
         {/* ========================================================================= */}
         {/* PÁGINA 2: CARTA DE APRESENTAÇÃO TÉCNICA                                   */}
         {/* ========================================================================= */}
-        <section className="print-document-sheet page-break-after bg-white text-slate-900 shadow-2xl rounded-2xl p-8 sm:p-14 min-h-[1050px] border border-slate-200 flex flex-col justify-between print:min-h-0 print:h-auto print:max-h-none print:overflow-visible print:block print:p-0 print:border-none print:shadow-none print:rounded-none">
+        <section className="print-document-sheet page-break-after bg-white text-slate-900 shadow-2xl rounded-2xl p-8 sm:p-14 min-h-[1050px] border border-slate-300 flex flex-col justify-between print:min-h-0 print:h-auto print:max-h-none print:overflow-visible print:block print:p-0 print:border-none print:shadow-none print:rounded-none">
           <div>
             <DocumentHeader pageNum={2} totalPages={totalPdfPages} />
             <h2 className="text-2xl font-black uppercase tracking-tight text-slate-950">
@@ -451,13 +451,13 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
             </h2>
             <div className="mb-10 mt-3 h-1 w-16 bg-amber-500" />
 
-            <div className="space-y-7 text-sm leading-7 text-slate-800 sm:text-base">
+            <div className="space-y-7 text-sm leading-7 text-slate-900 font-medium sm:text-base">
               <div className="space-y-1">
-                <p>À Administração do Condomínio {dadosCliente.nomeCondominio || '[Nome do Condomínio]'}</p>
-                <p>{dadosCliente.endereco || '[Endereço da Obra]'}</p>
+                <p className="font-semibold text-slate-950">À Administração do Condomínio {dadosCliente.nomeCondominio || '[Nome do Condomínio]'}</p>
+                <p className="text-slate-800">{dadosCliente.endereco || '[Endereço da Obra]'}</p>
               </div>
 
-              <p>Prezados Senhores,</p>
+              <p className="font-semibold text-slate-950">Prezados Senhores,</p>
 
               <p>
                 A Renovar SC - Soluções Prediais tem a honra de apresentar a presente proposta
@@ -486,14 +486,14 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
               </p>
 
               <div className="pt-6">
-                <p>Atenciosamente,</p>
-                <p className="mt-3 font-bold text-slate-950">
+                <p className="font-semibold text-slate-950">Atenciosamente,</p>
+                <p className="mt-3 font-extrabold text-slate-950">
                   RENOVAR SC — Soluções Prediais
                 </p>
               </div>
             </div>
           </div>
-          <div className="mt-10 border-t border-slate-200 pt-4 text-xs font-mono text-slate-600">
+          <div className="mt-10 border-t border-slate-300 pt-4 text-xs font-mono text-slate-700 font-semibold">
             CREA/SC: 105.402-1 • Proposta nº {orcamentoId}
           </div>
         </section>
@@ -501,7 +501,7 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
         {/* ========================================================================= */}
         {/* PÁGINA 3: APRESENTAÇÃO INSTITUCIONAL E MODELO DE GESTÃO                   */}
         {/* ========================================================================= */}
-        <section className="print-document-sheet page-break-after bg-white text-slate-900 shadow-2xl rounded-2xl p-8 sm:p-14 min-h-[1050px] border border-slate-200 flex flex-col justify-between print:min-h-0 print:h-auto print:max-h-none print:overflow-visible print:block print:p-0 print:border-none print:shadow-none print:rounded-none">
+        <section className="print-document-sheet page-break-after bg-white text-slate-900 shadow-2xl rounded-2xl p-8 sm:p-14 min-h-[1050px] border border-slate-300 flex flex-col justify-between print:min-h-0 print:h-auto print:max-h-none print:overflow-visible print:block print:p-0 print:border-none print:shadow-none print:rounded-none">
           <div>
             <DocumentHeader pageNum={3} totalPages={totalPdfPages} />
 
@@ -510,9 +510,9 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
             </h2>
             <div className="w-16 h-1 bg-amber-500 mb-6" />
 
-            <div className="text-xs sm:text-sm text-slate-700 leading-relaxed space-y-5 text-justify">
+            <div className="text-xs sm:text-sm text-slate-900 font-medium leading-relaxed space-y-5 text-justify">
               <p>
-                A <strong>Renovar SC - Soluções Prediais</strong> é uma empresa especializada em
+                A <strong className="text-slate-950 font-extrabold">Renovar SC - Soluções Prediais</strong> é uma empresa especializada em
                 recuperação, revitalização e requalificação de edificações, com atuação focada em
                 obras prediais de médio e alto padrão técnico. Ao longo dos anos, consolidamos
                 nossa atuação por meio de uma metodologia estruturada, controle rigoroso de
@@ -532,7 +532,7 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
             </div>
           </div>
 
-          <div className="mt-8 border-t border-slate-200 pt-4 text-xs font-mono text-slate-600">
+          <div className="mt-8 border-t border-slate-300 pt-4 text-xs font-mono text-slate-700 font-semibold">
             CREA/SC: 105.402-1 • Gestão direta dos sócios • Renovar SC — Soluções Prediais
           </div>
         </section>
@@ -540,7 +540,7 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
         {/* ========================================================================= */}
         {/* PÁGINA 4: OS TRÊS PILARES INEGOCIÁVEIS                                    */}
         {/* ========================================================================= */}
-        <section className="print-document-sheet page-break-after bg-white text-slate-900 shadow-2xl rounded-2xl p-8 sm:p-14 min-h-[1050px] border border-slate-200 flex flex-col justify-between print:min-h-0 print:h-auto print:max-h-none print:overflow-visible print:block print:p-0 print:border-none print:shadow-none print:rounded-none">
+        <section className="print-document-sheet page-break-after bg-white text-slate-900 shadow-2xl rounded-2xl p-8 sm:p-14 min-h-[1050px] border border-slate-300 flex flex-col justify-between print:min-h-0 print:h-auto print:max-h-none print:overflow-visible print:block print:p-0 print:border-none print:shadow-none print:rounded-none">
           <div>
             <DocumentHeader pageNum={4} totalPages={totalPdfPages} />
             <h2 className="text-2xl font-black text-slate-950 uppercase tracking-tight mb-2">
@@ -548,12 +548,12 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
             </h2>
             <div className="w-16 h-1 bg-amber-500 mb-7" />
 
-            <div className="space-y-5 text-xs leading-relaxed text-slate-700 sm:text-sm">
-              <article className="rounded-xl border border-amber-200 bg-amber-50/60 p-5">
-                <h3 className="mb-2 font-extrabold uppercase text-slate-950">
+            <div className="space-y-5 text-xs leading-relaxed text-slate-900 font-medium sm:text-sm">
+              <article className="rounded-xl border border-amber-300 bg-amber-50/80 p-5 shadow-sm">
+                <h3 className="mb-2 font-black uppercase text-slate-950 text-sm">
                   1. Segurança acima de tudo
                 </h3>
-                <p>
+                <p className="text-slate-800">
                   A segurança dos colaboradores, moradores, síndicos e visitantes é prioridade
                   absoluta. Toda atividade é executada com uso obrigatório de Equipamentos de
                   Proteção Individual (EPIs) adequados à função desempenhada. A empresa mantém
@@ -564,11 +564,11 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
                 </p>
               </article>
 
-              <article className="rounded-xl border border-emerald-200 bg-emerald-50/50 p-5">
-                <h3 className="mb-2 font-extrabold uppercase text-slate-950">
+              <article className="rounded-xl border border-emerald-300 bg-emerald-50/80 p-5 shadow-sm">
+                <h3 className="mb-2 font-black uppercase text-slate-950 text-sm">
                   2. Qualidade como padrão mínimo
                 </h3>
-                <p>
+                <p className="text-slate-800">
                   Na Renovar, qualidade não é diferencial competitivo, é requisito básico. Cada
                   etapa da obra segue critérios técnicos previamente definidos. Não suprimimos
                   processos, não utilizamos soluções improvisadas e não entregamos serviços
@@ -577,11 +577,11 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
                 </p>
               </article>
 
-              <article className="rounded-xl border border-sky-200 bg-sky-50/50 p-5">
-                <h3 className="mb-2 font-extrabold uppercase text-slate-950">
+              <article className="rounded-xl border border-sky-300 bg-sky-50/80 p-5 shadow-sm">
+                <h3 className="mb-2 font-black uppercase text-slate-950 text-sm">
                   3. Respeito no dia a dia da obra
                 </h3>
-                <p>
+                <p className="text-slate-800">
                   Entendemos que uma reforma predial ocorre dentro do ambiente onde famílias vivem.
                   Por isso, postura profissional é inegociável. Todos os colaboradores são
                   orientados a manter comportamento respeitoso com síndicos, moradores, zeladores,
@@ -593,15 +593,15 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
             </div>
           </div>
 
-          <div className="mt-8 border-t border-slate-200 pt-4 text-xs font-mono text-slate-600">
+          <div className="mt-8 border-t border-slate-300 pt-4 text-xs font-mono text-slate-700 font-semibold">
             CREA/SC: 105.402-1 • Segurança • Qualidade • Respeito
           </div>
         </section>
 
         {/* ========================================================================= */}
-        {/* PÁGINA 5: MEMORIAL DESCRITIVO DE MATERIAIS E MARCAS HOMOLOGADAS            */}
+        {/* PÁGINA 5: MEMORIAL DESCRITIVO DE MATERIAIS E MARCAS HOMOLOGADAS           */}
         {/* ========================================================================= */}
-        <section className="print-document-sheet page-break-after bg-white text-slate-900 shadow-2xl rounded-2xl p-7 sm:p-11 min-h-[1050px] border border-slate-200 flex flex-col justify-between print:min-h-0 print:h-auto print:max-h-none print:overflow-visible print:block print:p-0 print:border-none print:shadow-none print:rounded-none">
+        <section className="print-document-sheet page-break-after bg-white text-slate-900 shadow-2xl rounded-2xl p-7 sm:p-11 min-h-[1050px] border border-slate-300 flex flex-col justify-between print:min-h-0 print:h-auto print:max-h-none print:overflow-visible print:block print:p-0 print:border-none print:shadow-none print:rounded-none">
           <div>
             <DocumentHeader pageNum={5} totalPages={totalPdfPages} />
             <h2 className="text-xl font-black uppercase tracking-tight text-slate-950 sm:text-2xl">
@@ -609,7 +609,7 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
             </h2>
             <div className="mb-5 mt-3 h-1 w-16 bg-amber-500" />
 
-            <p className="mb-5 text-xs leading-relaxed text-slate-700 sm:text-sm">
+            <p className="mb-5 text-xs leading-relaxed text-slate-900 font-medium sm:text-sm">
               A Renovar SC adota rigorosos critérios na seleção dos insumos aplicados em suas
               obras. Todos os materiais utilizados possuem laudos técnicos de conformidade, fichas
               técnicas atualizadas e são fornecidos por fabricantes consolidados no mercado da
@@ -617,63 +617,63 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
               intempéries e aderência perfeita aos substratos existentes.
             </p>
 
-            <h3 className="mb-3 text-xs font-extrabold uppercase tracking-wide text-slate-900">
+            <h3 className="mb-3 text-xs font-black uppercase tracking-wide text-slate-950">
               Matriz de Insumos e Marcas Homologadas
             </h3>
             <table className="w-full table-fixed border-collapse text-left text-[10px] leading-snug sm:text-xs">
               <thead>
-                <tr className="bg-slate-900 text-white">
-                  <th className="w-[25%] border border-slate-700 p-2">Aplicação</th>
-                  <th className="w-[52%] border border-slate-700 p-2">Sistema / especificação</th>
-                  <th className="w-[23%] border border-slate-700 p-2">Marcas de referência</th>
+                <tr className="bg-slate-900 text-white font-bold">
+                  <th className="w-[25%] border border-slate-800 p-2">Aplicação</th>
+                  <th className="w-[52%] border border-slate-800 p-2">Sistema / especificação</th>
+                  <th className="w-[23%] border border-slate-800 p-2">Marcas de referência</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-slate-300 font-medium">
                 <tr className="align-top">
-                  <td className="border border-slate-300 bg-slate-50 p-2 font-bold text-slate-900">
+                  <td className="border border-slate-300 bg-slate-100 p-2 font-black text-slate-950">
                     1. Tratamento de Fissuras e Trincas Dinâmicas
                   </td>
-                  <td className="border border-slate-300 p-2 text-slate-700">
+                  <td className="border border-slate-300 p-2 text-slate-900">
                     Selantes elastoméricos à base de poliuretano (PU 40/244) de alto módulo e
                     argamassas poliméricas tixotrópicas estruturais.
                   </td>
-                  <td className="border border-slate-300 p-2 text-slate-700">
+                  <td className="border border-slate-300 p-2 text-slate-900 font-semibold">
                     Sika, MC-Bauchemie, Ceramfix.
                   </td>
                 </tr>
                 <tr className="align-top">
-                  <td className="border border-slate-300 bg-slate-50 p-2 font-bold text-slate-900">
+                  <td className="border border-slate-300 bg-slate-100 p-2 font-black text-slate-950">
                     2. Recuperação de Concreto e Argamassa (Recomposição)
                   </td>
-                  <td className="border border-slate-300 p-2 text-slate-700">
+                  <td className="border border-slate-300 p-2 text-slate-900">
                     Argamassas poliméricas estruturais modificadas com polímeros, sem retração,
                     reforçadas com fibras sintéticas.
                   </td>
-                  <td className="border border-slate-300 p-2 text-slate-700">
+                  <td className="border border-slate-300 p-2 text-slate-900 font-semibold">
                     Sika, MC-Bauchemie, Weber.
                   </td>
                 </tr>
                 <tr className="align-top">
-                  <td className="border border-slate-300 bg-slate-50 p-2 font-bold text-slate-900">
+                  <td className="border border-slate-300 bg-slate-100 p-2 font-black text-slate-950">
                     3. Tratamento de Armaduras Expostas (Oxidação)
                   </td>
-                  <td className="border border-slate-300 p-2 text-slate-700">
+                  <td className="border border-slate-300 p-2 text-slate-900">
                     Primer inibidor de corrosão à base de zinco ou epóxi monocomponente ativo.
                   </td>
-                  <td className="border border-slate-300 p-2 text-slate-700">
+                  <td className="border border-slate-300 p-2 text-slate-900 font-semibold">
                     Sika, MC-Bauchemie.
                   </td>
                 </tr>
                 <tr className="align-top">
-                  <td className="border border-slate-300 bg-slate-50 p-2 font-bold text-slate-900">
+                  <td className="border border-slate-300 bg-slate-100 p-2 font-black text-slate-950">
                     4. Sistema de Pintura Externa e Impermeabilização de Fachada
                   </td>
-                  <td className="border border-slate-300 p-2 text-slate-700">
+                  <td className="border border-slate-300 p-2 text-slate-900">
                     Seladores acrílicos de penetração profunda e tintas 100% acrílicas elastoméricas
                     com película emborrachada flexível, antifúngicas e com memória mecânica contra
                     microfissuras térmicas.
                   </td>
-                  <td className="border border-slate-300 p-2 text-slate-700">
+                  <td className="border border-slate-300 p-2 text-slate-900 font-semibold">
                     Sherwin Williams, Coral, Suvinil.
                   </td>
                 </tr>
@@ -681,7 +681,7 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
             </table>
           </div>
 
-          <div className="mt-6 border-t border-slate-200 pt-4 text-xs font-mono text-slate-600">
+          <div className="mt-6 border-t border-slate-300 pt-4 text-xs font-mono text-slate-700 font-semibold">
             CREA/SC: 105.402-1 • Materiais sujeitos à especificação técnica e compatibilidade com os substratos existentes.
           </div>
         </section>
@@ -689,7 +689,7 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
         {/* ========================================================================= */}
         {/* PÁGINA 6: CONFORMIDADE DOCUMENTAL E CHECKLIST DE HABILITAÇÃO               */}
         {/* ========================================================================= */}
-        <section className="print-document-sheet page-break-after bg-white text-slate-900 shadow-2xl rounded-2xl p-7 sm:p-11 min-h-[1050px] border border-slate-200 flex flex-col justify-between print:min-h-0 print:h-auto print:max-h-none print:overflow-visible print:block print:p-0 print:border-none print:shadow-none print:rounded-none">
+        <section className="print-document-sheet page-break-after bg-white text-slate-900 shadow-2xl rounded-2xl p-7 sm:p-11 min-h-[1050px] border border-slate-300 flex flex-col justify-between print:min-h-0 print:h-auto print:max-h-none print:overflow-visible print:block print:p-0 print:border-none print:shadow-none print:rounded-none">
           <div>
             <DocumentHeader pageNum={6} totalPages={totalPdfPages} />
             <h2 className="text-xl font-black uppercase tracking-tight text-slate-950 sm:text-2xl">
@@ -697,19 +697,19 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
             </h2>
             <div className="mb-5 mt-3 h-1 w-16 bg-amber-500" />
 
-            <p className="mb-5 text-xs leading-relaxed text-slate-700 sm:text-sm">
+            <p className="mb-5 text-xs leading-relaxed text-slate-900 font-medium sm:text-sm">
               Para garantir total segurança jurídica, idoneidade fiscal e conformidade legal na
               contratação pelos condomínios, a Renovar SC disponibiliza, mediante solicitação
               prévia ou no ato da formalização contratual, o seguinte conjunto de certidões,
               registros e regularidades atualizadas:
             </p>
 
-            <div className="space-y-4 text-xs leading-relaxed text-slate-700 sm:text-sm">
-              <section className="rounded-xl border border-slate-200 bg-slate-50 p-4 sm:p-5">
-                <h3 className="mb-2 font-extrabold uppercase tracking-wide text-slate-950">
+            <div className="space-y-4 text-xs leading-relaxed text-slate-900 font-medium sm:text-sm">
+              <section className="rounded-xl border border-slate-300 bg-slate-100 p-4 sm:p-5 shadow-sm">
+                <h3 className="mb-2 font-black uppercase tracking-wide text-slate-950">
                   1. Regularidade Jurídica e Fiscal
                 </h3>
-                <ul className="list-disc space-y-1 pl-5">
+                <ul className="list-disc space-y-1 pl-5 text-slate-800">
                   <li>Cartão de Inscrição no CNPJ regular e ativo (CNPJ: 57.293.244/0001-27).</li>
                   <li>Contrato Social consolidado da empresa.</li>
                   <li>
@@ -722,11 +722,11 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
                 </ul>
               </section>
 
-              <section className="rounded-xl border border-amber-200 bg-amber-50/50 p-4 sm:p-5">
-                <h3 className="mb-2 font-extrabold uppercase tracking-wide text-slate-950">
+              <section className="rounded-xl border border-amber-300 bg-amber-50/70 p-4 sm:p-5 shadow-sm">
+                <h3 className="mb-2 font-black uppercase tracking-wide text-slate-950">
                   2. Regularidade Técnica e Profissional
                 </h3>
-                <ul className="list-disc space-y-1 pl-5">
+                <ul className="list-disc space-y-1 pl-5 text-slate-800">
                   <li>
                     Certidão de Registro e Quitação de Pessoa Jurídica junto ao Conselho Regional
                     de Engenharia e Agronomia de Santa Catarina (CREA/SC).
@@ -739,11 +739,11 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
                 </ul>
               </section>
 
-              <section className="rounded-xl border border-sky-200 bg-sky-50/50 p-4 sm:p-5">
-                <h3 className="mb-2 font-extrabold uppercase tracking-wide text-slate-950">
+              <section className="rounded-xl border border-sky-300 bg-sky-50/70 p-4 sm:p-5 shadow-sm">
+                <h3 className="mb-2 font-black uppercase tracking-wide text-slate-950">
                   3. Apólices de Seguros e Garantia Operacional
                 </h3>
-                <ul className="list-disc space-y-1 pl-5">
+                <ul className="list-disc space-y-1 pl-5 text-slate-800">
                   <li>
                     Apólice de Seguro de Responsabilidade Civil (RCF) para cobertura de danos a
                     terceiros e vizinhança durante a execução dos serviços de fachada.
@@ -757,7 +757,7 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
             </div>
           </div>
 
-          <div className="mt-6 border-t border-slate-200 pt-4 text-xs font-mono text-slate-600">
+          <div className="mt-6 border-t border-slate-300 pt-4 text-xs font-mono text-slate-700 font-semibold">
             RENOVAR SC — Soluções Prediais • CNPJ: 57.293.244/0001-27 • CREA/SC: 105.402-1
           </div>
         </section>
@@ -770,15 +770,15 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
             const anom = insp.anomalia;
             const gravidadeColor =
               anom.gravidade === 'Crítica'
-                ? 'bg-red-50 text-red-700 border-red-300'
+                ? 'bg-red-100 text-red-900 border-red-400 font-bold'
                 : anom.gravidade === 'Alta'
-                ? 'bg-amber-50 text-amber-700 border-amber-300'
-                : 'bg-blue-50 text-blue-700 border-blue-300';
+                ? 'bg-amber-100 text-amber-900 border-amber-400 font-bold'
+                : 'bg-blue-100 text-blue-900 border-blue-400 font-bold';
 
             return (
               <section
                 key={insp.id}
-                className="print-document-sheet page-break-after bg-white text-slate-900 shadow-2xl rounded-2xl p-8 sm:p-12 min-h-[1050px] border border-slate-200 flex flex-col justify-between print:min-h-0 print:h-auto print:max-h-none print:overflow-visible print:block print:p-0 print:border-none print:shadow-none print:rounded-none"
+                className="print-document-sheet page-break-after bg-white text-slate-900 shadow-2xl rounded-2xl p-8 sm:p-12 min-h-[1050px] border border-slate-300 flex flex-col justify-between print:min-h-0 print:h-auto print:max-h-none print:overflow-visible print:block print:p-0 print:border-none print:shadow-none print:rounded-none"
               >
                 <div>
                   <DocumentHeader pageNum={7 + inspIndex} totalPages={totalPdfPages} />
@@ -788,25 +788,25 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
                       <h2 className="text-xl sm:text-2xl font-black text-slate-950 uppercase tracking-tight">
                         Laudo Pericial Fotográfico de Campo
                       </h2>
-                      <span className="text-xs font-mono font-bold text-slate-600 bg-slate-100 px-3 py-1 rounded-full border border-slate-200">
+                      <span className="text-xs font-mono font-extrabold text-slate-900 bg-slate-100 px-3 py-1 rounded-full border border-slate-300">
                         Registro Patológico {inspIndex + 1} de {inspectionsList.length}
                       </span>
                     </div>
                     <div className="w-16 h-1 bg-amber-500 mt-1.5 mb-2.5" />
-                    <p className="text-xs text-slate-600 leading-relaxed">
+                    <p className="text-xs text-slate-800 font-medium leading-relaxed">
                       Mapeamento das manifestações patológicas inspecionadas na edificação conforme diretrizes da{' '}
-                      <strong>ABNT NBR 16747</strong> (Inspeção Predial), contendo constatação visual, causa provável, risco evolutivo completo e diretrizes técnicas de reparo.
+                      <strong className="text-slate-950 font-extrabold">ABNT NBR 16747</strong> (Inspeção Predial), contendo constatação visual, causa provável, risco evolutivo completo e diretrizes técnicas de reparo.
                     </p>
                   </div>
 
-                  <div className="avoid-break border-2 border-slate-200 rounded-2xl bg-slate-50/60 p-5 space-y-4 shadow-sm overflow-visible">
+                  <div className="avoid-break border-2 border-slate-300 rounded-2xl bg-slate-50 p-5 space-y-4 shadow-sm overflow-visible">
                     {/* Finding Header */}
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200 pb-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-300 pb-3">
                       <div className="flex items-center gap-2.5">
                         <span className="w-7 h-7 rounded-lg bg-slate-900 text-amber-400 flex items-center justify-center font-mono font-bold text-xs shrink-0">
                           {inspIndex + 1}
                         </span>
-                        <h3 className="font-extrabold text-slate-950 text-sm sm:text-base uppercase tracking-tight leading-snug break-words">
+                        <h3 className="font-black text-slate-950 text-sm sm:text-base uppercase tracking-tight leading-snug break-words">
                           {anom.nome_patologia}
                         </h3>
                       </div>
@@ -824,13 +824,13 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
                     <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-start">
                       {/* Image Column */}
                       <div className="md:col-span-5 space-y-2.5">
-                        <div className="border border-slate-300 rounded-xl overflow-hidden bg-slate-900 shadow-inner">
+                        <div className="border border-slate-400 rounded-xl overflow-hidden bg-slate-900 shadow-inner">
                           <img
                             src={insp.imageUrl}
                             alt={anom.nome_patologia}
                             className="w-full h-auto max-h-[240px] object-contain mx-auto bg-slate-950"
                           />
-                          <div className="bg-slate-950 px-3 py-1.5 flex items-center justify-between text-[10px] font-mono text-slate-300">
+                          <div className="bg-slate-950 px-3 py-1.5 flex items-center justify-between text-[10px] font-mono text-slate-200">
                             <span className="truncate max-w-[160px]">{insp.nomeArquivo}</span>
                             <span className="text-amber-400 font-bold">Foto #{inspIndex + 1}</span>
                           </div>
@@ -838,15 +838,15 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
 
                         {/* Applied ABNT Standards */}
                         {anom.normas_tecnicas_abnt && anom.normas_tecnicas_abnt.length > 0 && (
-                          <div className="p-3 bg-white border border-slate-200 rounded-xl">
-                            <span className="text-[10px] font-mono font-bold text-slate-700 block mb-1.5 uppercase">
+                          <div className="p-3 bg-white border border-slate-300 rounded-xl shadow-xs">
+                            <span className="text-[10px] font-mono font-black text-slate-900 block mb-1.5 uppercase">
                               Normas ABNT Aplicáveis:
                             </span>
                             <div className="flex flex-wrap gap-1.5">
                               {anom.normas_tecnicas_abnt.map((norma, nIdx) => (
                                 <span
                                   key={nIdx}
-                                  className="px-2 py-0.5 bg-slate-100 text-slate-800 text-[10px] font-mono rounded border border-slate-200 break-words"
+                                  className="px-2 py-0.5 bg-slate-100 text-slate-900 text-[10px] font-mono font-bold rounded border border-slate-300 break-words"
                                 >
                                   {norma}
                                 </span>
@@ -858,49 +858,49 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
 
                       {/* Constatação Visual & Causa Provável */}
                       <div className="md:col-span-7 space-y-3 text-xs">
-                        <div className="bg-white p-3.5 rounded-xl border border-slate-200">
-                          <h4 className="font-bold text-slate-900 text-[11px] uppercase tracking-wide flex items-center gap-1.5 mb-1.5">
+                        <div className="bg-white p-3.5 rounded-xl border border-slate-300 shadow-xs">
+                          <h4 className="font-black text-slate-950 text-[11px] uppercase tracking-wide flex items-center gap-1.5 mb-1.5">
                             <CheckCircle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
                             <span>1. Constatação Visual e Aspecto Técnico:</span>
                           </h4>
-                          <p className="text-slate-700 leading-relaxed text-xs break-words whitespace-normal">
+                          <p className="text-slate-900 font-medium leading-relaxed text-xs break-words whitespace-normal">
                             {anom.constatacao_visual || anom.descricao}
                           </p>
                         </div>
 
-                        <div className="bg-white p-3.5 rounded-xl border border-slate-200">
-                          <h4 className="font-bold text-slate-900 text-[11px] uppercase tracking-wide flex items-center gap-1.5 mb-1.5">
+                        <div className="bg-white p-3.5 rounded-xl border border-slate-300 shadow-xs">
+                          <h4 className="font-black text-slate-950 text-[11px] uppercase tracking-wide flex items-center gap-1.5 mb-1.5">
                             <ShieldAlert className="w-3.5 h-3.5 text-amber-600 shrink-0" />
                             <span>2. Causa Provável (Justificativa Técnica):</span>
                           </h4>
-                          <p className="text-slate-700 leading-relaxed text-xs break-words whitespace-normal">
+                          <p className="text-slate-900 font-medium leading-relaxed text-xs break-words whitespace-normal">
                             {anom.justificativa_tecnica_causa || anom.causa_provavel}
                           </p>
                         </div>
                       </div>
                     </div>
 
-                    {/* Full-Width Row: Risco Evolutivo e Consequências (Sem cortes de palavras ou títulos) */}
-                    <div className="bg-rose-50/90 p-4 rounded-xl border-2 border-rose-200 overflow-visible avoid-break">
-                      <h4 className="font-extrabold text-rose-900 text-xs uppercase tracking-wide flex items-center gap-2 mb-1.5">
-                        <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
+                    {/* Full-Width Row: Risco Evolutivo e Consequências */}
+                    <div className="bg-rose-50 p-4 rounded-xl border-2 border-rose-300 overflow-visible avoid-break shadow-xs">
+                      <h4 className="font-black text-rose-950 text-xs uppercase tracking-wide flex items-center gap-2 mb-1.5">
+                        <AlertTriangle className="w-4 h-4 text-rose-700 shrink-0" />
                         <span>
                           3. Risco Evolutivo e Consequências (Impacto Estrutural, Segurança e Financeiro):
                         </span>
                       </h4>
-                      <p className="text-rose-950 leading-relaxed text-xs break-words whitespace-normal">
+                      <p className="text-rose-950 font-medium leading-relaxed text-xs break-words whitespace-normal">
                         {anom.risco_evolutivo_consequencias || anom.risco_evolutivo}
                       </p>
                     </div>
 
                     {/* Full-Width Row: Diretrizes Técnicas de Reparo */}
                     {anom.diretrizes_reparo && anom.diretrizes_reparo.length > 0 && (
-                      <div className="bg-emerald-50/70 p-4 rounded-xl border border-emerald-200 overflow-visible avoid-break">
-                        <h4 className="font-extrabold text-emerald-900 text-xs uppercase tracking-wide flex items-center gap-2 mb-2">
-                          <FileCheck className="w-4 h-4 text-emerald-600 shrink-0" />
+                      <div className="bg-emerald-50 p-4 rounded-xl border border-emerald-300 overflow-visible avoid-break shadow-xs">
+                        <h4 className="font-black text-emerald-950 text-xs uppercase tracking-wide flex items-center gap-2 mb-2">
+                          <FileCheck className="w-4 h-4 text-emerald-700 shrink-0" />
                           <span>4. Diretrizes Técnicas de Reparo (Metodologia Executiva ABNT):</span>
                         </h4>
-                        <ol className="list-decimal list-inside space-y-1 text-slate-800 text-xs leading-relaxed">
+                        <ol className="list-decimal list-inside space-y-1 text-slate-900 font-medium text-xs leading-relaxed">
                           {anom.diretrizes_reparo.map((etapa, eIdx) => (
                             <li key={eIdx} className="break-words whitespace-normal">
                               <span>{etapa.replace(/^\d+[\.\-\)]\s*/, '')}</span>
@@ -917,7 +917,7 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
             );
           })
         ) : (
-          <section className="print-document-sheet page-break-after bg-white text-slate-900 shadow-2xl rounded-2xl p-8 sm:p-14 min-h-[1050px] border border-slate-200 flex flex-col justify-between print:min-h-0 print:h-auto print:max-h-none print:overflow-visible print:block print:p-0 print:border-none print:shadow-none print:rounded-none">
+          <section className="print-document-sheet page-break-after bg-white text-slate-900 shadow-2xl rounded-2xl p-8 sm:p-14 min-h-[1050px] border border-slate-300 flex flex-col justify-between print:min-h-0 print:h-auto print:max-h-none print:overflow-visible print:block print:p-0 print:border-none print:shadow-none print:rounded-none">
             <div>
               <DocumentHeader pageNum={7} totalPages={totalPdfPages} />
               <div className="mb-6">
@@ -926,8 +926,8 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
                 </h2>
                 <div className="w-16 h-1 bg-amber-500 mb-3" />
               </div>
-              <div className="p-8 text-center bg-slate-50 border border-slate-200 rounded-xl text-slate-500 text-xs">
-                <Camera className="w-8 h-8 opacity-40 mx-auto mb-2 text-slate-400" />
+              <div className="p-8 text-center bg-slate-100 border border-slate-300 rounded-xl text-slate-700 font-medium text-xs">
+                <Camera className="w-8 h-8 opacity-60 mx-auto mb-2 text-slate-600" />
                 Nenhum registro fotográfico anexado no Passo 2. As manifestações serão cadastradas na vistoria preliminar da obra.
               </div>
             </div>
@@ -936,9 +936,9 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
         )}
 
         {/* ========================================================================= */}
-        {/* METODOLOGIA EXECUTIVA E PLANO DE SEGURANÇA (NR-18 E NR-35)                 */}
+        {/* METODOLOGIA EXECUTIVA E PLANO DE SEGURANÇA (NR-18 E NR-35)                */}
         {/* ========================================================================= */}
-        <section className="print-document-sheet page-break-after bg-white text-slate-900 shadow-2xl rounded-2xl p-8 sm:p-14 min-h-[1050px] border border-slate-200 flex flex-col justify-between print:min-h-0 print:h-auto print:max-h-none print:overflow-visible print:block print:p-0 print:border-none print:shadow-none print:rounded-none">
+        <section className="print-document-sheet page-break-after bg-white text-slate-900 shadow-2xl rounded-2xl p-8 sm:p-14 min-h-[1050px] border border-slate-300 flex flex-col justify-between print:min-h-0 print:h-auto print:max-h-none print:overflow-visible print:block print:p-0 print:border-none print:shadow-none print:rounded-none">
           <div>
             <DocumentHeader pageNum={methodologyPageNum} totalPages={totalPdfPages} />
 
@@ -948,82 +948,82 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
             <div className="w-16 h-1 bg-amber-500 mb-6" />
 
             {/* Fases Executivas */}
-            <div className="space-y-3.5 text-xs sm:text-sm text-slate-700 leading-relaxed mb-6">
-              <div className="p-3.5 rounded-xl border border-slate-200 bg-slate-50">
-                <h3 className="font-bold text-slate-950 text-xs uppercase mb-1 flex items-center gap-2">
+            <div className="space-y-3.5 text-xs sm:text-sm text-slate-900 leading-relaxed mb-6">
+              <div className="p-3.5 rounded-xl border border-slate-300 bg-slate-50 shadow-xs">
+                <h3 className="font-black text-slate-950 text-xs uppercase mb-1 flex items-center gap-2">
                   <span className="w-5 h-5 rounded-full bg-slate-900 text-amber-400 flex items-center justify-center font-mono text-[10px]">
                     1
                   </span>
                   Fase 1: Isolamento, Proteções Coletivas e Hidrojateamento Pressurizado
                 </h3>
-                <p className="text-slate-600 text-[11px] sm:text-xs">
+                <p className="text-slate-800 font-medium text-[11px] sm:text-xs">
                   Isolamento perimetral do solo com cones e fitas zebradas, colocação de lonas de proteção sobre garagens e jardins. Realização de lavagem por hidrojateamento com bico turbo rotativo com pressão calibrada para descontaminação total de fuligem, bolores e material pulverulento sem danificar o emboço firme subjacente.
                 </p>
               </div>
 
-              <div className="p-3.5 rounded-xl border border-slate-200 bg-slate-50">
-                <h3 className="font-bold text-slate-950 text-xs uppercase mb-1 flex items-center gap-2">
+              <div className="p-3.5 rounded-xl border border-slate-300 bg-slate-50 shadow-xs">
+                <h3 className="font-black text-slate-950 text-xs uppercase mb-1 flex items-center gap-2">
                   <span className="w-5 h-5 rounded-full bg-slate-900 text-amber-400 flex items-center justify-center font-mono text-[10px]">
                     2
                   </span>
                   Fase 2: Teste de Percussão em 100% da Fachada e Demolição Controlada
                 </h3>
-                <p className="text-slate-600 text-[11px] sm:text-xs">
+                <p className="text-slate-800 font-medium text-[11px] sm:text-xs">
                   Execução de batimento sonoro percussivo em 100% da área da fachada por técnicos habilitados. Mapeamento sonoro e marcação das regiões com som cavo (chocho). Corte das bordas com serra mármore diamantada para evitar propagação das trincas e remoção cirúrgica com ponteiro e martelete leve.
                 </p>
               </div>
 
-              <div className="p-3.5 rounded-xl border border-slate-200 bg-slate-50">
-                <h3 className="font-bold text-slate-950 text-xs uppercase mb-1 flex items-center gap-2">
+              <div className="p-3.5 rounded-xl border border-slate-300 bg-slate-50 shadow-xs">
+                <h3 className="font-black text-slate-950 text-xs uppercase mb-1 flex items-center gap-2">
                   <span className="w-5 h-5 rounded-full bg-slate-900 text-amber-400 flex items-center justify-center font-mono text-[10px]">
                     3
                   </span>
                   Fase 3: Tratamento de Armaduras Expostas e Recomposição Estrutural
                 </h3>
-                <p className="text-slate-600 text-[11px] sm:text-xs">
+                <p className="text-slate-800 font-medium text-[11px] sm:text-xs">
                   Abertura do concreto até 2 cm além da armadura oxidada, limpeza mecânica das barras de aço até o padrão visual SA 2.5 (metal quase branco), aplicação imediata de primer inibidor de corrosão à base de zinco ou epóxi e preenchimento volumétrico com argamassa tixotrópica estrutural polimérica com fibras de polipropileno.
                 </p>
               </div>
 
-              <div className="p-3.5 rounded-xl border border-slate-200 bg-slate-50">
-                <h3 className="font-bold text-slate-950 text-xs uppercase mb-1 flex items-center gap-2">
+              <div className="p-3.5 rounded-xl border border-slate-300 bg-slate-50 shadow-xs">
+                <h3 className="font-black text-slate-950 text-xs uppercase mb-1 flex items-center gap-2">
                   <span className="w-5 h-5 rounded-full bg-slate-900 text-amber-400 flex items-center justify-center font-mono text-[10px]">
                     4
                   </span>
                   Fase 4: Tratamento de Trincas Dinâmicas e Calafetação de Juntas com PU
                 </h3>
-                <p className="text-slate-600 text-[11px] sm:text-xs">
+                <p className="text-slate-800 font-medium text-[11px] sm:text-xs">
                   Abertura de sulco em formato de "V" nas fissuras ativas, aplicação de ar comprimido para despoeiramento, colocação de tarugo delimitador de profundidade (tarucel) e selamento elastomérico com mástique à base de poliuretano (PU 40) de alta elasticidade e memória mecânica resistente aos raios UV.
                 </p>
               </div>
 
-              <div className="p-3.5 rounded-xl border border-slate-200 bg-slate-50">
-                <h3 className="font-bold text-slate-950 text-xs uppercase mb-1 flex items-center gap-2">
+              <div className="p-3.5 rounded-xl border border-slate-300 bg-slate-50 shadow-xs">
+                <h3 className="font-black text-slate-950 text-xs uppercase mb-1 flex items-center gap-2">
                   <span className="w-5 h-5 rounded-full bg-slate-900 text-amber-400 flex items-center justify-center font-mono text-[10px]">
                     5
                   </span>
                   Fase 5: Sistema de Pintura Técnica Elastomérica Impermeável
                 </h3>
-                <p className="text-slate-600 text-[11px] sm:text-xs">
+                <p className="text-slate-800 font-medium text-[11px] sm:text-xs">
                   Aplicação de 01 demão de selador/fundo preparador acrílico de penetração profunda, seguida da aplicação de 03 (três) demãos cruzadas de tinta elastomérica 100% acrílica impermeável com película emborrachada flexível, antifúngica e resistente a intempéries e microfissurações térmicas.
                 </p>
               </div>
             </div>
 
             {/* Exigências NR-18 e NR-35 */}
-            <div className="border-t border-slate-200 pt-5">
-              <h3 className="text-sm font-mono font-bold text-slate-900 uppercase tracking-wider mb-3 flex items-center gap-2">
-                <ShieldCheck className="w-4 h-4 text-emerald-600" />
+            <div className="border-t border-slate-300 pt-5">
+              <h3 className="text-sm font-mono font-black text-slate-950 uppercase tracking-wider mb-3 flex items-center gap-2">
+                <ShieldCheck className="w-4 h-4 text-emerald-700" />
                 Exigências de Segurança do Trabalho (NR-18 e NR-35)
               </h3>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-                <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
-                  <h4 className="font-bold text-slate-900 uppercase text-xs flex items-center gap-2">
+                <div className="p-4 rounded-xl bg-slate-50 border border-slate-300 space-y-2 shadow-xs">
+                  <h4 className="font-black text-slate-950 uppercase text-xs flex items-center gap-2">
                     <span className="w-2 h-2 rounded-full bg-amber-500" />
                     NR-35 — Trabalho em Altura
                   </h4>
-                  <ul className="space-y-1 text-slate-600 text-[11px]">
+                  <ul className="space-y-1 text-slate-800 font-medium text-[11px]">
                     <li>• Cinto tipo paraquedista com duplo talabarte com absorvedor de energia e trava-quedas.</li>
                     <li>• Linha de vida vertical de cabo de aço 100% independente do balancim.</li>
                     <li>• Balancins elétricos com cabos de sustentação duplos e freio automático blockstop.</li>
@@ -1031,12 +1031,12 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
                   </ul>
                 </div>
 
-                <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
-                  <h4 className="font-bold text-slate-900 uppercase text-xs flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                <div className="p-4 rounded-xl bg-slate-50 border border-slate-300 space-y-2 shadow-xs">
+                  <h4 className="font-black text-slate-950 uppercase text-xs flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-emerald-600" />
                     NR-18 — Indústria da Construção & RCF
                   </h4>
-                  <ul className="space-y-1 text-slate-600 text-[11px]">
+                  <ul className="space-y-1 text-slate-800 font-medium text-[11px]">
                     <li>• Telas de proteção fachadeiras envolventes em todo o perímetro trabalhado.</li>
                     <li>• Bandejas primárias e secundárias de retenção de materiais e ferramentas.</li>
                     <li>• Emissão de ART (Anotação de Responsabilidade Técnica) no CREA/SC.</li>
@@ -1051,9 +1051,9 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
         </section>
 
         {/* ========================================================================= */}
-        {/* PLANILHA DE MATERIAIS E ESCOPO DE EQUIPE                                 */}
+        {/* PLANILHA DE MATERIAIS E ESCOPO DE EQUIPE                                  */}
         {/* ========================================================================= */}
-        <section className="print-document-sheet page-break-after bg-white text-slate-900 shadow-2xl rounded-2xl p-8 sm:p-14 min-h-[1050px] border border-slate-200 flex flex-col justify-between print:min-h-0 print:h-auto print:max-h-none print:overflow-visible print:block print:p-0 print:border-none print:shadow-none print:rounded-none">
+        <section className="print-document-sheet page-break-after bg-white text-slate-900 shadow-2xl rounded-2xl p-8 sm:p-14 min-h-[1050px] border border-slate-300 flex flex-col justify-between print:min-h-0 print:h-auto print:max-h-none print:overflow-visible print:block print:p-0 print:border-none print:shadow-none print:rounded-none">
           <div>
             <DocumentHeader pageNum={costsPageNum} totalPages={totalPdfPages} />
 
@@ -1064,38 +1064,38 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
 
             {/* Planilha de Materiais */}
             <div className="mb-6 avoid-break">
-              <h3 className="text-xs font-bold uppercase tracking-wider bg-slate-100 text-slate-800 px-3 py-1.5 rounded border-l-4 border-slate-900 mb-2 font-mono flex items-center justify-between">
+              <h3 className="text-xs font-black uppercase tracking-wider bg-slate-200 text-slate-950 px-3 py-1.5 rounded border-l-4 border-slate-900 mb-2 font-mono flex items-center justify-between">
                 <span>1. Relação Consolidada de Materiais & Insumos Homologados</span>
-                <span className="text-slate-600">Total: {materiais.length} itens</span>
+                <span className="text-slate-800 font-bold">Total: {materiais.length} itens</span>
               </h3>
 
-              <table className="w-full text-left text-xs border border-slate-200">
-                <thead className="bg-slate-100 text-slate-700 font-mono text-[11px]">
+              <table className="w-full text-left text-xs border border-slate-300 shadow-xs">
+                <thead className="bg-slate-200 text-slate-900 font-mono font-bold text-[11px]">
                   <tr>
-                    <th className="py-2 px-3 border-b">Descrição do Item / Especificação</th>
-                    <th className="py-2 px-2 border-b">Unid.</th>
-                    <th className="py-2 px-2 border-b text-center">Qtd</th>
-                    <th className="py-2 px-3 border-b text-right">Preço Unit.</th>
-                    <th className="py-2 px-3 border-b text-right">Subtotal</th>
+                    <th className="py-2 px-3 border-b border-slate-300">Descrição do Item / Especificação</th>
+                    <th className="py-2 px-2 border-b border-slate-300">Unid.</th>
+                    <th className="py-2 px-2 border-b border-slate-300 text-center">Qtd</th>
+                    <th className="py-2 px-3 border-b border-slate-300 text-right">Preço Unit.</th>
+                    <th className="py-2 px-3 border-b border-slate-300 text-right">Subtotal</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-200">
+                <tbody className="divide-y divide-slate-300 font-medium text-slate-900">
                   {materiais.map((item) => (
                     <tr key={item.id}>
-                      <td className="py-1.5 px-3 text-slate-800">{item.nome}</td>
-                      <td className="py-1.5 px-2 font-mono text-slate-600">{item.unidade}</td>
+                      <td className="py-1.5 px-3 text-slate-900">{item.nome}</td>
+                      <td className="py-1.5 px-2 font-mono text-slate-700">{item.unidade}</td>
                       <td className="py-1.5 px-2 text-center font-mono">{item.quantidade}</td>
                       <td className="py-1.5 px-3 text-right font-mono">{formatarMoeda(item.precoUnitario)}</td>
-                      <td className="py-1.5 px-3 text-right font-mono font-semibold text-slate-900">
+                      <td className="py-1.5 px-3 text-right font-mono font-bold text-slate-950">
                         {formatarMoeda(item.quantidade * item.precoUnitario)}
                       </td>
                     </tr>
                   ))}
-                  <tr className="bg-slate-100 font-bold font-mono text-slate-900">
+                  <tr className="bg-slate-200 font-black font-mono text-slate-950">
                     <td colSpan={4} className="py-2 px-3 text-right">
                       CUSTO TOTAL DE MATERIAIS:
                     </td>
-                    <td className="py-2 px-3 text-right text-slate-900">
+                    <td className="py-2 px-3 text-right text-slate-950">
                       {formatarMoeda(calculos.custoMateriais)}
                     </td>
                   </tr>
@@ -1105,27 +1105,27 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
 
             {/* Escopo da Equipe Alocada */}
             <div className="mb-6 avoid-break">
-              <h3 className="text-xs font-bold uppercase tracking-wider bg-slate-100 text-slate-800 px-3 py-1.5 rounded border-l-4 border-slate-900 mb-2 font-mono flex items-center justify-between">
+              <h3 className="text-xs font-black uppercase tracking-wider bg-slate-200 text-slate-950 px-3 py-1.5 rounded border-l-4 border-slate-900 mb-2 font-mono flex items-center justify-between">
                 <span>2. Dimensionamento da Equipe Técnica Especializada</span>
-                <span className="text-slate-600">Cronograma: {calculos.mesesObra} Meses de Obra</span>
+                <span className="text-slate-800 font-bold">Cronograma: {calculos.mesesObra} Meses de Obra</span>
               </h3>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 text-xs font-mono">
                 {equipe.map((prof) => (
-                  <div key={prof.id} className="p-3 bg-slate-50 rounded-xl border border-slate-200">
-                    <div className="font-extrabold text-slate-950 text-xs uppercase flex items-center justify-between">
+                  <div key={prof.id} className="p-3 bg-slate-50 rounded-xl border border-slate-300 shadow-xs">
+                    <div className="font-black text-slate-950 text-xs uppercase flex items-center justify-between">
                       <span>{prof.cargo}</span>
-                      <span className="px-1.5 py-0.5 rounded bg-slate-200 text-slate-800 text-[10px]">
+                      <span className="px-1.5 py-0.5 rounded bg-slate-200 text-slate-900 font-bold text-[10px]">
                         {prof.quantidade} un.
                       </span>
                     </div>
-                    <div className="text-slate-600 mt-1 text-[11px]">
+                    <div className="text-slate-800 font-medium mt-1 text-[11px]">
                       Efetivo alocado: {prof.quantidade} profissional(is)
                     </div>
-                    <div className="text-slate-900 font-semibold mt-0.5 text-[11px]">
+                    <div className="text-slate-950 font-bold mt-0.5 text-[11px]">
                       Salário Base: {formatarMoeda(prof.salarioBase)}/mês
                     </div>
-                    <div className="text-slate-500 mt-0.5 text-[10px]">
+                    <div className="text-slate-800 font-semibold mt-0.5 text-[10px]">
                       Total período: {formatarMoeda(prof.salarioBase * prof.quantidade * calculos.mesesObra)}
                     </div>
                   </div>
@@ -1134,11 +1134,11 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
             </div>
 
             {/* Resumo da Folha Direta */}
-            <div className="p-3.5 bg-slate-100/70 border border-slate-200 rounded-xl flex items-center justify-between font-mono text-xs">
-              <span className="font-bold text-slate-800">
+            <div className="p-3.5 bg-slate-200/80 border border-slate-300 rounded-xl flex items-center justify-between font-mono text-xs shadow-xs">
+              <span className="font-black text-slate-950">
                 Total Acumulado de Mão de Obra Direta ({calculos.mesesObra} meses):
               </span>
-              <span className="font-extrabold text-slate-950 text-sm">
+              <span className="font-black text-slate-950 text-sm">
                 {formatarMoeda(calculos.maoDeObraDireta)}
               </span>
             </div>
@@ -1150,7 +1150,7 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
         {/* ========================================================================= */}
         {/* RESUMO FINANCEIRO, CONDIÇÕES, GARANTIA & PÓS-OBRA                         */}
         {/* ========================================================================= */}
-        <section className="print-document-sheet page-break-after bg-white text-slate-900 shadow-2xl rounded-2xl p-8 sm:p-14 min-h-[1050px] border border-slate-200 flex flex-col justify-between print:min-h-0 print:h-auto print:max-h-none print:overflow-visible print:block print:p-0 print:border-none print:shadow-none print:rounded-none">
+        <section className="print-document-sheet page-break-after bg-white text-slate-900 shadow-2xl rounded-2xl p-8 sm:p-14 min-h-[1050px] border border-slate-300 flex flex-col justify-between print:min-h-0 print:h-auto print:max-h-none print:overflow-visible print:block print:p-0 print:border-none print:shadow-none print:rounded-none">
           <div>
             <DocumentHeader pageNum={finalPageNum} totalPages={totalPdfPages} />
 
@@ -1161,65 +1161,65 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
 
             {/* Memória de Cálculo Financeiro Completa */}
             <div className="mb-6 avoid-break">
-              <h3 className="text-xs font-bold uppercase tracking-wider bg-slate-100 text-slate-800 px-3 py-1.5 rounded border-l-4 border-slate-900 mb-2 font-mono">
+              <h3 className="text-xs font-black uppercase tracking-wider bg-slate-200 text-slate-950 px-3 py-1.5 rounded border-l-4 border-slate-900 mb-2 font-mono">
                 1. Memória de Cálculo e Formação do Preço Global
               </h3>
 
-              <table className="w-full text-left text-xs border border-slate-300 font-mono">
-                <tbody className="divide-y divide-slate-200">
+              <table className="w-full text-left text-xs border border-slate-300 font-mono shadow-xs">
+                <tbody className="divide-y divide-slate-300 font-medium text-slate-900">
                   <tr>
-                    <td className="py-2 px-3 text-slate-700">1. Custo de Materiais e Insumos Homologados</td>
-                    <td className="py-2 px-3 text-right font-semibold">
+                    <td className="py-2 px-3 text-slate-900">1. Custo de Materiais e Insumos Homologados</td>
+                    <td className="py-2 px-3 text-right font-bold text-slate-950">
                       {formatarMoeda(calculos.custoMateriais)}
                     </td>
                   </tr>
                   <tr>
-                    <td className="py-2 px-3 text-slate-700">
+                    <td className="py-2 px-3 text-slate-900">
                       2. Mão de Obra Direta ({calculos.mesesObra} meses de contrato)
                     </td>
-                    <td className="py-2 px-3 text-right font-semibold">
+                    <td className="py-2 px-3 text-right font-bold text-slate-950">
                       {formatarMoeda(calculos.maoDeObraDireta)}
                     </td>
                   </tr>
                   <tr>
-                    <td className="py-2 px-3 text-slate-700">
+                    <td className="py-2 px-3 text-slate-900">
                       3. Adicional de Periculosidade (30% sobre Mão de Obra Direta)
                     </td>
-                    <td className="py-2 px-3 text-right font-semibold text-amber-700">
+                    <td className="py-2 px-3 text-right font-bold text-amber-900">
                       {formatarMoeda(calculos.periculosidade)}
                     </td>
                   </tr>
                   <tr>
-                    <td className="py-2 px-3 text-slate-700">
+                    <td className="py-2 px-3 text-slate-900">
                       4. Encargos Sociais e Trabalhistas (60% sobre Mão de Obra Direta)
                     </td>
-                    <td className="py-2 px-3 text-right font-semibold text-sky-800">
+                    <td className="py-2 px-3 text-right font-bold text-sky-950">
                       {formatarMoeda(calculos.encargosSociais)}
                     </td>
                   </tr>
-                  <tr className="bg-slate-100 font-bold">
-                    <td className="py-2 px-3 text-slate-900">SUBTOTAL: CUSTO TOTAL DIRETO</td>
-                    <td className="py-2 px-3 text-right text-slate-900">
+                  <tr className="bg-slate-200 font-black text-slate-950">
+                    <td className="py-2 px-3">SUBTOTAL: CUSTO TOTAL DIRETO</td>
+                    <td className="py-2 px-3 text-right">
                       {formatarMoeda(calculos.custoTotalDireto)}
                     </td>
                   </tr>
                   <tr>
-                    <td className="py-2 px-3 text-slate-700">
+                    <td className="py-2 px-3 text-slate-900">
                       5. Margem de Erro / Imprevistos Técnicos (7% sobre Custo Total Direto)
                     </td>
-                    <td className="py-2 px-3 text-right font-semibold text-rose-700">
+                    <td className="py-2 px-3 text-right font-bold text-rose-900">
                       {formatarMoeda(calculos.margemErro)}
                     </td>
                   </tr>
                   <tr>
-                    <td className="py-2 px-3 text-slate-700">
+                    <td className="py-2 px-3 text-slate-900">
                       6. BDI / Margem Operacional de Lucro ({calculos.margemLucroPercentual}%)
                     </td>
-                    <td className="py-2 px-3 text-right font-semibold text-emerald-800">
+                    <td className="py-2 px-3 text-right font-bold text-emerald-950">
                       {formatarMoeda(calculos.valorMargemLucro)}
                     </td>
                   </tr>
-                  <tr className="bg-slate-950 text-white font-extrabold text-sm sm:text-base">
+                  <tr className="bg-slate-950 text-white font-black text-sm sm:text-base">
                     <td className="py-3 px-4">VALOR GLOBAL DA PROPOSTA COMERCIAL</td>
                     <td className="py-3 px-4 text-right text-amber-400">
                       {formatarMoeda(calculos.valorGlobal)}
@@ -1231,21 +1231,21 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
 
             {/* 2. Condições Comerciais, Parcelamento e Faturamento Customizado */}
             <div className="mb-4 avoid-break">
-              <h3 className="text-xs font-bold uppercase tracking-wider bg-slate-100 text-slate-800 px-3 py-1.5 rounded border-l-4 border-slate-900 mb-2 font-mono flex items-center justify-between">
+              <h3 className="text-xs font-black uppercase tracking-wider bg-slate-200 text-slate-950 px-3 py-1.5 rounded border-l-4 border-slate-900 mb-2 font-mono flex items-center justify-between">
                 <span>2. Condições Comerciais, Cronograma de Desembolso e Faturamento</span>
-                <span className="text-slate-600">Validade: {validadeDias} dias</span>
+                <span className="text-slate-800 font-bold">Validade: {validadeDias} dias</span>
               </h3>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 mb-2.5 text-xs font-mono">
                 {/* Card Entrada */}
-                <div className="p-3 bg-slate-50 border border-slate-300 rounded-lg">
-                  <span className="text-[10px] font-bold uppercase text-slate-500 block">
+                <div className="p-3 bg-slate-50 border border-slate-300 rounded-lg shadow-xs">
+                  <span className="text-[10px] font-black uppercase text-slate-700 block">
                     Entrada / Mobilização ({parcelamento.percentualEntrada}%)
                   </span>
-                  <span className="text-sm font-extrabold text-slate-950 block mt-0.5">
+                  <span className="text-sm font-black text-slate-950 block mt-0.5">
                     {formatarMoeda(parcelamento.valorEntradaTotal)}
                   </span>
-                  <span className="text-[10px] text-amber-800 font-semibold block mt-0.5">
+                  <span className="text-[10px] text-amber-950 font-bold block mt-0.5">
                     {parcelamento.parcelasEntrada === 1
                       ? 'À vista na assinatura (1x)'
                       : `Em ${parcelamento.parcelasEntrada}x de ${formatarMoeda(parcelamento.valorParcelaEntrada)}`}
@@ -1253,39 +1253,39 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
                 </div>
 
                 {/* Card Saldo Remanescente */}
-                <div className="p-3 bg-slate-50 border border-slate-300 rounded-lg">
-                  <span className="text-[10px] font-bold uppercase text-slate-500 block">
+                <div className="p-3 bg-slate-50 border border-slate-300 rounded-lg shadow-xs">
+                  <span className="text-[10px] font-black uppercase text-slate-700 block">
                     Saldo Remanescente ({parcelamento.percentualSaldo}%)
                   </span>
-                  <span className="text-sm font-extrabold text-slate-950 block mt-0.5">
+                  <span className="text-sm font-black text-slate-950 block mt-0.5">
                     {formatarMoeda(parcelamento.valorSaldoTotal)}
                   </span>
-                  <span className="text-[10px] text-sky-800 font-semibold block mt-0.5">
+                  <span className="text-[10px] text-sky-950 font-bold block mt-0.5">
                     Em {parcelamento.parcelasSaldo}x mensais de{' '}
                     {formatarMoeda(parcelamento.valorParcelaSaldo)}
                   </span>
                 </div>
 
                 {/* Card Forma de Faturamento */}
-                <div className="p-3 bg-slate-50 border border-slate-300 rounded-lg">
-                  <span className="text-[10px] font-bold uppercase text-slate-500 block">
+                <div className="p-3 bg-slate-50 border border-slate-300 rounded-lg shadow-xs">
+                  <span className="text-[10px] font-black uppercase text-slate-700 block">
                     Modalidade de Faturamento
                   </span>
-                  <span className="text-xs font-bold text-slate-900 block mt-0.5 leading-snug">
+                  <span className="text-xs font-black text-slate-950 block mt-0.5 leading-snug">
                     {condicoesComerciais.formaPagamento ||
                       'Boleto Bancário Registrado / PIX / TED'}
                   </span>
-                  <span className="text-[10px] text-emerald-800 font-semibold block mt-0.5">
+                  <span className="text-[10px] text-emerald-950 font-bold block mt-0.5">
                     Emissão de Nota Fiscal (NF-e)
                   </span>
                 </div>
               </div>
 
-              <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg text-[11px] text-slate-800 space-y-1">
-                <div className="font-bold text-slate-950 uppercase">
+              <div className="p-3 bg-slate-100 border border-slate-300 rounded-lg text-[11px] text-slate-900 font-medium space-y-1 shadow-xs">
+                <div className="font-black text-slate-950 uppercase">
                   Observações de Faturamento e Condições de Pagamento:
                 </div>
-                <p className="leading-relaxed whitespace-pre-line text-slate-700">
+                <p className="leading-relaxed whitespace-pre-line text-slate-900 font-medium">
                   {condicoesComerciais.observacoesFaturamento?.trim() ||
                     `Sinal de ${parcelamento.percentualEntrada}% (${formatarMoeda(parcelamento.valorEntradaTotal)}) na assinatura do contrato para compra antecipada de materiais e mobilização inicial. O saldo remanescente de ${parcelamento.percentualSaldo}% (${formatarMoeda(parcelamento.valorSaldoTotal)}) será faturado em ${parcelamento.parcelasSaldo} parcelas mensais de ${formatarMoeda(parcelamento.valorParcelaSaldo)} vinculadas aos laudos de medição de evolução física aprovados pela gestão condominial.`}
                 </p>
@@ -1298,35 +1298,35 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
           <div className="pt-6 border-t-2 border-slate-900 avoid-break">
             <div className="flex flex-col sm:flex-row items-center justify-between gap-10">
               <div className="text-center w-72">
-                <div className="border-b-2 border-slate-900 pb-1 mb-1 font-bold text-xs text-slate-900 uppercase">
+                <div className="border-b-2 border-slate-900 pb-1 mb-1 font-black text-xs text-slate-950 uppercase">
                   Renovar Engenharia Diagnóstica
                 </div>
-                <div className="text-[10px] text-slate-600 font-mono">
+                <div className="text-[10px] text-slate-800 font-bold font-mono">
                   Engenheiro Civil Responsável Técnico • CREA Ativo
                 </div>
               </div>
 
               <div className="text-center w-72">
-                <div className="border-b-2 border-slate-900 pb-1 mb-1 font-bold text-xs text-slate-900 uppercase">
+                <div className="border-b-2 border-slate-900 pb-1 mb-1 font-black text-xs text-slate-950 uppercase">
                   {dadosCliente.nomeSindico || 'Síndico(a) / Administração'}
                 </div>
-                <div className="text-[10px] text-slate-600 font-mono">
+                <div className="text-[10px] text-slate-800 font-bold font-mono">
                   {dadosCliente.nomeCondominio || 'Condomínio Contratante'}
                   {dadosCliente.cnpj && ` • CNPJ: ${dadosCliente.cnpj}`}
                 </div>
               </div>
             </div>
 
-            <div className="text-center text-[10px] font-mono text-slate-400 mt-5">
+            <div className="text-center text-[10px] font-mono text-slate-700 font-semibold mt-5">
               Proposta nº {orcamentoId} • Documento emitido em {dataAtualExtenso} • Válida por {validadeDias} dias corridos
             </div>
           </div>
         </section>
 
         {/* ========================================================================= */}
-        {/* PLANO DE MANUTENÇÃO PÓS-OBRA E DIRETRIZES DE GARANTIA GERAL                */}
+        {/* PLANO DE MANUTENÇÃO PÓS-OBRA E DIRETRIZES DE GARANTIA GERAL               */}
         {/* ========================================================================= */}
-        <section className="print-document-sheet page-break-after bg-white text-slate-900 shadow-2xl rounded-2xl p-7 sm:p-11 min-h-[1050px] border border-slate-200 flex flex-col justify-between print:min-h-0 print:h-auto print:max-h-none print:overflow-visible print:block print:p-0 print:border-none print:shadow-none print:rounded-none">
+        <section className="print-document-sheet page-break-after bg-white text-slate-900 shadow-2xl rounded-2xl p-7 sm:p-11 min-h-[1050px] border border-slate-300 flex flex-col justify-between print:min-h-0 print:h-auto print:max-h-none print:overflow-visible print:block print:p-0 print:border-none print:shadow-none print:rounded-none">
           <div>
             <DocumentHeader pageNum={maintenancePageNum} totalPages={totalPdfPages} />
             <h2 className="text-xl font-black uppercase tracking-tight text-slate-950 sm:text-2xl">
@@ -1334,19 +1334,19 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
             </h2>
             <div className="mb-5 mt-3 h-1 w-16 bg-amber-500" />
 
-            <p className="mb-5 text-xs leading-relaxed text-slate-700 sm:text-sm">
+            <p className="mb-5 text-xs leading-relaxed text-slate-900 font-medium sm:text-sm">
               Visando assegurar a longevidade dos serviços executados, a preservação do patrimônio
               e a vigência contínua da garantia técnica, o condomínio deverá observar as diretrizes
               básicas do Manual de Uso, Operação e Manutenção da Edificação (em conformidade com a
               ABNT NBR 5674):
             </p>
 
-            <div className="space-y-3.5 text-[11px] leading-relaxed text-slate-700 sm:text-xs">
-              <section className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                <h3 className="mb-1.5 font-extrabold uppercase tracking-wide text-slate-950">
+            <div className="space-y-3.5 text-[11px] leading-relaxed text-slate-900 font-medium sm:text-xs">
+              <section className="rounded-xl border border-slate-300 bg-slate-100 p-4 shadow-xs">
+                <h3 className="mb-1.5 font-black uppercase tracking-wide text-slate-950">
                   1. Inspeções e Vistorias Periódicas
                 </h3>
-                <ul className="list-disc space-y-1 pl-5">
+                <ul className="list-disc space-y-1 pl-5 text-slate-800">
                   <li>
                     Realização de inspeções visuais anuais nas áreas intervencionadas para
                     identificação precoce de eventuais desgastes por intempéries, fissuração ou
@@ -1360,11 +1360,11 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
                 </ul>
               </section>
 
-              <section className="rounded-xl border border-sky-200 bg-sky-50/50 p-4">
-                <h3 className="mb-1.5 font-extrabold uppercase tracking-wide text-slate-950">
+              <section className="rounded-xl border border-sky-300 bg-sky-50/70 p-4 shadow-xs">
+                <h3 className="mb-1.5 font-black uppercase tracking-wide text-slate-950">
                   2. Diretrizes para Limpeza e Conservação
                 </h3>
-                <ul className="list-disc pl-5">
+                <ul className="list-disc pl-5 text-slate-800">
                   <li>
                     A limpeza e higienização periódica das áreas recuperadas devem ser executadas
                     com produtos neutros e adequados ao substrato, evitando rigorosamente o uso de
@@ -1374,11 +1374,11 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
                 </ul>
               </section>
 
-              <section className="rounded-xl border border-amber-200 bg-amber-50/50 p-4">
-                <h3 className="mb-1.5 font-extrabold uppercase tracking-wide text-slate-950">
+              <section className="rounded-xl border border-amber-300 bg-amber-50/70 p-4 shadow-xs">
+                <h3 className="mb-1.5 font-black uppercase tracking-wide text-slate-950">
                   3. Interferências e Instalações de Terceiros
                 </h3>
-                <ul className="list-disc pl-5">
+                <ul className="list-disc pl-5 text-slate-800">
                   <li>
                     Quaisquer novas instalações ou intervenções posteriores (como furações,
                     fixações de equipamentos, antenas ou elementos suspensos) nas áreas reformadas
@@ -1389,12 +1389,12 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
                 </ul>
               </section>
 
-              <section className="rounded-xl border border-emerald-300 bg-emerald-50/60 p-4">
-                <h3 className="mb-1.5 flex items-center gap-1.5 font-extrabold uppercase tracking-wide text-emerald-950">
+              <section className="rounded-xl border border-emerald-400 bg-emerald-50/80 p-4 shadow-xs">
+                <h3 className="mb-1.5 flex items-center gap-1.5 font-black uppercase tracking-wide text-emerald-950">
                   <ShieldCheck className="h-4 w-4 shrink-0 text-emerald-700" />
                   4. Termo de Garantia Quinquenal (05 Anos)
                 </h3>
-                <ul className="list-disc pl-5">
+                <ul className="list-disc pl-5 text-slate-900">
                   <li>
                     A Renovar SC assegura garantia técnica integral de 05 (cinco) anos para a
                     solidez e estabilidade dos elementos estruturais e revestimentos executados,
@@ -1408,7 +1408,7 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
             </div>
           </div>
 
-          <div className="mt-6 border-t border-slate-200 pt-4 text-xs font-mono text-slate-600">
+          <div className="mt-6 border-t border-slate-300 pt-4 text-xs font-mono text-slate-700 font-semibold">
             RENOVAR SC — Soluções Prediais • CREA/SC: 105.402-1
           </div>
         </section>
