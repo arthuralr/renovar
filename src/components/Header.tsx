@@ -25,10 +25,7 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-lg font-bold tracking-tight text-white font-mono">PATOLOGIAS<span className="text-amber-400">.LAB</span></span>
-              <span className="hidden sm:inline-flex text-[11px] font-semibold px-2 py-0.5 rounded-full bg-slate-800 text-amber-300 border border-amber-500/30">
-                ABNT NBR 16747
-              </span>
+              <span className="text-lg font-bold tracking-tight text-white font-mono">RENOVAR</span>
             </div>
             <p className="text-xs text-slate-400 hidden sm:block">
               Perícia de Fachadas, Recuperação Estrutural e Engenharia Diagnóstica
