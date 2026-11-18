@@ -230,6 +230,7 @@ export function montarPayloadOrcamentoWebhook(params: EnviarOrcamentoWebhookPara
       percentualSaldo: parcelamento.percentualSaldo,
       parcelasSaldo: parcelamento.parcelasSaldo,
       frequenciaSaldo: parcelamento.frequenciaSaldo,
+      carenciaPrimeiraParcelaDias: parcelamento.carenciaPrimeiraParcelaDias,
       valorSaldoTotal: parcelamento.valorSaldoTotal,
       valorSaldoTotalFormatado: formatarMoeda(parcelamento.valorSaldoTotal),
       valorParcelaSaldo: parcelamento.valorParcelaSaldo,

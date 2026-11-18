@@ -19,6 +19,10 @@ import {
   RotateCcw,
   MessageCircle,
   Loader2,
+  Tag,
+  Check,
+  Plus,
+  Clock,
 } from 'lucide-react';
 import {
   DadosCliente,
@@ -31,6 +35,7 @@ import {
   formatarMoeda,
   calcularParcelamentoComercial,
   CONDICOES_COMERCIAIS_PADRAO,
+  TAGS_CONDICOES_ESPECIAIS,
 } from '../utils/budgetCalculator';
 import { gerarLinkWhatsAppOrcamento } from '../utils/orcamentoKanbanUtils';
 import { downloadProposalPdf } from '../utils/pdfGenerator';
@@ -68,6 +73,20 @@ export const Step4Resumo: React.FC<Step4ResumoProps> = ({
   const [isDownloadingWhatsAppPdf, setIsDownloadingWhatsAppPdf] = useState(false);
   const [isConcluding, setIsConcluding] = useState(false);
   const [conclusionMessage, setConclusionMessage] = useState<string | null>(null);
+
+  const handleToggleTagObservacao = (textoTag: string) => {
+    const atual = condicoesComerciais.observacoesFaturamento || '';
+    if (atual.includes(textoTag)) {
+      // Remove a tag e limpa quebras/marcadores restantes
+      const regex = new RegExp(`(\\n*•\\s*)?${textoTag.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 'g');
+      const nova = atual.replace(regex, '').trim();
+      onUpdateCondicoesComerciais({ observacoesFaturamento: nova });
+    } else {
+      // Adiciona a tag com marcador •
+      const separador = atual.trim() ? '\n• ' : '• ';
+      onUpdateCondicoesComerciais({ observacoesFaturamento: atual.trim() + separador + textoTag });
+    }
+  };
 
   const handleCompartilharWhatsAppAtual = async () => {
     const url = gerarLinkWhatsAppOrcamento({
@@ -506,7 +525,7 @@ export const Step4Resumo: React.FC<Step4ResumoProps> = ({
         </div>
 
         {/* Editable Fields Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 text-xs">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 text-xs">
           {/* 1. Percentual de Entrada */}
           <div className="p-4 rounded-xl bg-slate-950/90 border border-slate-800 space-y-2">
             <label className="block font-bold text-slate-200 uppercase font-mono text-[11px]">
@@ -625,10 +644,59 @@ export const Step4Resumo: React.FC<Step4ResumoProps> = ({
             </div>
           </div>
 
-          {/* 4. Forma de Pagamento */}
+          {/* 4. Carência / Prazo para o 1º Vencimento do Saldo */}
+          <div className="p-4 rounded-xl bg-slate-950/90 border border-slate-800 space-y-2">
+            <div className="flex items-center justify-between gap-1">
+              <label className="block font-bold text-slate-200 uppercase font-mono text-[11px]">
+                4. 1º Vencimento (Carência):
+              </label>
+              <div className="flex items-center gap-1 shrink-0">
+                {[15, 30, 45, 60].map((dias) => (
+                  <button
+                    key={dias}
+                    type="button"
+                    onClick={() => onUpdateCondicoesComerciais({ carenciaPrimeiraParcelaDias: dias })}
+                    className={`px-1.5 py-0.5 rounded text-[10px] font-mono transition cursor-pointer ${
+                      (condicoesComerciais.carenciaPrimeiraParcelaDias ?? 30) === dias
+                        ? 'bg-amber-500 text-slate-950 font-bold'
+                        : 'bg-slate-900 text-slate-400 hover:text-white border border-slate-700'
+                    }`}
+                  >
+                    {dias}d
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="number"
+                min="0"
+                max="180"
+                step="1"
+                value={condicoesComerciais.carenciaPrimeiraParcelaDias ?? 30}
+                onChange={(e) =>
+                  onUpdateCondicoesComerciais({
+                    carenciaPrimeiraParcelaDias: Math.max(0, Math.round(Number(e.target.value) || 0)),
+                  })
+                }
+                className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 font-mono font-bold text-sm text-amber-400 focus:outline-none focus:border-amber-400"
+              />
+              <span className="font-mono text-slate-400">dias</span>
+            </div>
+            <div className="text-[11px] font-mono text-slate-400 pt-1 border-t border-slate-800/80">
+              1ª parcela do saldo:{' '}
+              <strong className="text-slate-200 block text-xs">
+                {(condicoesComerciais.carenciaPrimeiraParcelaDias ?? 30) === 0
+                  ? 'No ato do início'
+                  : `Em ${condicoesComerciais.carenciaPrimeiraParcelaDias ?? 30} dias após início`}
+              </strong>
+            </div>
+          </div>
+
+          {/* 5. Forma de Pagamento */}
           <div className="p-4 rounded-xl bg-slate-950/90 border border-slate-800 space-y-2">
             <label className="block font-bold text-slate-200 uppercase font-mono text-[11px]">
-              4. Modalidade de Pagamento:
+              5. Meio de Pagamento:
             </label>
             <input
               type="text"
@@ -647,10 +715,10 @@ export const Step4Resumo: React.FC<Step4ResumoProps> = ({
             </div>
           </div>
 
-          {/* 5. Validade da Proposta */}
+          {/* 6. Validade da Proposta */}
           <div className="p-4 rounded-xl bg-slate-950/90 border border-slate-800 space-y-2">
             <label className="block font-bold text-slate-200 uppercase font-mono text-[11px]">
-              5. Validade da Proposta:
+              6. Validade da Proposta:
             </label>
             <div className="flex items-center gap-2">
               <input
@@ -693,13 +761,51 @@ export const Step4Resumo: React.FC<Step4ResumoProps> = ({
                 {parcelamento.parcelasSaldo}x parcelas {condicoesComerciais.frequenciaSaldo === 'quinzenal' ? 'quinzenais' : 'mensais'} de{' '}
                 {formatarMoeda(parcelamento.valorParcelaSaldo)}
               </strong>{' '}
-              ({condicoesComerciais.frequenciaSaldo === 'quinzenal' ? 'a cada 15 dias' : 'a cada 30 dias'})
+              ({condicoesComerciais.frequenciaSaldo === 'quinzenal' ? 'a cada 15 dias' : 'a cada 30 dias'} • 1º vencimento em {parcelamento.carenciaPrimeiraParcelaDias || 30} dias)
               .
             </p>
           </div>
           <span className="font-mono text-[11px] text-amber-400 shrink-0 font-bold">
             Total: {formatarMoeda(calculos.valorGlobal)}
           </span>
+        </div>
+
+        {/* Tags de Condições Especiais Rápidas */}
+        <div className="space-y-2 pt-2 border-t border-slate-800">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+            <label className="text-xs font-bold text-slate-200 flex items-center gap-2 uppercase font-mono">
+              <Tag className="w-3.5 h-3.5 text-amber-400" />
+              <span>Tags de Condições Especiais Rápidas (Clique para Inserir/Remover):</span>
+            </label>
+            <span className="text-[11px] text-slate-400">
+              Insere cláusulas contratuais padronizadas diretamente no campo de observações
+            </span>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {TAGS_CONDICOES_ESPECIAIS.map((tag) => {
+              const estaAtiva = (condicoesComerciais.observacoesFaturamento || '').includes(tag.texto);
+              return (
+                <button
+                  key={tag.id}
+                  type="button"
+                  onClick={() => handleToggleTagObservacao(tag.texto)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition cursor-pointer flex items-center gap-1.5 border ${
+                    estaAtiva
+                      ? 'bg-amber-500/20 text-amber-300 border-amber-500/60 shadow-xs'
+                      : 'bg-slate-950 hover:bg-slate-800 text-slate-300 border-slate-800 hover:border-slate-700'
+                  }`}
+                  title={tag.texto}
+                >
+                  {estaAtiva ? (
+                    <Check className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                  ) : (
+                    <Plus className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                  )}
+                  <span>{tag.label}</span>
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         {/* Editable Billing Observations */}

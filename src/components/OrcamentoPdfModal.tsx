@@ -1139,8 +1139,8 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
                 <span className="text-slate-800 font-bold">Validade: {validadeDias} dias</span>
               </h3>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 mb-2.5 text-xs font-mono">
-                <div className="p-3 bg-white border border-slate-300 rounded-lg shadow-xs">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-2.5 text-xs font-mono">
+                <div className="p-2.5 bg-white border border-slate-300 rounded-lg shadow-xs">
                   <span className="text-[10px] font-black uppercase text-slate-700 block">
                     Entrada / Mobilização ({parcelamento.percentualEntrada}%)
                   </span>
@@ -1154,9 +1154,9 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
                   </span>
                 </div>
 
-                <div className="p-3 bg-white border border-slate-300 rounded-lg shadow-xs">
+                <div className="p-2.5 bg-white border border-slate-300 rounded-lg shadow-xs">
                   <span className="text-[10px] font-black uppercase text-slate-700 block">
-                    Saldo Remanescente ({parcelamento.percentualSaldo}%)
+                    Saldo Restante ({parcelamento.percentualSaldo}%)
                   </span>
                   <span className="text-sm font-black text-slate-950 block mt-0.5">
                     {formatarMoeda(parcelamento.valorSaldoTotal)}
@@ -1167,16 +1167,30 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
                   </span>
                 </div>
 
-                <div className="p-3 bg-white border border-slate-300 rounded-lg shadow-xs">
+                <div className="p-2.5 bg-white border border-slate-300 rounded-lg shadow-xs">
                   <span className="text-[10px] font-black uppercase text-slate-700 block">
-                    Modalidade de Faturamento
+                    1º Vencimento / Carência
+                  </span>
+                  <span className="text-sm font-black text-slate-950 block mt-0.5">
+                    {(parcelamento.carenciaPrimeiraParcelaDias ?? 30) === 0
+                      ? 'No ato do início'
+                      : `${parcelamento.carenciaPrimeiraParcelaDias ?? 30} dias`}
+                  </span>
+                  <span className="text-[10px] text-slate-700 font-bold block mt-0.5">
+                    Após início / assinatura
+                  </span>
+                </div>
+
+                <div className="p-2.5 bg-white border border-slate-300 rounded-lg shadow-xs">
+                  <span className="text-[10px] font-black uppercase text-slate-700 block">
+                    Modalidade / Emissão
                   </span>
                   <span className="text-xs font-black text-slate-950 block mt-0.5 leading-snug">
                     {condicoesComerciais.formaPagamento ||
-                      'Boleto Bancário Registrado / PIX / TED'}
+                      'Boleto Bancário / PIX / TED'}
                   </span>
                   <span className="text-[10px] text-emerald-950 font-bold block mt-0.5">
-                    Emissão de Nota Fiscal (NF-e)
+                    Emissão c/ NF-e e Medição
                   </span>
                 </div>
               </div>
@@ -1187,7 +1201,7 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
                 </div>
                 <p className="leading-relaxed whitespace-pre-line text-slate-900 font-medium">
                   {condicoesComerciais.observacoesFaturamento?.trim() ||
-                    `Sinal de ${parcelamento.percentualEntrada}% (${formatarMoeda(parcelamento.valorEntradaTotal)}) na assinatura do contrato para compra antecipada de materiais e mobilização inicial. O saldo remanescente de ${parcelamento.percentualSaldo}% (${formatarMoeda(parcelamento.valorSaldoTotal)}) será faturado em ${parcelamento.parcelasSaldo} parcelas ${parcelamento.frequenciaSaldo === 'quinzenal' ? 'quinzenais (vencimentos a cada 15 dias)' : 'mensais (vencimentos a cada 30 dias)'} de ${formatarMoeda(parcelamento.valorParcelaSaldo)} vinculadas aos laudos de medição de evolução física aprovados pela gestão condominial.`}
+                    `Sinal de ${parcelamento.percentualEntrada}% (${formatarMoeda(parcelamento.valorEntradaTotal)}) na assinatura do contrato para compra antecipada de materiais e mobilização inicial. O saldo remanescente de ${parcelamento.percentualSaldo}% (${formatarMoeda(parcelamento.valorSaldoTotal)}) será faturado em ${parcelamento.parcelasSaldo} parcelas ${parcelamento.frequenciaSaldo === 'quinzenal' ? 'quinzenais (vencimentos a cada 15 dias)' : 'mensais (vencimentos a cada 30 dias)'} de ${formatarMoeda(parcelamento.valorParcelaSaldo)}, com prazo de carência para o 1º vencimento em ${parcelamento.carenciaPrimeiraParcelaDias ?? 30} dias após a assinatura/início da obra, vinculadas aos laudos de medição de evolução física aprovados pela gestão condominial.`}
                 </p>
               </div>
             </div>

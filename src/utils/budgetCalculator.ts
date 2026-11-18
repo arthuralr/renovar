@@ -1,14 +1,54 @@
 import { ItemMaterial, CargoProfissional, CalculosOrcamento, CondicoesComerciais } from '../types';
 
+export interface TagCondicaoEspecial {
+  id: string;
+  label: string;
+  texto: string;
+}
+
+export const TAGS_CONDICOES_ESPECIAIS: TagCondicaoEspecial[] = [
+  {
+    id: 'retencao_5',
+    label: 'Retenção Técnica 5%',
+    texto: 'Retenção técnica de 5% sobre cada medição, a ser liberada após a emissão do termo de entrega e vistoria final.',
+  },
+  {
+    id: 'aprovacao_sindico',
+    label: 'Aprovação pelo Síndico',
+    texto: 'Faturamento de cada medição condicionado à aprovação formal do laudo físico pela gestão condominial.',
+  },
+  {
+    id: 'medicao_fisica',
+    label: 'Relatório Fotográfico',
+    texto: 'Faturamento condicionado à apresentação de relatório fotográfico técnico comprovando a evolução física executada.',
+  },
+  {
+    id: 'prazo_inicio',
+    label: 'Início em 10 dias úteis',
+    texto: 'Início e mobilização dos serviços em até 10 dias úteis após a compensação do sinal e assinatura do contrato.',
+  },
+  {
+    id: 'sem_reajuste',
+    label: 'Sem Reajuste',
+    texto: 'Valores globais fixos e irreajustáveis durante todo o prazo previsto no cronograma físico de execução.',
+  },
+  {
+    id: 'retencao_tributaria',
+    label: 'Retenção na Fonte (INSS/ISS)',
+    texto: 'Emissão de Nota Fiscal (NF-e) com destaque e retenção de encargos (INSS/ISS) na fonte conforme exigência legal.',
+  },
+];
+
 export const CONDICOES_COMERCIAIS_PADRAO: CondicoesComerciais = {
   percentualEntrada: 20,
   parcelasEntrada: 1,
   parcelasSaldo: 4,
   frequenciaSaldo: 'mensal',
+  carenciaPrimeiraParcelaDias: 30,
   formaPagamento: 'Boleto Bancário Registrado / PIX Corporativo / Transferência TED',
   prazoValidadeDias: 30,
   observacoesFaturamento:
-    'Sinal na assinatura do contrato para compra antecipada de materiais e mobilização inicial de canteiro e equipamentos. O saldo remanescente será faturado em parcelas mensais mediante emissão de Nota Fiscal Eletrônica (NF-e), vinculadas aos laudos de medição de evolução física aprovados pela administração e comissão de obras.',
+    'Sinal na assinatura do contrato para compra antecipada de materiais e mobilização inicial de canteiro e equipamentos. O saldo remanescente será faturado em parcelas mensais mediante emissão de Nota Fiscal Eletrônica (NF-e), com primeiro vencimento em 30 dias após o início dos serviços, vinculadas aos laudos de medição de evolução física aprovados pela administração e comissão de obras.',
 };
 
 export function calcularParcelamentoComercial(
@@ -20,6 +60,10 @@ export function calcularParcelamentoComercial(
   const qtdParcelasEntrada = Math.max(1, Math.round(Number(condicoes.parcelasEntrada) || 1));
   const qtdParcelasSaldo = Math.max(1, Math.round(Number(condicoes.parcelasSaldo) || 1));
   const frequenciaSaldo = condicoes.frequenciaSaldo === 'quinzenal' ? 'quinzenal' : 'mensal';
+  const carenciaPrimeiraParcelaDias =
+    typeof condicoes.carenciaPrimeiraParcelaDias === 'number'
+      ? Math.max(0, Math.round(condicoes.carenciaPrimeiraParcelaDias))
+      : (frequenciaSaldo === 'quinzenal' ? 15 : 30);
 
   const valorEntradaTotal = total * (pctEntrada / 100);
   const valorParcelaEntrada = valorEntradaTotal / qtdParcelasEntrada;
@@ -42,6 +86,7 @@ export function calcularParcelamentoComercial(
     valorSaldoTotal,
     valorParcelaSaldo,
     frequenciaSaldo,
+    carenciaPrimeiraParcelaDias,
     periodicidadeDias,
     periodicidadeTexto,
     periodicidadeSingular,

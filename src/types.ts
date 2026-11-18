@@ -101,6 +101,7 @@ export interface CondicoesComerciais {
   parcelasEntrada: number; // ex: 1 (à vista) ou mais parcelas de entrada
   parcelasSaldo: number; // ex: 4 parcelas do saldo restante
   frequenciaSaldo?: FrequenciaSaldo; // 'mensal' (padrão) ou 'quinzenal'
+  carenciaPrimeiraParcelaDias?: number; // Prazo de carência para o 1º vencimento do saldo (ex: 30, 45, 60 dias)
   formaPagamento: string; // ex: 'Boleto Bancário Registrado / PIX / TED'
   prazoValidadeDias: number; // ex: 30 dias
   observacoesFaturamento: string; // Observações customizadas de faturamento e medição

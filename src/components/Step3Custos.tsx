@@ -15,6 +15,8 @@ import {
   HardHat,
   CreditCard,
   FileText,
+  Tag,
+  Check,
 } from 'lucide-react';
 import {
   ItemMaterial,
@@ -26,6 +28,7 @@ import {
   formatarMoeda,
   MATERIAIS_PADRAO,
   calcularParcelamentoComercial,
+  TAGS_CONDICOES_ESPECIAIS,
 } from '../utils/budgetCalculator';
 
 interface Step3CustosProps {
@@ -64,6 +67,19 @@ export const Step3Custos: React.FC<Step3CustosProps> = ({
   onPrev,
 }) => {
   const parcelamento = calcularParcelamentoComercial(calculos.valorGlobal, condicoesComerciais);
+
+  const handleToggleTagObservacao = (textoTag: string) => {
+    const atual = condicoesComerciais.observacoesFaturamento || '';
+    if (atual.includes(textoTag)) {
+      const regex = new RegExp(`(\\n*•\\s*)?${textoTag.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 'g');
+      const nova = atual.replace(regex, '').trim();
+      onUpdateCondicoesComerciais({ observacoesFaturamento: nova });
+    } else {
+      const separador = atual.trim() ? '\n• ' : '• ';
+      onUpdateCondicoesComerciais({ observacoesFaturamento: atual.trim() + separador + textoTag });
+    }
+  };
+
   // Add new material row
   const handleAddMaterial = () => {
     const novoItem: ItemMaterial = {
@@ -610,7 +626,7 @@ export const Step3Custos: React.FC<Step3CustosProps> = ({
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-xs">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3.5 text-xs">
           {/* Percentual de Entrada */}
           <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-1.5">
             <label className="block font-semibold text-slate-300">
@@ -668,7 +684,7 @@ export const Step3Custos: React.FC<Step3CustosProps> = ({
           <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-1.5">
             <div className="flex items-center justify-between gap-1">
               <label className="block font-semibold text-slate-300 text-xs">
-                Parcelas {condicoesComerciais.frequenciaSaldo === 'quinzenal' ? 'Quinzenais' : 'Mensais'} do Saldo ({parcelamento.percentualSaldo}%):
+                Parcelas {condicoesComerciais.frequenciaSaldo === 'quinzenal' ? 'Quinzenais' : 'Mensais'} ({parcelamento.percentualSaldo}%):
               </label>
               <div className="flex items-center bg-slate-900 border border-slate-700 p-0.5 rounded-lg text-[10px] font-mono shrink-0">
                 <button
@@ -719,6 +735,55 @@ export const Step3Custos: React.FC<Step3CustosProps> = ({
             </div>
           </div>
 
+          {/* Carência / 1º Vencimento do Saldo */}
+          <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-1.5">
+            <div className="flex items-center justify-between gap-1">
+              <label className="block font-semibold text-slate-300 text-xs">
+                1º Vencimento (Carência):
+              </label>
+              <div className="flex items-center gap-1 shrink-0">
+                {[15, 30, 45, 60].map((dias) => (
+                  <button
+                    key={dias}
+                    type="button"
+                    onClick={() => onUpdateCondicoesComerciais({ carenciaPrimeiraParcelaDias: dias })}
+                    className={`px-1.5 py-0.5 rounded text-[10px] font-mono transition cursor-pointer ${
+                      (condicoesComerciais.carenciaPrimeiraParcelaDias ?? 30) === dias
+                        ? 'bg-amber-500 text-slate-950 font-bold'
+                        : 'bg-slate-900 text-slate-400 hover:text-white border border-slate-700'
+                    }`}
+                  >
+                    {dias}d
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="number"
+                min="0"
+                max="180"
+                step="1"
+                value={condicoesComerciais.carenciaPrimeiraParcelaDias ?? 30}
+                onChange={(e) =>
+                  onUpdateCondicoesComerciais({
+                    carenciaPrimeiraParcelaDias: Math.max(0, Math.round(Number(e.target.value) || 0)),
+                  })
+                }
+                className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 font-mono font-bold text-amber-400 focus:outline-none focus:border-amber-400"
+              />
+              <span className="font-mono text-slate-400 text-xs">dias</span>
+            </div>
+            <div className="text-[11px] font-mono text-slate-400">
+              1º Vencimento:{' '}
+              <strong className="text-slate-200">
+                {(condicoesComerciais.carenciaPrimeiraParcelaDias ?? 30) === 0
+                  ? 'No início'
+                  : `Em ${condicoesComerciais.carenciaPrimeiraParcelaDias ?? 30} dias`}
+              </strong>
+            </div>
+          </div>
+
           {/* Modalidade / Meio de Pagamento */}
           <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-1.5">
             <label className="block font-semibold text-slate-300">
@@ -736,6 +801,42 @@ export const Step3Custos: React.FC<Step3CustosProps> = ({
             <div className="text-[11px] font-mono text-slate-400">
               Saldo: <strong className="text-slate-200">{formatarMoeda(parcelamento.valorSaldoTotal)}</strong>
             </div>
+          </div>
+        </div>
+
+        {/* Tags de Condições Especiais Rápidas */}
+        <div className="space-y-1.5 pt-1">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-mono text-slate-400 flex items-center gap-1.5">
+              <Tag className="w-3.5 h-3.5 text-amber-400" />
+              <span>Inserção Rápida de Cláusulas Contratuais:</span>
+            </span>
+            <span className="text-[10px] text-slate-500">Clique para adicionar ou remover</span>
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {TAGS_CONDICOES_ESPECIAIS.map((tag) => {
+              const estaAtiva = (condicoesComerciais.observacoesFaturamento || '').includes(tag.texto);
+              return (
+                <button
+                  key={tag.id}
+                  type="button"
+                  onClick={() => handleToggleTagObservacao(tag.texto)}
+                  className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition cursor-pointer flex items-center gap-1.5 border ${
+                    estaAtiva
+                      ? 'bg-amber-500/20 text-amber-300 border-amber-500/60 shadow-xs'
+                      : 'bg-slate-950 hover:bg-slate-800 text-slate-300 border-slate-800 hover:border-slate-700'
+                  }`}
+                  title={tag.texto}
+                >
+                  {estaAtiva ? (
+                    <Check className="w-3 h-3 text-amber-400 shrink-0" />
+                  ) : (
+                    <span className="text-slate-500 font-bold">+</span>
+                  )}
+                  <span>{tag.label}</span>
+                </button>
+              );
+            })}
           </div>
         </div>
 
