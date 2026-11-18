@@ -28,6 +28,12 @@ import {
   Wrench,
   BookOpen,
   MessageCircle,
+  Shield,
+  Briefcase,
+  Users,
+  Compass,
+  CheckSquare,
+  TrendingUp,
 } from 'lucide-react';
 import {
   DadosCliente,
@@ -52,6 +58,7 @@ import {
   obterConfigEtapaKanban,
   gerarLinkWhatsAppOrcamento,
 } from '../utils/orcamentoKanbanUtils';
+import { RENOVAR_INSTITUCIONAL } from '../data/conteudoInstitucionalRenovar';
 
 interface OrcamentoPdfModalProps {
   isOpen: boolean;
@@ -143,11 +150,12 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
   }, [diagnostico, selectedImage, historico]);
 
   const photoPageCount = Math.max(1, inspectionsList.length);
-  const methodologyPageNum = 7 + photoPageCount;
+  const methodologyPageNum = 5 + photoPageCount;
   const costsPageNum = methodologyPageNum + 1;
   const finalPageNum = costsPageNum + 1;
   const maintenancePageNum = finalPageNum + 1;
-  const totalPdfPages = maintenancePageNum;
+  const institutionalStartPageNum = maintenancePageNum + 1;
+  const totalPdfPages = institutionalStartPageNum + 12; // 13 páginas institucionais completas
 
   const dataAtualExtenso = new Date().toLocaleDateString('pt-BR', {
     day: '2-digit',
@@ -337,6 +345,33 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
               <X className="w-5 h-5" />
             </button>
           </div>
+
+          <div className="w-full flex flex-wrap items-center justify-between border-t border-slate-800/80 pt-2.5 mt-1 gap-2 text-xs">
+            <div className="flex items-center gap-2 text-slate-300 font-mono text-[11px]">
+              <span className="text-amber-400 font-bold">Documento Unificado:</span>
+              <span>{totalPdfPages} páginas (Proposta Comercial do Condomínio + Dossiê Institucional RenovarSC)</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  document.getElementById('caderno-proposta')?.scrollIntoView({ behavior: 'smooth' });
+                }}
+                className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-[11px] font-semibold border border-slate-700 transition cursor-pointer"
+              >
+                1. Proposta do Condomínio (Pág. 1-{maintenancePageNum})
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  document.getElementById('caderno-dossie-institucional')?.scrollIntoView({ behavior: 'smooth' });
+                }}
+                className="px-2.5 py-1 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 rounded-lg text-[11px] font-semibold border border-amber-500/40 transition cursor-pointer"
+              >
+                2. Dossiê Institucional (13 Páginas)
+              </button>
+            </div>
+          </div>
         </header>
       )}
 
@@ -344,6 +379,8 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
         id="pdf-content"
         className="print-document-container w-full max-w-4xl space-y-8 print:w-full print:max-w-none print:m-0 print:p-0 print:space-y-0 print:block"
       >
+        <div id="caderno-proposta" className="no-print hidden" />
+
         {/* PÁGINA 1 */}
         <section className="print-document-sheet page-break-after bg-white text-slate-900 shadow-2xl rounded-2xl p-8 sm:p-14 min-h-[1050px] flex flex-col justify-between border border-slate-300 relative overflow-hidden print:min-h-0 print:h-auto print:max-h-none print:overflow-visible print:block print:p-0 print:border-none print:shadow-none print:rounded-none">
           <div className="flex items-center justify-between gap-5 border-b-2 border-slate-900 pb-5">
@@ -486,106 +523,10 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
           </div>
         </section>
 
-        {/* PÁGINA 3 */}
-        <section className="print-document-sheet page-break-after bg-white text-slate-900 shadow-2xl rounded-2xl p-8 sm:p-14 min-h-[1050px] border border-slate-300 flex flex-col justify-between print:min-h-0 print:h-auto print:max-h-none print:overflow-visible print:block print:p-0 print:border-none print:shadow-none print:rounded-none">
-          <div>
-            <DocumentHeader pageNum={3} totalPages={totalPdfPages} />
-
-            <h2 className="text-2xl font-black text-slate-950 uppercase tracking-tight mb-2">
-              Apresentação Institucional — Renovar SC e Cultura Organizacional
-            </h2>
-            <div className="w-16 h-1 bg-amber-500 mb-6" />
-
-            <div className="text-xs sm:text-sm text-slate-900 font-medium leading-relaxed space-y-5 text-justify">
-              <p>
-                A <strong className="text-slate-950 font-extrabold">Renovar SC - Soluções Prediais</strong> é uma empresa especializada em
-                recuperação, revitalização e requalificação de edificações, com atuação focada em
-                obras prediais de médio e alto padrão técnico. Ao longo dos anos, consolidamos
-                nossa atuação por meio de uma metodologia estruturada, controle rigoroso de
-                qualidade e compromisso absoluto com desempenho, segurança e durabilidade.
-              </p>
-              <p>
-                Nossa empresa nasceu com um propósito claro: elevar o padrão de execução das
-                reformas prediais, substituindo práticas improvisadas por processos técnicos bem
-                definidos, planejamento detalhado e acompanhamento constante em campo.
-              </p>
-              <p>
-                A gestão operacional é conduzida de maneira direta e ativa. Os sócios da empresa
-                participam também do operacional da obra, garantindo presença constante, tomada de
-                decisão ágil e alinhamento técnico com a equipe de campo. Esse modelo reduz falhas,
-                aumenta eficiência e assegura padrão elevado de execução.
-              </p>
-            </div>
-          </div>
-
-          <div className="mt-8 border-t border-slate-300 pt-4 text-xs font-mono text-slate-700 font-semibold">
-            CREA/SC: 105.402-1 • Gestão direta dos sócios • Renovar SC — Soluções Prediais
-          </div>
-        </section>
-
-        {/* PÁGINA 4 (Pilar com fundo 100% branco) */}
-        <section className="print-document-sheet page-break-after bg-white text-slate-900 shadow-2xl rounded-2xl p-8 sm:p-14 min-h-[1050px] border border-slate-300 flex flex-col justify-between print:min-h-0 print:h-auto print:max-h-none print:overflow-visible print:block print:p-0 print:border-none print:shadow-none print:rounded-none">
-          <div>
-            <DocumentHeader pageNum={4} totalPages={totalPdfPages} />
-            <h2 className="text-2xl font-black text-slate-950 uppercase tracking-tight mb-2">
-              Os Três Pilares Inegociáveis da Renovar
-            </h2>
-            <div className="w-16 h-1 bg-amber-500 mb-7" />
-
-            <div className="space-y-5 text-xs leading-relaxed text-slate-900 font-medium sm:text-sm">
-              <article className="rounded-xl border border-slate-300 bg-white p-5 shadow-sm">
-                <h3 className="mb-2 font-black uppercase text-slate-950 text-sm">
-                  1. Segurança acima de tudo
-                </h3>
-                <p className="text-slate-800">
-                  A segurança dos colaboradores, moradores, síndicos e visitantes é prioridade
-                  absoluta. Toda atividade é executada com uso obrigatório de Equipamentos de
-                  Proteção Individual (EPIs) adequados à função desempenhada. A empresa mantém
-                  fiscalização interna rigorosa quanto ao cumprimento das normas regulamentadoras
-                  aplicáveis, especialmente a NR-18 (Condições e Meio Ambiente de Trabalho na
-                  Indústria da Construção) e a NR-35 (Trabalho em Altura). Não há flexibilização
-                  quanto às normas de segurança.
-                </p>
-              </article>
-
-              <article className="rounded-xl border border-slate-300 bg-white p-5 shadow-sm">
-                <h3 className="mb-2 font-black uppercase text-slate-950 text-sm">
-                  2. Qualidade como padrão mínimo
-                </h3>
-                <p className="text-slate-800">
-                  Na Renovar, qualidade não é diferencial competitivo, é requisito básico. Cada
-                  etapa da obra segue critérios técnicos previamente definidos. Não suprimimos
-                  processos, não utilizamos soluções improvisadas e não entregamos serviços
-                  inacabados. Trabalhamos com materiais adequados ao sistema construtivo existente
-                  e aplicamos metodologias compatíveis com as normas técnicas vigentes.
-                </p>
-              </article>
-
-              <article className="rounded-xl border border-slate-300 bg-white p-5 shadow-sm">
-                <h3 className="mb-2 font-black uppercase text-slate-950 text-sm">
-                  3. Respeito no dia a dia da obra
-                </h3>
-                <p className="text-slate-800">
-                  Entendemos que uma reforma predial ocorre dentro do ambiente onde famílias vivem.
-                  Por isso, postura profissional é inegociável. Todos os colaboradores são
-                  orientados a manter comportamento respeitoso com síndicos, moradores, zeladores,
-                  idosos, mulheres e crianças. Preservamos áreas comuns, mantemos organização do
-                  canteiro e reduzimos impactos operacionais sempre que possível. Comunicação
-                  clara e transparente faz parte da nossa rotina.
-                </p>
-              </article>
-            </div>
-          </div>
-
-          <div className="mt-8 border-t border-slate-300 pt-4 text-xs font-mono text-slate-700 font-semibold">
-            CREA/SC: 105.402-1 • Segurança • Qualidade • Respeito
-          </div>
-        </section>
-
-        {/* PÁGINA 5 */}
+        {/* PÁGINA 3 — MEMORIAL DESCRITIVO DE MATERIAIS */}
         <section className="print-document-sheet page-break-after bg-white text-slate-900 shadow-2xl rounded-2xl p-7 sm:p-11 min-h-[1050px] border border-slate-300 flex flex-col justify-between print:min-h-0 print:h-auto print:max-h-none print:overflow-visible print:block print:p-0 print:border-none print:shadow-none print:rounded-none">
           <div>
-            <DocumentHeader pageNum={5} totalPages={totalPdfPages} />
+            <DocumentHeader pageNum={3} totalPages={totalPdfPages} />
             <h2 className="text-xl font-black uppercase tracking-tight text-slate-950 sm:text-2xl">
               Memorial Descritivo de Materiais de Alta Performance e Marcas Homologadas
             </h2>
@@ -668,10 +609,10 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
           </div>
         </section>
 
-        {/* PÁGINA 6 (Checklist com fundo 100% branco) */}
+        {/* PÁGINA 4 — CONFORMIDADE DOCUMENTAL E CHECKLIST */}
         <section className="print-document-sheet page-break-after bg-white text-slate-900 shadow-2xl rounded-2xl p-7 sm:p-11 min-h-[1050px] border border-slate-300 flex flex-col justify-between print:min-h-0 print:h-auto print:max-h-none print:overflow-visible print:block print:p-0 print:border-none print:shadow-none print:rounded-none">
           <div>
-            <DocumentHeader pageNum={6} totalPages={totalPdfPages} />
+            <DocumentHeader pageNum={4} totalPages={totalPdfPages} />
             <h2 className="text-xl font-black uppercase tracking-tight text-slate-950 sm:text-2xl">
               Conformidade Documental e Checklist de Habilitação
             </h2>
@@ -759,7 +700,7 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
                 className="print-document-sheet page-break-after bg-white text-slate-900 shadow-2xl rounded-2xl p-8 sm:p-12 min-h-[1050px] border border-slate-300 flex flex-col justify-between print:min-h-0 print:h-auto print:max-h-none print:overflow-visible print:block print:p-0 print:border-none print:shadow-none print:rounded-none"
               >
                 <div>
-                  <DocumentHeader pageNum={7 + inspIndex} totalPages={totalPdfPages} />
+                  <DocumentHeader pageNum={5 + inspIndex} totalPages={totalPdfPages} />
 
                   <div className="mb-5">
                     <div className="flex items-center justify-between gap-2 flex-wrap">
@@ -890,7 +831,7 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
         ) : (
           <section className="print-document-sheet page-break-after bg-white text-slate-900 shadow-2xl rounded-2xl p-8 sm:p-14 min-h-[1050px] border border-slate-300 flex flex-col justify-between print:min-h-0 print:h-auto print:max-h-none print:overflow-visible print:block print:p-0 print:border-none print:shadow-none print:rounded-none">
             <div>
-              <DocumentHeader pageNum={7} totalPages={totalPdfPages} />
+              <DocumentHeader pageNum={5} totalPages={totalPdfPages} />
               <div className="mb-6">
                 <h2 className="text-2xl font-black text-slate-950 uppercase tracking-tight mb-2">
                   Laudo Pericial Fotográfico de Campo
@@ -1363,6 +1304,916 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
           <div className="mt-6 border-t border-slate-300 pt-4 text-xs font-mono text-slate-700 font-semibold">
             RENOVAR SC — Soluções Prediais • CREA/SC: 105.402-1
           </div>
+        </section>
+
+        {/* ========================================================================= */}
+        {/* CADERNO 2: DOSSIÊ INSTITUCIONAL & PORTFÓLIO CORPORATIVO RENOVARSC (13 PÁGS) */}
+        {/* ========================================================================= */}
+
+        <div id="caderno-dossie-institucional" className="no-print hidden" />
+
+        {/* INSTITUCIONAL — PÁGINA 1: CAPA OFICIAL DO DOSSIÊ INSTITUCIONAL */}
+        <section className="print-document-sheet page-break-after bg-white text-slate-900 shadow-2xl rounded-2xl p-8 sm:p-14 min-h-[1050px] flex flex-col justify-between border border-slate-300 relative overflow-hidden print:min-h-0 print:h-auto print:max-h-none print:overflow-visible print:block print:p-0 print:border-none print:shadow-none print:rounded-none">
+          <div>
+            <DocumentHeader pageNum={institutionalStartPageNum} totalPages={totalPdfPages} />
+
+            <div className="flex flex-col justify-center my-4">
+              <div className="flex items-center gap-5 border-b-2 border-slate-900 pb-5 mb-6">
+                <img
+                  src="/logo-renovar-oficial.png"
+                  alt="RenovarSC"
+                  className="h-20 sm:h-24 w-auto object-contain shrink-0"
+                />
+                <div>
+                  <span className="inline-block px-3 py-0.5 bg-amber-500 text-slate-950 font-black text-[10px] sm:text-xs uppercase tracking-wider rounded-md mb-1.5 font-mono">
+                    Caderno Institucional & Portfólio Corporativo
+                  </span>
+                  <h1 className="text-xl sm:text-2xl font-black text-slate-950 uppercase tracking-tight">
+                    {RENOVAR_INSTITUCIONAL.capa.titulo}
+                  </h1>
+                  <p className="text-xs sm:text-sm font-semibold text-slate-700 mt-0.5">
+                    {RENOVAR_INSTITUCIONAL.capa.subtitulo}
+                  </p>
+                  <p className="text-xs sm:text-sm font-extrabold text-amber-600 italic mt-0.5">
+                    "{RENOVAR_INSTITUCIONAL.capa.slogan}"
+                  </p>
+                </div>
+              </div>
+
+              {/* Quadro de Dados Cadastrais */}
+              <div className="bg-slate-50 border-2 border-slate-900 rounded-2xl p-5 mb-6 shadow-xs">
+                <h2 className="text-xs font-mono font-black uppercase tracking-wider text-slate-950 mb-3 pb-2 border-b border-slate-300 flex items-center justify-between">
+                  <span>Registro Corporativo & Dados Cadastrais Oficiais</span>
+                  <span className="text-amber-600 font-bold">CREA/SC: {RENOVAR_INSTITUCIONAL.empresa.creaSC}</span>
+                </h2>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs font-mono">
+                  <div>
+                    <span className="text-slate-500 block text-[10px] uppercase font-bold">Razão Social / Nome:</span>
+                    <span className="font-black text-slate-950 text-xs sm:text-sm">{RENOVAR_INSTITUCIONAL.empresa.nome}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-500 block text-[10px] uppercase font-bold">CNPJ:</span>
+                    <span className="font-black text-slate-950 text-xs sm:text-sm">{RENOVAR_INSTITUCIONAL.empresa.cnpj}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-500 block text-[10px] uppercase font-bold">Registro Técnico Profissional:</span>
+                    <span className="font-bold text-slate-900">CREA/SC: {RENOVAR_INSTITUCIONAL.empresa.creaSC}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-500 block text-[10px] uppercase font-bold">Fundação & Experiência:</span>
+                    <span className="font-bold text-slate-900">{RENOVAR_INSTITUCIONAL.capa.dadosCadastrais.experiencia}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-500 block text-[10px] uppercase font-bold">Segmento de Atuação:</span>
+                    <span className="font-bold text-slate-900">{RENOVAR_INSTITUCIONAL.capa.dadosCadastrais.atuacao}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-500 block text-[10px] uppercase font-bold">Base Operacional:</span>
+                    <span className="font-bold text-slate-900">{RENOVAR_INSTITUCIONAL.capa.dadosCadastrais.localizacao} (Grande Florianópolis)</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-500 block text-[10px] uppercase font-bold">Telefone / WhatsApp Comercial:</span>
+                    <span className="font-bold text-slate-950">{RENOVAR_INSTITUCIONAL.capa.dadosCadastrais.contato}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-500 block text-[10px] uppercase font-bold">Instagram Oficial:</span>
+                    <span className="font-bold text-slate-950">{RENOVAR_INSTITUCIONAL.capa.dadosCadastrais.instagram}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Destaques Institucionais */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                {RENOVAR_INSTITUCIONAL.capa.destaques.map((item, idx) => (
+                  <div key={idx} className="p-3 bg-white border border-slate-300 rounded-xl flex items-start gap-2 shadow-xs">
+                    <CheckCircle2 className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                    <span className="text-xs text-slate-900 font-semibold leading-snug">{item}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <DocumentFooter />
+        </section>
+
+        {/* INSTITUCIONAL — PÁGINA 2: APRESENTAÇÃO INSTITUCIONAL — FOCO EM SÍNDICOS */}
+        <section className="print-document-sheet page-break-after bg-white text-slate-900 shadow-2xl rounded-2xl p-8 sm:p-14 min-h-[1050px] border border-slate-300 flex flex-col justify-between print:min-h-0 print:h-auto print:max-h-none print:overflow-visible print:block print:p-0 print:border-none print:shadow-none print:rounded-none">
+          <div>
+            <DocumentHeader pageNum={institutionalStartPageNum + 1} totalPages={totalPdfPages} />
+
+            <h2 className="text-xl sm:text-2xl font-black text-slate-950 uppercase tracking-tight mb-1">
+              {RENOVAR_INSTITUCIONAL.apresentacao.titulo}
+            </h2>
+            <p className="text-xs sm:text-sm font-semibold text-slate-700 mb-2">
+              {RENOVAR_INSTITUCIONAL.apresentacao.subtitulo}
+            </p>
+            <div className="w-16 h-1 bg-amber-500 mb-6" />
+
+            <div className="space-y-4 text-xs sm:text-sm text-slate-900 leading-relaxed text-justify mb-6">
+              <h3 className="text-sm sm:text-base font-black text-slate-950 uppercase border-l-4 border-amber-500 pl-3">
+                {RENOVAR_INSTITUCIONAL.apresentacao.focoSindicosAdministradoras.titulo}
+              </h3>
+              {RENOVAR_INSTITUCIONAL.apresentacao.focoSindicosAdministradoras.paragrafos.map((p, idx) => (
+                <p key={idx} className="font-medium text-slate-800 leading-relaxed">
+                  {p}
+                </p>
+              ))}
+            </div>
+
+            <div className="space-y-2.5">
+              <h4 className="text-xs font-mono font-black uppercase tracking-wider text-slate-950">
+                Benefícios Estratégicos para a Gestão Condominial:
+              </h4>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                {RENOVAR_INSTITUCIONAL.apresentacao.focoSindicosAdministradoras.beneficiosChave.map((item, idx) => (
+                  <div key={idx} className="p-3 rounded-xl border border-slate-300 bg-slate-50 shadow-xs flex items-start gap-2">
+                    <CheckCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                    <span className="text-xs text-slate-900 font-semibold leading-snug">{item}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <DocumentFooter />
+        </section>
+
+        {/* INSTITUCIONAL — PÁGINA 3: MÉTODO, ORGANIZAÇÃO, REGIÃO E PARCERIAS */}
+        <section className="print-document-sheet page-break-after bg-white text-slate-900 shadow-2xl rounded-2xl p-8 sm:p-14 min-h-[1050px] border border-slate-300 flex flex-col justify-between print:min-h-0 print:h-auto print:max-h-none print:overflow-visible print:block print:p-0 print:border-none print:shadow-none print:rounded-none">
+          <div>
+            <DocumentHeader pageNum={institutionalStartPageNum + 2} totalPages={totalPdfPages} />
+
+            <h2 className="text-xl sm:text-2xl font-black text-slate-950 uppercase tracking-tight mb-1">
+              {RENOVAR_INSTITUCIONAL.apresentacao.metodoEOrganizacao.titulo}
+            </h2>
+            <div className="w-16 h-1 bg-amber-500 mb-5" />
+
+            <div className="space-y-3 text-xs sm:text-sm text-slate-800 font-medium leading-relaxed mb-6">
+              {RENOVAR_INSTITUCIONAL.apresentacao.metodoEOrganizacao.paragrafos.map((p, idx) => (
+                <p key={idx}>{p}</p>
+              ))}
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
+              {RENOVAR_INSTITUCIONAL.apresentacao.metodoEOrganizacao.pilaresMetodologia.map((pilar, idx) => (
+                <div key={idx} className="p-3.5 bg-slate-50 border border-slate-300 rounded-xl shadow-xs">
+                  <div className="font-black text-slate-950 text-xs uppercase flex items-center gap-2 mb-1">
+                    <span className="w-5 h-5 rounded-full bg-slate-900 text-amber-400 flex items-center justify-center font-mono text-[10px]">
+                      {idx + 1}
+                    </span>
+                    <span>{pilar.titulo}</span>
+                  </div>
+                  <p className="text-[11px] text-slate-800 font-medium leading-relaxed pl-7">
+                    {pilar.descricao}
+                  </p>
+                </div>
+              ))}
+            </div>
+
+            <div className="p-4 bg-slate-100 border border-slate-300 rounded-xl mb-4">
+              <h4 className="text-xs font-mono font-black uppercase tracking-wider text-slate-950 mb-1">
+                {RENOVAR_INSTITUCIONAL.apresentacao.regiaoAtuacao.titulo}
+              </h4>
+              <p className="text-xs text-slate-800 font-medium mb-2">
+                {RENOVAR_INSTITUCIONAL.apresentacao.regiaoAtuacao.descricao}
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {RENOVAR_INSTITUCIONAL.apresentacao.regiaoAtuacao.cidades.map((cidade, cIdx) => (
+                  <span key={cIdx} className="px-2.5 py-1 bg-white border border-slate-300 rounded-lg text-xs font-mono font-bold text-slate-900">
+                    📍 {cidade}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-2 text-xs text-slate-800 font-medium">
+              <h4 className="text-xs font-mono font-black uppercase text-slate-950">
+                {RENOVAR_INSTITUCIONAL.apresentacao.compromissoEParcerias.titulo}
+              </h4>
+              {RENOVAR_INSTITUCIONAL.apresentacao.compromissoEParcerias.paragrafos.map((p, idx) => (
+                <p key={idx} className="leading-relaxed">{p}</p>
+              ))}
+            </div>
+          </div>
+
+          <DocumentFooter />
+        </section>
+
+        {/* INSTITUCIONAL — PÁGINA 4: A HISTÓRIA DOS FUNDADORES */}
+        <section className="print-document-sheet page-break-after bg-white text-slate-900 shadow-2xl rounded-2xl p-8 sm:p-14 min-h-[1050px] border border-slate-300 flex flex-col justify-between print:min-h-0 print:h-auto print:max-h-none print:overflow-visible print:block print:p-0 print:border-none print:shadow-none print:rounded-none">
+          <div>
+            <DocumentHeader pageNum={institutionalStartPageNum + 3} totalPages={totalPdfPages} />
+
+            <h2 className="text-xl sm:text-2xl font-black text-slate-950 uppercase tracking-tight mb-1">
+              {RENOVAR_INSTITUCIONAL.historiaFundadores.titulo}
+            </h2>
+            <p className="text-xs sm:text-sm font-semibold text-slate-700 mb-2">
+              {RENOVAR_INSTITUCIONAL.historiaFundadores.subtitulo}
+            </p>
+            <div className="w-16 h-1 bg-amber-500 mb-6" />
+
+            <div className="space-y-4 text-xs sm:text-sm text-slate-900 leading-relaxed text-justify mb-6">
+              <div className="bg-slate-50 border border-slate-300 rounded-xl p-4 space-y-2 shadow-xs">
+                <h3 className="font-black text-slate-950 text-xs uppercase flex items-center gap-2">
+                  <Award className="w-4 h-4 text-amber-600" />
+                  {RENOVAR_INSTITUCIONAL.historiaFundadores.origemEVisao.titulo}
+                </h3>
+                {RENOVAR_INSTITUCIONAL.historiaFundadores.origemEVisao.paragrafos.map((p, idx) => (
+                  <p key={idx} className="text-slate-800 font-medium text-xs leading-relaxed">{p}</p>
+                ))}
+              </div>
+
+              <div className="bg-slate-50 border border-slate-300 rounded-xl p-4 space-y-2 shadow-xs">
+                <h3 className="font-black text-slate-950 text-xs uppercase flex items-center gap-2">
+                  <HardHat className="w-4 h-4 text-amber-600" />
+                  {RENOVAR_INSTITUCIONAL.historiaFundadores.aVivenciaPratica.titulo}
+                </h3>
+                {RENOVAR_INSTITUCIONAL.historiaFundadores.aVivenciaPratica.paragrafos.map((p, idx) => (
+                  <p key={idx} className="text-slate-800 font-medium text-xs leading-relaxed">{p}</p>
+                ))}
+              </div>
+
+              <div className="bg-slate-50 border border-slate-300 rounded-xl p-4 space-y-2 shadow-xs">
+                <h3 className="font-black text-slate-950 text-xs uppercase flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 text-rose-600" />
+                  {RENOVAR_INSTITUCIONAL.historiaFundadores.insatisfacaoComMaquiagem.titulo}
+                </h3>
+                {RENOVAR_INSTITUCIONAL.historiaFundadores.insatisfacaoComMaquiagem.paragrafos.map((p, idx) => (
+                  <p key={idx} className="text-slate-800 font-medium text-xs leading-relaxed">{p}</p>
+                ))}
+              </div>
+            </div>
+
+            <div className="bg-slate-950 text-white rounded-xl p-4 space-y-2.5">
+              <h4 className="text-xs font-mono font-black uppercase text-amber-400">
+                Diferenciais Consolidados pelos Fundadores na RenovarSC:
+              </h4>
+              <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs font-mono">
+                {RENOVAR_INSTITUCIONAL.historiaFundadores.aConsolidacaoRenovar.diferenciaisFundadores.map((dif, idx) => (
+                  <li key={idx} className="flex items-start gap-1.5 text-slate-200">
+                    <span className="text-amber-400">✔</span>
+                    <span>{dif}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+
+          <DocumentFooter />
+        </section>
+
+        {/* INSTITUCIONAL — PÁGINA 5: QUEM SOMOS */}
+        <section className="print-document-sheet page-break-after bg-white text-slate-900 shadow-2xl rounded-2xl p-8 sm:p-14 min-h-[1050px] border border-slate-300 flex flex-col justify-between print:min-h-0 print:h-auto print:max-h-none print:overflow-visible print:block print:p-0 print:border-none print:shadow-none print:rounded-none">
+          <div>
+            <DocumentHeader pageNum={institutionalStartPageNum + 4} totalPages={totalPdfPages} />
+
+            <h2 className="text-xl sm:text-2xl font-black text-slate-950 uppercase tracking-tight mb-1">
+              {RENOVAR_INSTITUCIONAL.quemSomos.titulo}
+            </h2>
+            <p className="text-xs sm:text-sm font-semibold text-slate-700 mb-2">
+              {RENOVAR_INSTITUCIONAL.quemSomos.subtitulo}
+            </p>
+            <div className="w-16 h-1 bg-amber-500 mb-6" />
+
+            <div className="space-y-4 text-xs sm:text-sm text-slate-800 font-medium leading-relaxed text-justify mb-8">
+              {RENOVAR_INSTITUCIONAL.quemSomos.paragrafos.map((p, idx) => (
+                <p key={idx}>{p}</p>
+              ))}
+            </div>
+
+            <div className="space-y-3">
+              <h3 className="text-xs font-mono font-black uppercase tracking-wider text-slate-950">
+                Pilares Fundacionais da Identidade RenovarSC:
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {RENOVAR_INSTITUCIONAL.quemSomos.destaques.map((item, idx) => (
+                  <div key={idx} className="p-3.5 bg-slate-50 border border-slate-300 rounded-xl flex items-start gap-2.5 shadow-xs">
+                    <Sparkles className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                    <span className="text-xs text-slate-900 font-semibold leading-snug">{item}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <DocumentFooter />
+        </section>
+
+        {/* INSTITUCIONAL — PÁGINA 6: CULTURA E PILARES RENOVARSC */}
+        <section className="print-document-sheet page-break-after bg-white text-slate-900 shadow-2xl rounded-2xl p-8 sm:p-14 min-h-[1050px] border border-slate-300 flex flex-col justify-between print:min-h-0 print:h-auto print:max-h-none print:overflow-visible print:block print:p-0 print:border-none print:shadow-none print:rounded-none">
+          <div>
+            <DocumentHeader pageNum={institutionalStartPageNum + 5} totalPages={totalPdfPages} />
+
+            <h2 className="text-xl sm:text-2xl font-black text-slate-950 uppercase tracking-tight mb-1">
+              {RENOVAR_INSTITUCIONAL.culturaEPilares.titulo}
+            </h2>
+            <p className="text-xs sm:text-sm font-semibold text-slate-700 mb-2">
+              {RENOVAR_INSTITUCIONAL.culturaEPilares.subtitulo}
+            </p>
+            <div className="w-16 h-1 bg-amber-500 mb-4" />
+
+            <p className="text-xs text-slate-800 font-medium mb-5">
+              {RENOVAR_INSTITUCIONAL.culturaEPilares.introducao}
+            </p>
+
+            <div className="space-y-4 text-xs sm:text-sm">
+              {/* Pilar 1: Segurança */}
+              <article className="rounded-xl border border-slate-300 bg-white p-4 sm:p-5 shadow-sm">
+                <div className="flex items-center justify-between mb-1.5 border-b border-slate-200 pb-2">
+                  <h3 className="font-black uppercase text-slate-950 text-xs sm:text-sm flex items-center gap-2">
+                    <span className="w-6 h-6 rounded-full bg-slate-900 text-amber-400 flex items-center justify-center font-mono text-xs">
+                      1
+                    </span>
+                    {RENOVAR_INSTITUCIONAL.culturaEPilares.pilares.seguranca.titulo}
+                  </h3>
+                  <span className="text-[10px] font-mono font-bold uppercase text-amber-600 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
+                    {RENOVAR_INSTITUCIONAL.culturaEPilares.pilares.seguranca.subtitulo}
+                  </span>
+                </div>
+                <p className="text-slate-800 text-xs mb-3 font-medium">
+                  {RENOVAR_INSTITUCIONAL.culturaEPilares.pilares.seguranca.descricao}
+                </p>
+                <ul className="list-disc space-y-1 pl-5 text-slate-900 text-[11px] sm:text-xs font-medium">
+                  {RENOVAR_INSTITUCIONAL.culturaEPilares.pilares.seguranca.pontosChave.map((pt, pIdx) => (
+                    <li key={pIdx}>{pt}</li>
+                  ))}
+                </ul>
+              </article>
+
+              {/* Pilar 2: Qualidade */}
+              <article className="rounded-xl border border-slate-300 bg-white p-4 sm:p-5 shadow-sm">
+                <div className="flex items-center justify-between mb-1.5 border-b border-slate-200 pb-2">
+                  <h3 className="font-black uppercase text-slate-950 text-xs sm:text-sm flex items-center gap-2">
+                    <span className="w-6 h-6 rounded-full bg-slate-900 text-amber-400 flex items-center justify-center font-mono text-xs">
+                      2
+                    </span>
+                    {RENOVAR_INSTITUCIONAL.culturaEPilares.pilares.qualidade.titulo}
+                  </h3>
+                  <span className="text-[10px] font-mono font-bold uppercase text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                    {RENOVAR_INSTITUCIONAL.culturaEPilares.pilares.qualidade.subtitulo}
+                  </span>
+                </div>
+                <p className="text-slate-800 text-xs mb-3 font-medium">
+                  {RENOVAR_INSTITUCIONAL.culturaEPilares.pilares.qualidade.descricao}
+                </p>
+                <ul className="list-disc space-y-1 pl-5 text-slate-900 text-[11px] sm:text-xs font-medium">
+                  {RENOVAR_INSTITUCIONAL.culturaEPilares.pilares.qualidade.pontosChave.map((pt, pIdx) => (
+                    <li key={pIdx}>{pt}</li>
+                  ))}
+                </ul>
+              </article>
+
+              {/* Pilar 3: Respeito */}
+              <article className="rounded-xl border border-slate-300 bg-white p-4 sm:p-5 shadow-sm">
+                <div className="flex items-center justify-between mb-1.5 border-b border-slate-200 pb-2">
+                  <h3 className="font-black uppercase text-slate-950 text-xs sm:text-sm flex items-center gap-2">
+                    <span className="w-6 h-6 rounded-full bg-slate-900 text-amber-400 flex items-center justify-center font-mono text-xs">
+                      3
+                    </span>
+                    {RENOVAR_INSTITUCIONAL.culturaEPilares.pilares.respeito.titulo}
+                  </h3>
+                  <span className="text-[10px] font-mono font-bold uppercase text-sky-700 bg-sky-50 px-2 py-0.5 rounded border border-sky-200">
+                    {RENOVAR_INSTITUCIONAL.culturaEPilares.pilares.respeito.subtitulo}
+                  </span>
+                </div>
+                <p className="text-slate-800 text-xs mb-3 font-medium">
+                  {RENOVAR_INSTITUCIONAL.culturaEPilares.pilares.respeito.descricao}
+                </p>
+                <ul className="list-disc space-y-1 pl-5 text-slate-900 text-[11px] sm:text-xs font-medium">
+                  {RENOVAR_INSTITUCIONAL.culturaEPilares.pilares.respeito.pontosChave.map((pt, pIdx) => (
+                    <li key={pIdx}>{pt}</li>
+                  ))}
+                </ul>
+              </article>
+            </div>
+          </div>
+
+          <DocumentFooter />
+        </section>
+
+        {/* INSTITUCIONAL — PÁGINA 7: PROCESSOS, ENGENHARIA, SEGUROS E GARANTIA */}
+        <section className="print-document-sheet page-break-after bg-white text-slate-900 shadow-2xl rounded-2xl p-8 sm:p-14 min-h-[1050px] border border-slate-300 flex flex-col justify-between print:min-h-0 print:h-auto print:max-h-none print:overflow-visible print:block print:p-0 print:border-none print:shadow-none print:rounded-none">
+          <div>
+            <DocumentHeader pageNum={institutionalStartPageNum + 6} totalPages={totalPdfPages} />
+
+            <h2 className="text-xl sm:text-2xl font-black text-slate-950 uppercase tracking-tight mb-1">
+              {RENOVAR_INSTITUCIONAL.processosEngenhariaSegurosGarantia.titulo}
+            </h2>
+            <p className="text-xs sm:text-sm font-semibold text-slate-700 mb-2">
+              {RENOVAR_INSTITUCIONAL.processosEngenhariaSegurosGarantia.subtitulo}
+            </p>
+            <div className="w-16 h-1 bg-amber-500 mb-5" />
+
+            <div className="space-y-4 text-xs sm:text-sm mb-6">
+              <div className="bg-slate-50 border border-slate-300 rounded-xl p-4 shadow-xs space-y-1.5">
+                <h3 className="font-black text-slate-950 text-xs uppercase flex items-center gap-2">
+                  <CheckSquare className="w-4 h-4 text-amber-600" />
+                  {RENOVAR_INSTITUCIONAL.processosEngenhariaSegurosGarantia.processosETreinamento.titulo}
+                </h3>
+                {RENOVAR_INSTITUCIONAL.processosEngenhariaSegurosGarantia.processosETreinamento.paragrafos.map((p, idx) => (
+                  <p key={idx} className="text-slate-800 font-medium text-xs leading-relaxed">{p}</p>
+                ))}
+              </div>
+
+              <div className="bg-slate-50 border border-slate-300 rounded-xl p-4 shadow-xs space-y-1.5">
+                <h3 className="font-black text-slate-950 text-xs uppercase flex items-center gap-2">
+                  <Building2 className="w-4 h-4 text-amber-600" />
+                  {RENOVAR_INSTITUCIONAL.processosEngenhariaSegurosGarantia.engenhariaEAcompanhamento.titulo}
+                </h3>
+                {RENOVAR_INSTITUCIONAL.processosEngenhariaSegurosGarantia.engenhariaEAcompanhamento.paragrafos.map((p, idx) => (
+                  <p key={idx} className="text-slate-800 font-medium text-xs leading-relaxed">{p}</p>
+                ))}
+              </div>
+            </div>
+
+            {/* Proteção Tripla de Seguros */}
+            <div className="mb-6">
+              <h3 className="text-xs font-mono font-black uppercase tracking-wider text-slate-950 mb-2.5 flex items-center gap-2">
+                <Shield className="w-4 h-4 text-emerald-600" />
+                {RENOVAR_INSTITUCIONAL.processosEngenhariaSegurosGarantia.seguros.titulo}
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                {RENOVAR_INSTITUCIONAL.processosEngenhariaSegurosGarantia.seguros.itens.map((seg, idx) => (
+                  <div key={idx} className="p-3 bg-white border border-slate-300 rounded-xl shadow-xs space-y-1">
+                    <span className="text-[11px] font-black text-slate-950 block uppercase leading-snug">
+                      {seg.nome}
+                    </span>
+                    <p className="text-[10px] text-slate-700 leading-relaxed font-medium">
+                      {seg.descricao}
+                    </p>
+                    <span className="text-[10px] font-mono font-bold text-emerald-800 block pt-1 border-t border-slate-200">
+                      ✓ {seg.cobertura}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Garantia */}
+            <div className="p-4 bg-slate-950 text-white rounded-xl space-y-2">
+              <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+                <h4 className="text-xs font-mono font-black uppercase text-amber-400">
+                  {RENOVAR_INSTITUCIONAL.processosEngenhariaSegurosGarantia.garantia.titulo}
+                </h4>
+                <span className="px-2 py-0.5 rounded bg-amber-500 text-slate-950 font-black text-[10px] font-mono">
+                  {RENOVAR_INSTITUCIONAL.processosEngenhariaSegurosGarantia.garantia.periodo}
+                </span>
+              </div>
+              <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs font-mono">
+                {RENOVAR_INSTITUCIONAL.processosEngenhariaSegurosGarantia.garantia.termosGarantia.map((t, idx) => (
+                  <li key={idx} className="flex items-start gap-1.5 text-slate-200">
+                    <span className="text-amber-400">🛡️</span>
+                    <span>{t}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+
+          <DocumentFooter />
+        </section>
+
+        {/* INSTITUCIONAL — PÁGINA 8: MÉTODO DE TRABALHO & DIMENSIONAMENTO CLT */}
+        <section className="print-document-sheet page-break-after bg-white text-slate-900 shadow-2xl rounded-2xl p-8 sm:p-14 min-h-[1050px] border border-slate-300 flex flex-col justify-between print:min-h-0 print:h-auto print:max-h-none print:overflow-visible print:block print:p-0 print:border-none print:shadow-none print:rounded-none">
+          <div>
+            <DocumentHeader pageNum={institutionalStartPageNum + 7} totalPages={totalPdfPages} />
+
+            <h2 className="text-xl sm:text-2xl font-black text-slate-950 uppercase tracking-tight mb-1">
+              {RENOVAR_INSTITUCIONAL.metodoTrabalho.titulo}
+            </h2>
+            <p className="text-xs sm:text-sm font-semibold text-slate-700 mb-2">
+              {RENOVAR_INSTITUCIONAL.metodoTrabalho.subtitulo}
+            </p>
+            <div className="w-16 h-1 bg-amber-500 mb-5" />
+
+            {/* As 5 Etapas do Método */}
+            <div className="space-y-2 mb-6">
+              <h3 className="text-xs font-mono font-black uppercase tracking-wider text-slate-950">
+                As 5 Fases Operacionais do Método RenovarSC:
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-5 gap-2 text-xs">
+                {RENOVAR_INSTITUCIONAL.metodoTrabalho.etapas.map((et, idx) => (
+                  <div key={idx} className="p-2.5 bg-slate-50 border border-slate-300 rounded-lg shadow-xs space-y-1">
+                    <span className="w-5 h-5 rounded-full bg-slate-900 text-amber-400 flex items-center justify-center font-mono text-[10px] font-bold">
+                      {idx + 1}
+                    </span>
+                    <div className="font-black text-slate-950 text-[11px] leading-tight uppercase">
+                      {et.etapa}
+                    </div>
+                    <p className="text-[10px] text-slate-700 leading-tight">
+                      {et.subtitulo}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Dimensionamento de Equipes por Porte */}
+            <div className="space-y-3 mb-6">
+              <h3 className="text-xs font-mono font-black uppercase tracking-wider text-slate-950">
+                {RENOVAR_INSTITUCIONAL.metodoTrabalho.dimensionamentoEquipes.titulo}
+              </h3>
+              <div className="space-y-2.5">
+                {RENOVAR_INSTITUCIONAL.metodoTrabalho.dimensionamentoEquipes.equipesPorPorte.map((eq, idx) => (
+                  <div key={idx} className="p-3 bg-white border border-slate-300 rounded-xl shadow-xs">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 mb-1 border-b border-slate-200 pb-1.5">
+                      <div className="font-black text-slate-950 text-xs uppercase flex items-center gap-2">
+                        <Users className="w-4 h-4 text-amber-600" />
+                        <span>{eq.porteEdificio}</span>
+                      </div>
+                      <span className="px-2 py-0.5 rounded bg-slate-900 text-amber-400 font-mono font-bold text-[10px]">
+                        {eq.tamanhoEquipe}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-slate-800 font-medium mb-1.5">
+                      {eq.descricao}
+                    </p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {eq.atividadesSimultaneas.map((at, atIdx) => (
+                        <span key={atIdx} className="px-2 py-0.5 bg-slate-100 text-slate-900 rounded text-[10px] font-mono border border-slate-200">
+                          • {at}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Política CLT */}
+            <div className="p-4 bg-slate-950 text-white rounded-xl space-y-1.5">
+              <h4 className="text-xs font-mono font-black uppercase text-amber-400">
+                Blindagem Jurídica e Política 100% CLT:
+              </h4>
+              <ul className="space-y-1 text-slate-200 text-xs font-mono">
+                {RENOVAR_INSTITUCIONAL.metodoTrabalho.dimensionamentoEquipes.politicaCLT.map((pol, idx) => (
+                  <li key={idx} className="flex items-start gap-1.5">
+                    <span className="text-amber-400">✓</span>
+                    <span>{pol}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+
+          <DocumentFooter />
+        </section>
+
+        {/* INSTITUCIONAL — PÁGINA 9: SERVIÇOS 1 — TRATAMENTO ESTRUTURAL */}
+        <section className="print-document-sheet page-break-after bg-white text-slate-900 shadow-2xl rounded-2xl p-8 sm:p-14 min-h-[1050px] border border-slate-300 flex flex-col justify-between print:min-h-0 print:h-auto print:max-h-none print:overflow-visible print:block print:p-0 print:border-none print:shadow-none print:rounded-none">
+          <div>
+            <DocumentHeader pageNum={institutionalStartPageNum + 8} totalPages={totalPdfPages} />
+
+            <div className="flex items-center gap-2 mb-1">
+              <span className="px-2.5 py-0.5 rounded bg-slate-900 text-amber-400 font-mono font-black text-xs uppercase">
+                Serviço Especializado 01
+              </span>
+              <span className="text-xs font-mono text-slate-600 font-bold">ABNT NBR 6118 & 7684</span>
+            </div>
+            <h2 className="text-xl sm:text-2xl font-black text-slate-950 uppercase tracking-tight mb-1">
+              {RENOVAR_INSTITUCIONAL.servicos.servicos.tratamentoEstrutural.nome}
+            </h2>
+            <p className="text-xs sm:text-sm font-semibold text-slate-700 mb-2">
+              {RENOVAR_INSTITUCIONAL.servicos.servicos.tratamentoEstrutural.subtitulo}
+            </p>
+            <div className="w-16 h-1 bg-amber-500 mb-5" />
+
+            <p className="text-xs sm:text-sm text-slate-800 font-medium leading-relaxed mb-6">
+              {RENOVAR_INSTITUCIONAL.servicos.servicos.tratamentoEstrutural.descricaoGeral}
+            </p>
+
+            <div className="space-y-4 mb-6">
+              <div className="bg-slate-50 border border-slate-300 rounded-xl p-4 shadow-xs">
+                <h3 className="font-black text-slate-950 text-xs uppercase mb-2 flex items-center gap-2">
+                  <Wrench className="w-4 h-4 text-amber-600" />
+                  Metodologia Executiva Passo a Passo:
+                </h3>
+                <ol className="list-decimal list-inside space-y-1.5 text-xs text-slate-900 font-medium leading-relaxed">
+                  {RENOVAR_INSTITUCIONAL.servicos.servicos.tratamentoEstrutural.etapasExecutivas.map((etapa, idx) => (
+                    <li key={idx} className="pl-1">
+                      <span>{etapa}</span>
+                    </li>
+                  ))}
+                </ol>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="p-3.5 bg-white border border-slate-300 rounded-xl shadow-xs">
+                  <h4 className="font-black text-slate-950 text-xs uppercase mb-1.5 flex items-center gap-1.5">
+                    <Layers className="w-3.5 h-3.5 text-amber-600" />
+                    Materiais & Insumos Estruturais:
+                  </h4>
+                  <ul className="space-y-1 text-[11px] text-slate-800 font-medium">
+                    {RENOVAR_INSTITUCIONAL.servicos.servicos.tratamentoEstrutural.materiaisUtilizados.map((mat, idx) => (
+                      <li key={idx}>• {mat}</li>
+                    ))}
+                  </ul>
+                </div>
+
+                <div className="p-3.5 bg-white border border-slate-300 rounded-xl shadow-xs">
+                  <h4 className="font-black text-slate-950 text-xs uppercase mb-1.5 flex items-center gap-1.5">
+                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-700" />
+                    Benefícios para o Condomínio:
+                  </h4>
+                  <ul className="space-y-1 text-[11px] text-slate-800 font-medium">
+                    {RENOVAR_INSTITUCIONAL.servicos.servicos.tratamentoEstrutural.beneficiosCondominio.map((ben, idx) => (
+                      <li key={idx}>✔ {ben}</li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-3 bg-slate-100 border border-slate-300 rounded-xl text-xs font-mono">
+              <span className="font-black text-slate-950 block mb-1">Normas Regulamentadoras da ABNT:</span>
+              <div className="flex flex-wrap gap-2 text-[11px]">
+                {RENOVAR_INSTITUCIONAL.servicos.servicos.tratamentoEstrutural.normasTecnicas.map((norma, idx) => (
+                  <span key={idx} className="px-2 py-0.5 bg-white border border-slate-300 rounded text-slate-900 font-bold">
+                    {norma}
+                  </span>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <DocumentFooter />
+        </section>
+
+        {/* INSTITUCIONAL — PÁGINA 10: SERVIÇOS 2 — FACHADAS E TELHADOS */}
+        <section className="print-document-sheet page-break-after bg-white text-slate-900 shadow-2xl rounded-2xl p-8 sm:p-14 min-h-[1050px] border border-slate-300 flex flex-col justify-between print:min-h-0 print:h-auto print:max-h-none print:overflow-visible print:block print:p-0 print:border-none print:shadow-none print:rounded-none">
+          <div>
+            <DocumentHeader pageNum={institutionalStartPageNum + 9} totalPages={totalPdfPages} />
+
+            <h2 className="text-xl sm:text-2xl font-black text-slate-950 uppercase tracking-tight mb-1">
+              Restauração de Fachadas & Reformas de Telhados
+            </h2>
+            <div className="w-16 h-1 bg-amber-500 mb-5" />
+
+            <div className="space-y-6">
+              {/* Bloco 1: Fachadas */}
+              <div className="p-4 bg-slate-50 border border-slate-300 rounded-xl shadow-xs space-y-2.5">
+                <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+                  <h3 className="font-black text-slate-950 text-xs sm:text-sm uppercase flex items-center gap-2">
+                    <span className="px-2 py-0.5 bg-slate-900 text-amber-400 font-mono text-[10px] rounded">
+                      Serviço 02
+                    </span>
+                    {RENOVAR_INSTITUCIONAL.servicos.servicos.restauracaoPinturaFachadas.nome}
+                  </h3>
+                  <span className="text-[10px] font-mono font-bold text-slate-700">ABNT NBR 13245</span>
+                </div>
+                <p className="text-xs text-slate-800 font-medium">
+                  {RENOVAR_INSTITUCIONAL.servicos.servicos.restauracaoPinturaFachadas.descricaoGeral}
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                  <div>
+                    <span className="font-black text-slate-950 text-[11px] block uppercase mb-1">Etapas Principais:</span>
+                    <ul className="space-y-0.5 text-[11px] text-slate-800 font-medium">
+                      {RENOVAR_INSTITUCIONAL.servicos.servicos.restauracaoPinturaFachadas.etapasExecutivas.slice(0, 3).map((et, idx) => (
+                        <li key={idx}>• {et}</li>
+                      ))}
+                    </ul>
+                  </div>
+                  <div>
+                    <span className="font-black text-slate-950 text-[11px] block uppercase mb-1">Diferenciais Técnicos:</span>
+                    <ul className="space-y-0.5 text-[11px] text-slate-800 font-medium">
+                      {RENOVAR_INSTITUCIONAL.servicos.servicos.restauracaoPinturaFachadas.beneficiosCondominio.slice(0, 3).map((ben, idx) => (
+                        <li key={idx}>✔ {ben}</li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              </div>
+
+              {/* Bloco 2: Telhados */}
+              <div className="p-4 bg-slate-50 border border-slate-300 rounded-xl shadow-xs space-y-2.5">
+                <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+                  <h3 className="font-black text-slate-950 text-xs sm:text-sm uppercase flex items-center gap-2">
+                    <span className="px-2 py-0.5 bg-slate-900 text-amber-400 font-mono text-[10px] rounded">
+                      Serviço 03
+                    </span>
+                    {RENOVAR_INSTITUCIONAL.servicos.servicos.reformasTelhados.nome}
+                  </h3>
+                  <span className="text-[10px] font-mono font-bold text-slate-700">ABNT NBR 8039 & 9575</span>
+                </div>
+                <p className="text-xs text-slate-800 font-medium">
+                  {RENOVAR_INSTITUCIONAL.servicos.servicos.reformasTelhados.descricaoGeral}
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                  <div>
+                    <span className="font-black text-slate-950 text-[11px] block uppercase mb-1">Escopo de Execução:</span>
+                    <ul className="space-y-0.5 text-[11px] text-slate-800 font-medium">
+                      {RENOVAR_INSTITUCIONAL.servicos.servicos.reformasTelhados.etapasExecutivas.slice(0, 3).map((et, idx) => (
+                        <li key={idx}>• {et}</li>
+                      ))}
+                    </ul>
+                  </div>
+                  <div>
+                    <span className="font-black text-slate-950 text-[11px] block uppercase mb-1">Benefícios para a Cobertura:</span>
+                    <ul className="space-y-0.5 text-[11px] text-slate-800 font-medium">
+                      {RENOVAR_INSTITUCIONAL.servicos.servicos.reformasTelhados.beneficiosCondominio.slice(0, 3).map((ben, idx) => (
+                        <li key={idx}>✔ {ben}</li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <DocumentFooter />
+        </section>
+
+        {/* INSTITUCIONAL — PÁGINA 11: SERVIÇOS 3 — PASTILHAS, TEXTURAS, GARAGENS */}
+        <section className="print-document-sheet page-break-after bg-white text-slate-900 shadow-2xl rounded-2xl p-8 sm:p-14 min-h-[1050px] border border-slate-300 flex flex-col justify-between print:min-h-0 print:h-auto print:max-h-none print:overflow-visible print:block print:p-0 print:border-none print:shadow-none print:rounded-none">
+          <div>
+            <DocumentHeader pageNum={institutionalStartPageNum + 10} totalPages={totalPdfPages} />
+
+            <h2 className="text-xl sm:text-2xl font-black text-slate-950 uppercase tracking-tight mb-1">
+              Revestimentos Especiais, Garagens & Sinalização
+            </h2>
+            <div className="w-16 h-1 bg-amber-500 mb-5" />
+
+            <div className="space-y-6">
+              {/* Bloco 1: Pastilhas e Efeitos Decorativos */}
+              <div className="p-4 bg-slate-50 border border-slate-300 rounded-xl shadow-xs space-y-2.5">
+                <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+                  <h3 className="font-black text-slate-950 text-xs sm:text-sm uppercase flex items-center gap-2">
+                    <span className="px-2 py-0.5 bg-slate-900 text-amber-400 font-mono text-[10px] rounded">
+                      Serviço 04
+                    </span>
+                    {RENOVAR_INSTITUCIONAL.servicos.servicos.pastilhasETexturasEspeciais.nome}
+                  </h3>
+                  <span className="text-[10px] font-mono font-bold text-slate-700">ABNT NBR 13755</span>
+                </div>
+                <p className="text-xs text-slate-800 font-medium">
+                  {RENOVAR_INSTITUCIONAL.servicos.servicos.pastilhasETexturasEspeciais.descricaoGeral}
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                  <div>
+                    <span className="font-black text-slate-950 text-[11px] block uppercase mb-1">Acabamentos Nobres:</span>
+                    <ul className="space-y-0.5 text-[11px] text-slate-800 font-medium">
+                      <li>• Reposição cerâmica com argamassa colante AC-III</li>
+                      <li>• Rejunte resinado impermeável e antimofo</li>
+                      <li>• Textura projetada acrílica de alta densidade</li>
+                      <li>• Efeitos decorativos: mármore realista e cimento queimado</li>
+                    </ul>
+                  </div>
+                  <div>
+                    <span className="font-black text-slate-950 text-[11px] block uppercase mb-1">Vantagens Patrimoniais:</span>
+                    <ul className="space-y-0.5 text-[11px] text-slate-800 font-medium">
+                      {RENOVAR_INSTITUCIONAL.servicos.servicos.pastilhasETexturasEspeciais.beneficiosCondominio.map((ben, idx) => (
+                        <li key={idx}>✔ {ben}</li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              </div>
+
+              {/* Bloco 2: Calçadas e Garagens */}
+              <div className="p-4 bg-slate-50 border border-slate-300 rounded-xl shadow-xs space-y-2.5">
+                <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+                  <h3 className="font-black text-slate-950 text-xs sm:text-sm uppercase flex items-center gap-2">
+                    <span className="px-2 py-0.5 bg-slate-900 text-amber-400 font-mono text-[10px] rounded">
+                      Serviço 05
+                    </span>
+                    {RENOVAR_INSTITUCIONAL.servicos.servicos.calcadasGaragensSinalizacao.nome}
+                  </h3>
+                  <span className="text-[10px] font-mono font-bold text-slate-700">ABNT NBR 9050</span>
+                </div>
+                <p className="text-xs text-slate-800 font-medium">
+                  {RENOVAR_INSTITUCIONAL.servicos.servicos.calcadasGaragensSinalizacao.descricaoGeral}
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                  <div>
+                    <span className="font-black text-slate-950 text-[11px] block uppercase mb-1">Soluções Viárias & Pisos:</span>
+                    <ul className="space-y-0.5 text-[11px] text-slate-800 font-medium">
+                      <li>• Recuperação e nivelamento de pisos e calçadas</li>
+                      <li>• Tratamento de juntas de dilatação de tráfego intenso</li>
+                      <li>• Pintura epóxi e poliuretano de alta resistência</li>
+                      <li>• Demarcação de vagas normais, idosos, PCD e rotas de fuga</li>
+                    </ul>
+                  </div>
+                  <div>
+                    <span className="font-black text-slate-950 text-[11px] block uppercase mb-1">Impacto na Organização:</span>
+                    <ul className="space-y-0.5 text-[11px] text-slate-800 font-medium">
+                      {RENOVAR_INSTITUCIONAL.servicos.servicos.calcadasGaragensSinalizacao.beneficiosCondominio.map((ben, idx) => (
+                        <li key={idx}>✔ {ben}</li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <DocumentFooter />
+        </section>
+
+        {/* INSTITUCIONAL — PÁGINA 12: DIFERENCIAIS COMPETITIVOS RENOVARSC */}
+        <section className="print-document-sheet page-break-after bg-white text-slate-900 shadow-2xl rounded-2xl p-8 sm:p-14 min-h-[1050px] border border-slate-300 flex flex-col justify-between print:min-h-0 print:h-auto print:max-h-none print:overflow-visible print:block print:p-0 print:border-none print:shadow-none print:rounded-none">
+          <div>
+            <DocumentHeader pageNum={institutionalStartPageNum + 11} totalPages={totalPdfPages} />
+
+            <h2 className="text-xl sm:text-2xl font-black text-slate-950 uppercase tracking-tight mb-1">
+              {RENOVAR_INSTITUCIONAL.diferenciaisEFechamento.titulo}
+            </h2>
+            <p className="text-xs sm:text-sm font-semibold text-slate-700 mb-2">
+              {RENOVAR_INSTITUCIONAL.diferenciaisEFechamento.subtitulo}
+            </p>
+            <div className="w-16 h-1 bg-amber-500 mb-6" />
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {RENOVAR_INSTITUCIONAL.diferenciaisEFechamento.diferenciais.map((dif) => (
+                <article key={dif.numero} className="p-4 bg-slate-50 border border-slate-300 rounded-xl shadow-xs space-y-1.5">
+                  <div className="flex items-center gap-2 border-b border-slate-200 pb-1.5">
+                    <span className="w-6 h-6 rounded-full bg-slate-900 text-amber-400 flex items-center justify-center font-mono text-xs font-bold shrink-0">
+                      {dif.numero}
+                    </span>
+                    <h3 className="font-black text-slate-950 text-xs uppercase leading-snug">
+                      {dif.titulo}
+                    </h3>
+                  </div>
+                  <span className="text-[10px] font-mono font-bold text-amber-700 block">
+                    {dif.subtitulo}
+                  </span>
+                  <p className="text-[11px] text-slate-800 font-medium leading-relaxed">
+                    {dif.descricao}
+                  </p>
+                  <div className="pt-1.5 border-t border-slate-200 text-[10px] font-mono text-slate-950 font-semibold">
+                    ⭐ Impacto no Condomínio: {dif.impactoParaCondominio}
+                  </div>
+                </article>
+              ))}
+            </div>
+          </div>
+
+          <DocumentFooter />
+        </section>
+
+        {/* INSTITUCIONAL — PÁGINA 13: FECHAMENTO COMERCIAL, GARANTIA & CONTATO */}
+        <section className="print-document-sheet page-break-after bg-white text-slate-900 shadow-2xl rounded-2xl p-8 sm:p-14 min-h-[1050px] border border-slate-300 flex flex-col justify-between print:min-h-0 print:h-auto print:max-h-none print:overflow-visible print:block print:p-0 print:border-none print:shadow-none print:rounded-none">
+          <div>
+            <DocumentHeader pageNum={institutionalStartPageNum + 12} totalPages={totalPdfPages} />
+
+            <h2 className="text-xl sm:text-2xl font-black text-slate-950 uppercase tracking-tight mb-1">
+              {RENOVAR_INSTITUCIONAL.diferenciaisEFechamento.fechamentoComercial.titulo}
+            </h2>
+            <p className="text-xs sm:text-sm font-semibold text-slate-700 mb-2">
+              {RENOVAR_INSTITUCIONAL.diferenciaisEFechamento.fechamentoComercial.subtitulo}
+            </p>
+            <div className="w-16 h-1 bg-amber-500 mb-5" />
+
+            <div className="space-y-3 text-xs sm:text-sm text-slate-800 font-medium leading-relaxed text-justify mb-6">
+              {RENOVAR_INSTITUCIONAL.diferenciaisEFechamento.fechamentoComercial.paragrafos.map((p, idx) => (
+                <p key={idx}>{p}</p>
+              ))}
+            </div>
+
+            <div className="bg-slate-50 border border-slate-300 rounded-xl p-4 mb-6 shadow-xs">
+              <h3 className="font-black text-slate-950 text-xs uppercase mb-2">
+                Compromissos Formais Exclusivos da RenovarSC com o Condomínio:
+              </h3>
+              <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs font-mono">
+                {RENOVAR_INSTITUCIONAL.diferenciaisEFechamento.fechamentoComercial.compromissosExclusivosCondominio.map((comp, idx) => (
+                  <li key={idx} className="flex items-start gap-1.5 text-slate-900">
+                    <CheckCircle className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5" />
+                    <span>{comp}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* Chamada para Ação */}
+            <div className="p-5 bg-slate-950 text-white rounded-2xl space-y-3">
+              <div className="border-b border-slate-800 pb-2">
+                <h4 className="text-sm font-mono font-black uppercase text-amber-400">
+                  {RENOVAR_INSTITUCIONAL.diferenciaisEFechamento.fechamentoComercial.chamadaAcao.titulo}
+                </h4>
+                <p className="text-xs text-slate-300 font-medium mt-0.5">
+                  {RENOVAR_INSTITUCIONAL.diferenciaisEFechamento.fechamentoComercial.chamadaAcao.descricao}
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs font-mono">
+                {RENOVAR_INSTITUCIONAL.diferenciaisEFechamento.fechamentoComercial.chamadaAcao.canais.map((canal, cIdx) => (
+                  <div key={cIdx} className="p-3 rounded-xl bg-slate-900 border border-slate-800 space-y-1">
+                    <span className="text-[10px] font-bold text-amber-400 uppercase block">
+                      {canal.tipo}
+                    </span>
+                    <span className="font-black text-white text-sm block">
+                      {canal.valor}
+                    </span>
+                    <span className="text-[10px] text-slate-400 block leading-tight">
+                      {canal.descricao}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <DocumentFooter />
         </section>
       </div>
     </div>
