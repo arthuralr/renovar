@@ -80,9 +80,14 @@ async function garantirTabela() {
 }
 void garantirTabela();
 
-const GEMINI_PRIMARY_MODEL = 'gemini-2.5-flash';
-const GEMINI_BACKUP_MODEL = 'gemini-2.0-flash';
-const GEMINI_FALLBACK_CHAIN = [GEMINI_PRIMARY_MODEL, GEMINI_BACKUP_MODEL] as const;
+const GEMINI_PRIMARY_MODEL = 'gemini-3.8-flash';
+const GEMINI_BACKUP_MODEL = 'gemini-3.1-flash-lite';
+const GEMINI_FALLBACK_CHAIN = [
+  GEMINI_PRIMARY_MODEL,
+  'gemini-3.1-flash-lite',
+  'gemini-3.5-flash',
+  'gemini-2.5-flash',
+] as const;
 
 const isValidApiKey = (val?: string): val is string => {
   if (!val || typeof val !== 'string') return false;
@@ -134,7 +139,7 @@ if (RESOLVED_API_KEY) {
 const createGeminiClient = (apiKey?: string): GoogleGenAI | null => {
   const resolvedKey = (isValidApiKey(apiKey) ? apiKey.trim().replace(/^["']|["']$/g, '') : undefined) || getResolvedGeminiApiKey();
   if (!isValidApiKey(resolvedKey)) return null;
-  return new GoogleGenAI({ apiKey: resolvedKey, vertexai: false, httpOptions: { apiVersion: 'v1beta' } });
+  return new GoogleGenAI({ apiKey: resolvedKey });
 };
 
 const ai = createGeminiClient(RESOLVED_API_KEY);

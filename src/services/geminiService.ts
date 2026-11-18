@@ -1,11 +1,13 @@
 import { GoogleGenAI, Type } from '@google/genai';
 import { DiagnosticoResponse, InspecaoContexto } from '../types';
 
-export const GEMINI_PRIMARY_MODEL = 'gemini-2.5-flash';
-export const GEMINI_BACKUP_MODEL = 'gemini-2.0-flash';
+export const GEMINI_PRIMARY_MODEL = 'gemini-3.8-flash';
+export const GEMINI_BACKUP_MODEL = 'gemini-3.1-flash-lite';
 export const GEMINI_FALLBACK_CHAIN = [
   GEMINI_PRIMARY_MODEL,
-  GEMINI_BACKUP_MODEL,
+  'gemini-3.1-flash-lite',
+  'gemini-3.5-flash',
+  'gemini-2.5-flash',
 ] as const;
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -180,6 +182,61 @@ export const getClientGeminiApiKey = (): string => {
   return '';
 };
 
+export function createGeminiClientInstance(apiKey?: string): GoogleGenAI {
+  const resolvedKey = apiKey || getClientGeminiApiKey();
+  if (!isValidApiKey(resolvedKey)) {
+    throw new Error('Chave da API do Gemini não configurada ou inválida. Verifique sua GEMINI_API_KEY no arquivo .env.');
+  }
+  return new GoogleGenAI({
+    apiKey: resolvedKey,
+  });
+}
+
+export function logAndFormatGeminiError(error: any, contextLabel: string): Error {
+  const status = error?.status || error?.code || error?.httpStatus;
+  const rawMessage = String(error?.message || error || '');
+  const lowerMsg = rawMessage.toLowerCase();
+
+  console.error(`[Gemini Service] ❌ Erro detalhado na chamada (${contextLabel}):`, {
+    status,
+    message: rawMessage,
+    details: error?.details || error?.error,
+    error,
+  });
+
+  if (status === 429 || lowerMsg.includes('quota') || lowerMsg.includes('resource_exhausted')) {
+    return new Error(
+      'Limite de requisições do Gemini atingido (Cota excedida no plano gratuito). Aguarde alguns instantes ou atualize sua chave de API.'
+    );
+  }
+
+  if (
+    status === 401 ||
+    status === 403 ||
+    lowerMsg.includes('api_key_invalid') ||
+    lowerMsg.includes('unauthorized') ||
+    lowerMsg.includes('permission_denied')
+  ) {
+    return new Error(
+      'Chave da API do Gemini inválida ou não autorizada. Verifique se a GEMINI_API_KEY está correta.'
+    );
+  }
+
+  if (
+    lowerMsg.includes('failed to fetch') ||
+    lowerMsg.includes('networkerror') ||
+    lowerMsg.includes('etimedout')
+  ) {
+    return new Error(
+      'Falha de conexão com a API do Google Gemini. Verifique sua conexão com a internet e tente novamente.'
+    );
+  }
+
+  return error instanceof Error
+    ? error
+    : new Error(rawMessage || 'Erro desconhecido ao comunicar com a API do Gemini.');
+}
+
 const systemInstruction = `Você é um Engenheiro Civil Perito, especializado em Patologias das Construções, Recuperação Estrutural e Engenharia Diagnóstica. Sua atuação é estritamente técnica, pautada pelo rigor metodológico das normas da ABNT e pelas melhores práticas de engenharia de manutenção.
 
 Sua tarefa é analisar fotografias de manifestações patológicas em edificações (fachadas, elementos estruturais, áreas internas ou muros) fornecidas pelo usuário e elaborar um diagnóstico pericial completo.
@@ -296,88 +353,89 @@ export async function diagnosticarImagemClient(
   contexto?: InspecaoContexto,
   _photoIndex: number = 0
 ): Promise<DiagnosticoResponse> {
-  const apiKey = getClientGeminiApiKey();
-  if (!isValidApiKey(apiKey)) {
-    throw new Error('Não foi possível validar a imagem: a integração com o Gemini não está configurada.');
-  }
-  const imagem = normalizarImagemParaGemini(imageBase64, mimeType);
-
-  const geminiClient = new GoogleGenAI({
-    apiKey,
-    vertexai: false,
-    httpOptions: { apiVersion: 'v1beta' },
-  });
-  const imagePart = {
-    inlineData: {
-      mimeType: imagem.mimeType,
-      data: imagem.data,
-    },
-  };
-
-  const parseResponse = (text: string) => {
-    const trimmed = text.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
-    try {
-      return JSON.parse(trimmed);
-    } catch {
-      const jsonMatch = trimmed.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) throw new Error('O Gemini retornou uma resposta inválida.');
-      return JSON.parse(jsonMatch[0]);
-    }
-  };
-
-  const executarModelos = async (
-    contents: any[],
-    config: any,
-    label: string,
-    isValidResponse: (parsed: any) => boolean
-  ) => {
-    for (const modelName of GEMINI_FALLBACK_CHAIN) {
-      try {
-        const response = await generateContentWithTimeout(
-          geminiClient,
-          modelName,
-          contents,
-          config,
-          `${label} (${modelName})`
-        );
-        if (response?.text) {
-          const parsed = parseResponse(response.text);
-          if (isValidResponse(parsed)) return parsed;
-          throw new Error('O Gemini retornou dados em formato inesperado.');
-        }
-      } catch (error) {
-        console.warn(`[${label}] Modelo ${modelName} indisponível:`, error);
-      }
-    }
-    throw new Error(`O Gemini não conseguiu concluir ${label.toLowerCase()}.`);
-  };
-
   try {
-    const qualification = await executarModelos(
-      [
-        {
-          role: 'user',
-          parts: [
-            imagePart,
-            {
-              text: 'Classifique exclusivamente o conteúdo visual da imagem. É válida somente se mostrar uma edificação, fachada, elemento construtivo ou patologia da construção civil. Panfletos, pessoas, paisagens sem relação com obras, animais e objetos comuns são inválidos. Não gere diagnóstico nesta etapa.',
-            },
-          ],
-        },
-      ],
-      {
-        responseMimeType: 'application/json',
-        responseSchema: qualificacaoImagemSchema,
+    const apiKey = getClientGeminiApiKey();
+    if (!isValidApiKey(apiKey)) {
+      throw new Error(
+        'Não foi possível validar a imagem: a integração com o Gemini não está configurada (chave ausente no .env).'
+      );
+    }
+    const imagem = normalizarImagemParaGemini(imageBase64, mimeType);
+
+    const geminiClient = new GoogleGenAI({
+      apiKey,
+    });
+
+    // Estruturação rigorosa da parte binária da imagem para o payload do SDK Google Gen AI
+    const imagePart = {
+      inlineData: {
+        mimeType: imagem.mimeType,
+        data: imagem.data,
       },
-      'Validação da imagem',
-      (parsed) => typeof parsed?.isValidConstructionImage === 'boolean'
-    );
-    if (qualification?.isValidConstructionImage !== true) {
-      throw new ImagemConstrutivaInvalidaError();
+    };
+
+    const parseResponse = (text: string) => {
+      const trimmed = text.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
+      try {
+        return JSON.parse(trimmed);
+      } catch {
+        const jsonMatch = trimmed.match(/\{[\s\S]*\}/);
+        if (!jsonMatch) throw new Error('O Gemini retornou uma resposta inválida.');
+        return JSON.parse(jsonMatch[0]);
+      }
+    };
+
+    // 1. Tenta validação preliminar do elemento construtivo (não bloqueia o laudo caso haja sobrecarga transitória na qualificação)
+    try {
+      for (const modelName of GEMINI_FALLBACK_CHAIN) {
+        try {
+          const qualResp = await generateContentWithTimeout(
+            geminiClient,
+            modelName,
+            [
+              {
+                role: 'user',
+                parts: [
+                  imagePart,
+                  {
+                    text: 'Classifique exclusivamente o conteúdo visual da imagem. É válida somente se mostrar uma edificação, fachada, elemento construtivo ou patologia da construção civil. Panfletos, pessoas, paisagens sem relação com obras, animais e objetos comuns são inválidos.',
+                  },
+                ],
+              },
+            ],
+            {
+              responseMimeType: 'application/json',
+              responseSchema: qualificacaoImagemSchema,
+            },
+            `Validação visual (${modelName})`
+          );
+          if (qualResp?.text) {
+            const parsedQual = parseResponse(qualResp.text);
+            if (parsedQual?.isValidConstructionImage === false) {
+              throw new ImagemConstrutivaInvalidaError();
+            }
+            break;
+          }
+        } catch (qualInnerErr: any) {
+          if (qualInnerErr instanceof ImagemConstrutivaInvalidaError) {
+            throw qualInnerErr;
+          }
+          console.warn(
+            `[Gemini Service] Aviso na qualificação preliminar (${modelName}):`,
+            qualInnerErr?.message || qualInnerErr
+          );
+        }
+      }
+    } catch (qualErr: any) {
+      if (qualErr instanceof ImagemConstrutivaInvalidaError) {
+        throw qualErr;
+      }
+      console.warn('[Gemini Service] Prosseguindo diretamente com a análise pericial da fotografia.');
     }
 
+    // 2. Montagem do prompt pericial e contexto do perito inspetor
     let userPrompt =
-      'A imagem já foi validada como relacionada à construção civil. Analise-a pericialmente e formule um registro de diagnóstico consolidado, em conformidade com as normas ABNT vigentes.';
+      'Analise pericialmente esta fotografia de manifestação patológica em edificação/fachada e formule um registro de diagnóstico técnico consolidado, em estrita conformidade com as normas ABNT vigentes.';
 
     if (contexto && typeof contexto === 'object') {
       const details: string[] = [];
@@ -391,29 +449,58 @@ export async function diagnosticarImagemClient(
       }
     }
 
-    const parsedData = await executarModelos(
-      [{ role: 'user', parts: [imagePart, { text: userPrompt }] }],
+    const contents = [
       {
-        systemInstruction,
-        responseMimeType: 'application/json',
-        responseSchema: anomaliasSchema,
+        role: 'user',
+        parts: [
+          imagePart,
+          { text: userPrompt },
+        ],
       },
-      'Diagnóstico ABNT',
-      (parsed) => {
-        const items =
-          parsed?.anomalias ||
-          parsed?.patologias ||
-          parsed?.diagnostico?.anomalias ||
-          parsed?.diagnostico?.patologias;
-        return Array.isArray(items) && items.length > 0;
-      }
-    );
+    ];
 
-    return normalizarDiagnosticoGemini(parsedData);
-  } catch (error) {
-    if (error instanceof ImagemConstrutivaInvalidaError) throw error;
-    console.error('Não foi possível validar ou diagnosticar a imagem com o Gemini:', error);
-    throw error;
+    let lastError: any = null;
+    for (const modelName of GEMINI_FALLBACK_CHAIN) {
+      try {
+        const response = await generateContentWithTimeout(
+          geminiClient,
+          modelName,
+          contents,
+          {
+            systemInstruction,
+            responseMimeType: 'application/json',
+            responseSchema: anomaliasSchema,
+          },
+          `Diagnóstico ABNT Foto (${modelName})`
+        );
+        if (response?.text) {
+          const parsed = parseResponse(response.text);
+          const items =
+            parsed?.anomalias ||
+            parsed?.patologias ||
+            parsed?.diagnostico?.anomalias ||
+            parsed?.diagnostico?.patologias;
+          if (Array.isArray(items) && items.length > 0) {
+            return normalizarDiagnosticoGemini(parsed);
+          }
+          throw new Error('O Gemini retornou dados fora do esquema esperado.');
+        }
+      } catch (error: any) {
+        lastError = error;
+        console.warn(`[Gemini Service] Tentativa falhou no modelo ${modelName}:`, {
+          status: error?.status || error?.code,
+          message: error?.message,
+        });
+      }
+    }
+
+    throw logAndFormatGeminiError(lastError, 'Diagnóstico por Imagem');
+  } catch (error: any) {
+    if (error instanceof ImagemConstrutivaInvalidaError) {
+      throw error;
+    }
+    const formatted = logAndFormatGeminiError(error, 'Diagnóstico Pericial de Fotografia');
+    throw formatted;
   }
 }
 
@@ -494,72 +581,121 @@ export async function diagnosticarTextoClient(
   textoManual: string,
   contexto?: InspecaoContexto
 ): Promise<DiagnosticoResponse> {
-  const apiKey = getClientGeminiApiKey();
-  if (!isValidApiKey(apiKey)) {
-    throw new Error('Não foi possível emitir o laudo: a integração com o Gemini não está configurada.');
-  }
-
-  const geminiClient = new GoogleGenAI({
-    apiKey,
-    vertexai: false,
-    httpOptions: { apiVersion: 'v1beta' },
-  });
-
-  const parseResponse = (text: string) => {
-    const trimmed = text.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
-    try {
-      return JSON.parse(trimmed);
-    } catch {
-      const jsonMatch = trimmed.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) throw new Error('O Gemini retornou uma resposta inválida.');
-      return JSON.parse(jsonMatch[0]);
-    }
-  };
-
-  let userPrompt = `O perito ou cliente forneceu o seguinte relato/escopo técnico descritivo de manifestações patológicas ou serviços de reforma predial/fachadas:\n\n"""\n${textoManual.trim()}\n"""\n\nAnalise tecnicamente esse relato descritivo, identifique a manifestação patológica principal e formule um laudo de diagnóstico pericial consolidado, em estrita conformidade com as normas ABNT vigentes.`;
-
-  if (contexto && typeof contexto === 'object') {
-    const details: string[] = [];
-    if (contexto.nomeEdificio) details.push(`Identificação do Imóvel: ${contexto.nomeEdificio}`);
-    if (contexto.tipoElemento) details.push(`Elemento/Substrato inspecionado: ${contexto.tipoElemento}`);
-    if (contexto.idadeEdificio) details.push(`Idade aproximada da edificação: ${contexto.idadeEdificio}`);
-    if (contexto.localizacao) details.push(`Localização / Orientação solar: ${contexto.localizacao}`);
-    if (contexto.observacoes) details.push(`Observações periciais preliminares: ${contexto.observacoes}`);
-    if (details.length > 0) {
-      userPrompt += `\n\nDados cadastrais e contexto preliminar informado pelo perito inspetor:\n- ${details.join('\n- ')}`;
-    }
-  }
-
-  for (const modelName of GEMINI_FALLBACK_CHAIN) {
-    try {
-      const response = await generateContentWithTimeout(
-        geminiClient,
-        modelName,
-        [{ role: 'user', parts: [{ text: userPrompt }] }],
-        {
-          systemInstruction,
-          responseMimeType: 'application/json',
-          responseSchema: anomaliasSchema,
-        },
-        `Diagnóstico Descritivo ABNT (${modelName})`
+  try {
+    const apiKey = getClientGeminiApiKey();
+    if (!isValidApiKey(apiKey)) {
+      throw new Error(
+        'Não foi possível emitir o laudo: a integração com o Gemini não está configurada (chave ausente no .env).'
       );
-      if (response?.text) {
-        const parsed = parseResponse(response.text);
-        const items =
-          parsed?.anomalias ||
-          parsed?.patologias ||
-          parsed?.diagnostico?.anomalias ||
-          parsed?.diagnostico?.patologias;
-        if (Array.isArray(items) && items.length > 0) {
-          return normalizarDiagnosticoGemini(parsed);
-        }
-      }
-    } catch (error) {
-      console.warn(`[Diagnóstico Descritivo] Modelo ${modelName} indisponível:`, error);
     }
-  }
 
-  throw new Error('O Gemini não conseguiu processar o diagnóstico do texto descritivo.');
+    if (!textoManual || !textoManual.trim()) {
+      throw new Error('Por favor, informe a descrição ou escopo técnico da patologia para análise.');
+    }
+
+    const geminiClient = new GoogleGenAI({
+      apiKey,
+    });
+
+    const parseResponse = (text: string) => {
+      const trimmed = text.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
+      try {
+        return JSON.parse(trimmed);
+      } catch {
+        const jsonMatch = trimmed.match(/\{[\s\S]*\}/);
+        if (!jsonMatch) throw new Error('O Gemini retornou uma resposta inválida.');
+        return JSON.parse(jsonMatch[0]);
+      }
+    };
+
+    let userPrompt = `O perito ou cliente forneceu o seguinte relato/escopo técnico descritivo de manifestações patológicas ou serviços de reforma predial/fachadas:\n\n"""\n${textoManual.trim()}\n"""\n\nAnalise tecnicamente esse relato descritivo, identifique a manifestação patológica principal e formule um laudo de diagnóstico pericial consolidado, em estrita conformidade com as normas ABNT vigentes.`;
+
+    if (contexto && typeof contexto === 'object') {
+      const details: string[] = [];
+      if (contexto.nomeEdificio) details.push(`Identificação do Imóvel: ${contexto.nomeEdificio}`);
+      if (contexto.tipoElemento) details.push(`Elemento/Substrato inspecionado: ${contexto.tipoElemento}`);
+      if (contexto.idadeEdificio) details.push(`Idade aproximada da edificação: ${contexto.idadeEdificio}`);
+      if (contexto.localizacao) details.push(`Localização / Orientação solar: ${contexto.localizacao}`);
+      if (contexto.observacoes) details.push(`Observações periciais preliminares: ${contexto.observacoes}`);
+      if (details.length > 0) {
+        userPrompt += `\n\nDados cadastrais e contexto preliminar informado pelo perito inspetor:\n- ${details.join('\n- ')}`;
+      }
+    }
+
+    // Envio exclusivo como prompt de texto puro, sem estruturas binárias
+    const contents = [
+      {
+        role: 'user',
+        parts: [
+          { text: userPrompt },
+        ],
+      },
+    ];
+
+    let lastError: any = null;
+    for (const modelName of GEMINI_FALLBACK_CHAIN) {
+      try {
+        const response = await generateContentWithTimeout(
+          geminiClient,
+          modelName,
+          contents,
+          {
+            systemInstruction,
+            responseMimeType: 'application/json',
+            responseSchema: anomaliasSchema,
+          },
+          `Diagnóstico Descritivo ABNT (${modelName})`
+        );
+        if (response?.text) {
+          const parsed = parseResponse(response.text);
+          const items =
+            parsed?.anomalias ||
+            parsed?.patologias ||
+            parsed?.diagnostico?.anomalias ||
+            parsed?.diagnostico?.patologias;
+          if (Array.isArray(items) && items.length > 0) {
+            return normalizarDiagnosticoGemini(parsed);
+          }
+          throw new Error('O Gemini retornou dados fora do esquema esperado.');
+        }
+      } catch (error: any) {
+        lastError = error;
+        console.warn(`[Gemini Service] Tentativa falhou no modelo ${modelName}:`, {
+          status: error?.status || error?.code,
+          message: error?.message,
+        });
+      }
+    }
+
+    throw logAndFormatGeminiError(lastError, 'Diagnóstico por Texto');
+  } catch (error: any) {
+    const formatted = logAndFormatGeminiError(error, 'Diagnóstico Descritivo por Texto');
+    throw formatted;
+  }
+}
+
+/**
+ * Função de conveniência que roteia de forma transparente tanto imagens quanto textos manuais
+ */
+export async function diagnosticarPatologiaClient(params: {
+  imageBase64?: string | null;
+  mimeType?: string;
+  textoManual?: string | null;
+  contexto?: InspecaoContexto;
+  photoIndex?: number;
+}): Promise<DiagnosticoResponse> {
+  if (params.textoManual && params.textoManual.trim()) {
+    return diagnosticarTextoClient(params.textoManual, params.contexto);
+  }
+  if (params.imageBase64 && params.imageBase64.trim()) {
+    return diagnosticarImagemClient(
+      params.imageBase64,
+      params.mimeType || 'image/jpeg',
+      params.contexto,
+      params.photoIndex
+    );
+  }
+  throw new Error('Nenhuma fotografia ou texto descritivo fornecido para análise.');
 }
 
 export function normalizarDiagnosticoGemini(payload: any): DiagnosticoResponse {

@@ -109,9 +109,9 @@ export const OfficialReportModal: React.FC<OfficialReportModalProps> = ({
       <div className="sticky top-2 z-50 w-full max-w-4xl bg-slate-900/95 border border-slate-700 rounded-2xl px-4 py-3 mb-6 flex items-center justify-between shadow-2xl no-print">
         <div className="flex items-center gap-2.5">
           <img
-            src="/logo-simbolo.svg"
+            src="/logo-renovar-oficial.png"
             alt="RenovarSC"
-            className="w-8 h-8 rounded-lg shrink-0 object-contain"
+            className="w-9 h-9 rounded-lg shrink-0 object-contain bg-white p-0.5 shadow-inner"
           />
           <div>
             <div className="text-white font-bold text-xs sm:text-sm uppercase">
@@ -185,9 +185,9 @@ export const OfficialReportModal: React.FC<OfficialReportModalProps> = ({
                 <div className="border-b-2 border-slate-900 pb-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                   <div className="flex items-center gap-3">
                     <img
-                      src="/logo-simbolo.svg"
+                      src="/logo-renovar-oficial.png"
                       alt="RenovarSC"
-                      className="w-11 h-11 rounded-xl shrink-0 object-contain"
+                      className="w-12 h-12 rounded-xl shrink-0 object-contain"
                     />
                     <div>
                       <h1 className="text-base sm:text-lg font-extrabold text-slate-950 tracking-tight uppercase leading-snug">

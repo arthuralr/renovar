@@ -217,9 +217,9 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
     <div className="border-b-2 border-slate-900 pb-3 mb-6 flex items-center justify-between">
       <div className="flex items-center gap-2.5">
         <img
-          src="/logo-simbolo.svg"
+          src="/logo-renovar-oficial.png"
           alt="RenovarSC"
-          className="w-6 h-6 rounded shrink-0 object-contain"
+          className="h-7 w-auto object-contain shrink-0"
         />
         <span className="font-extrabold text-slate-950 tracking-tight text-xs uppercase font-mono">
           RenovarSC — Soluções Prediais
@@ -260,9 +260,9 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
         <header className="sticky top-0 z-50 w-full max-w-4xl bg-slate-900/95 border border-slate-700/80 backdrop-blur-md rounded-2xl px-4 sm:px-6 py-3.5 mb-6 flex flex-wrap items-center justify-between gap-3 shadow-2xl no-print">
           <div className="flex items-center gap-3">
             <img
-              src="/logo-simbolo.svg"
+              src="/logo-renovar-oficial.png"
               alt="RenovarSC"
-              className="w-8 h-8 rounded-lg shadow-inner shrink-0 object-contain"
+              className="h-9 w-auto rounded-lg bg-white p-0.5 object-contain shadow-inner shrink-0"
             />
             <div>
               <div className="text-white font-bold text-xs sm:text-sm tracking-tight uppercase flex items-center gap-2">
@@ -349,9 +349,9 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
           <div className="flex items-center justify-between gap-5 border-b-2 border-slate-900 pb-5">
             <div className="flex items-center gap-4">
               <img
-                src="/logo-renovar.svg"
+                src="/logo-renovar-oficial.png"
                 alt="RenovarSC - Soluções Prediais"
-                className="h-16 w-auto object-contain shrink-0"
+                className="h-20 sm:h-24 w-auto object-contain shrink-0"
               />
             </div>
 
