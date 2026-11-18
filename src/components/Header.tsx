@@ -1,5 +1,5 @@
 import React from 'react';
-import { ShieldAlert, BookOpen, History, Kanban } from 'lucide-react';
+import { BookOpen, History, Kanban } from 'lucide-react';
 
 interface HeaderProps {
   onOpenHistory: () => void;
@@ -20,15 +20,19 @@ export const Header: React.FC<HeaderProps> = ({
     <header className="border-b border-slate-800 bg-slate-900/90 backdrop-blur-md sticky top-0 z-30 no-print">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 to-amber-700 flex items-center justify-center shadow-lg shadow-amber-500/20 border border-amber-400/30">
-            <ShieldAlert className="w-6 h-6 text-slate-950 font-bold" />
-          </div>
+          <img
+            src="/logo-simbolo.svg"
+            alt="RenovarSC - Soluções Prediais"
+            className="w-10 h-10 rounded-xl shadow-lg shadow-amber-500/20 shrink-0"
+          />
           <div>
-            <div className="flex items-center gap-2">
-              <span className="text-lg font-bold tracking-tight text-white font-mono">RENOVAR</span>
+            <div className="flex items-center gap-1 leading-none">
+              <span className="text-lg sm:text-xl font-extrabold tracking-tight text-white font-sans">
+                Renovar<span className="text-amber-400">SC</span>
+              </span>
             </div>
-            <p className="text-xs text-slate-400 hidden sm:block">
-              Perícia de Fachadas, Recuperação Estrutural e Engenharia Diagnóstica
+            <p className="text-[10px] sm:text-xs text-slate-400 font-mono tracking-wider uppercase font-semibold mt-1">
+              Soluções Prediais
             </p>
           </div>
         </div>

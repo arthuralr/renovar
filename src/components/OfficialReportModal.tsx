@@ -108,9 +108,11 @@ export const OfficialReportModal: React.FC<OfficialReportModalProps> = ({
       {/* Top Floating Controls (hidden in print) */}
       <div className="sticky top-2 z-50 w-full max-w-4xl bg-slate-900/95 border border-slate-700 rounded-2xl px-4 py-3 mb-6 flex items-center justify-between shadow-2xl no-print">
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-slate-950 border border-amber-500/40 flex items-center justify-center text-amber-400 font-bold">
-            <ShieldAlert className="w-4 h-4" />
-          </div>
+          <img
+            src="/logo-simbolo.svg"
+            alt="RenovarSC"
+            className="w-8 h-8 rounded-lg shrink-0 object-contain"
+          />
           <div>
             <div className="text-white font-bold text-xs sm:text-sm uppercase">
               Laudo Técnico Pericial ABNT • {laudoId}
@@ -182,9 +184,11 @@ export const OfficialReportModal: React.FC<OfficialReportModalProps> = ({
                 {/* Document Header */}
                 <div className="border-b-2 border-slate-900 pb-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                   <div className="flex items-center gap-3">
-                    <div className="w-11 h-11 rounded-xl bg-slate-900 text-amber-400 flex items-center justify-center font-bold shrink-0">
-                      <ShieldAlert className="w-6 h-6" />
-                    </div>
+                    <img
+                      src="/logo-simbolo.svg"
+                      alt="RenovarSC"
+                      className="w-11 h-11 rounded-xl shrink-0 object-contain"
+                    />
                     <div>
                       <h1 className="text-base sm:text-lg font-extrabold text-slate-950 tracking-tight uppercase leading-snug">
                         Laudo Técnico Pericial de Patologias Prediais

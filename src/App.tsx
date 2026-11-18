@@ -1286,7 +1286,7 @@ export default function App() {
 
         <footer className="border-t border-slate-900 bg-slate-950 py-6 mt-12 text-center text-xs text-slate-500 font-mono no-print">
           <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
-            <span>RENOVAR • Sistema Integrado de Diagnóstico Pericial e Orçamentação de Fachadas</span>
+            <span>RenovarSC — Soluções Prediais • Sistema Integrado de Diagnóstico Pericial e Orçamentação de Fachadas</span>
             <span>Em conformidade com normas ABNT NBR 16747, NBR 13755 e NBR 6118</span>
           </div>
         </footer>

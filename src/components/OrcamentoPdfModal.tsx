@@ -215,19 +215,21 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
 
   const DocumentHeader = ({ pageNum, totalPages }: { pageNum: number; totalPages: number }) => (
     <div className="border-b-2 border-slate-900 pb-3 mb-6 flex items-center justify-between">
-      <div className="flex items-center gap-2">
-        <div className="w-6 h-6 rounded bg-slate-950 flex items-center justify-center text-amber-400 font-black text-xs">
-          R
-        </div>
+      <div className="flex items-center gap-2.5">
+        <img
+          src="/logo-simbolo.svg"
+          alt="RenovarSC"
+          className="w-6 h-6 rounded shrink-0 object-contain"
+        />
         <span className="font-extrabold text-slate-950 tracking-tight text-xs uppercase font-mono">
-          Renovar Engenharia Diagnóstica
+          RenovarSC — Soluções Prediais
         </span>
         <span className="text-slate-400 mx-1">|</span>
         <span className="text-slate-800 text-[11px] truncate max-w-xs font-medium">
           {dadosCliente.nomeCondominio || 'Proposta Técnica'}
         </span>
       </div>
-      <div className="font-mono text-[10px] text-slate-700 font-semibold">
+      <div className="font-mono text-[10px] text-slate-700 font-semibold shrink-0">
         Pág. {pageNum} de {totalPages} • {orcamentoId}
       </div>
     </div>
@@ -235,7 +237,7 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
 
   const DocumentFooter = () => (
     <div className="border-t border-slate-300 pt-3 mt-8 flex flex-col sm:flex-row items-center justify-between text-[10px] font-mono text-slate-700">
-      <div>RENOVAR SC — Soluções Prediais • CREA/SC: 105.402-1</div>
+      <div>RenovarSC — Soluções Prediais • CREA/SC: 105.402-1</div>
       <div>Validade: {validadeDias} dias • Emissão: {dataAtualExtenso}</div>
     </div>
   );
@@ -257,18 +259,20 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
       {isOpen && (
         <header className="sticky top-0 z-50 w-full max-w-4xl bg-slate-900/95 border border-slate-700/80 backdrop-blur-md rounded-2xl px-4 sm:px-6 py-3.5 mb-6 flex flex-wrap items-center justify-between gap-3 shadow-2xl no-print">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-slate-950 border border-amber-500/40 flex items-center justify-center text-amber-400 font-black text-sm">
-              R
-            </div>
+            <img
+              src="/logo-simbolo.svg"
+              alt="RenovarSC"
+              className="w-8 h-8 rounded-lg shadow-inner shrink-0 object-contain"
+            />
             <div>
               <div className="text-white font-bold text-xs sm:text-sm tracking-tight uppercase flex items-center gap-2">
-                <span>Renovar Engenharia • Proposta</span>
+                <span>RenovarSC • Proposta</span>
                 <span className="font-mono text-[11px] px-2 py-0.5 rounded bg-slate-950 text-amber-400 border border-slate-800">
                   {orcamentoId}
                 </span>
               </div>
               <div className="text-[11px] text-slate-300 font-mono hidden sm:block truncate max-w-sm">
-                {dadosCliente.nomeCondominio || 'Condomínio'} • Formato A4
+                Soluções Prediais • {dadosCliente.nomeCondominio || 'Condomínio'}
               </div>
             </div>
           </div>
@@ -342,20 +346,25 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
       >
         {/* PÁGINA 1 */}
         <section className="print-document-sheet page-break-after bg-white text-slate-900 shadow-2xl rounded-2xl p-8 sm:p-14 min-h-[1050px] flex flex-col justify-between border border-slate-300 relative overflow-hidden print:min-h-0 print:h-auto print:max-h-none print:overflow-visible print:block print:p-0 print:border-none print:shadow-none print:rounded-none">
-          <div className="flex items-start justify-between gap-5 border-b-2 border-slate-900 pb-5">
-            <div>
-              <div className="text-2xl font-black tracking-tight text-slate-950">
-                RENOVAR SC — SOLUÇÕES PREDIAIS
+          <div className="flex items-center justify-between gap-5 border-b-2 border-slate-900 pb-5">
+            <div className="flex items-center gap-4">
+              <img
+                src="/logo-renovar.svg"
+                alt="RenovarSC - Soluções Prediais"
+                className="h-16 w-auto object-contain shrink-0"
+              />
+            </div>
+
+            <div className="text-right shrink-0">
+              <div className="text-base font-black text-slate-950 uppercase font-sans tracking-tight">
+                Renovar<span className="text-amber-600">SC</span> — Soluções Prediais
               </div>
-              <div className="mt-2 text-xs font-mono text-slate-700 font-semibold">
+              <div className="mt-1 text-xs font-mono text-slate-700 font-semibold">
                 CNPJ: 57.293.244/0001-27
               </div>
               <div className="text-xs font-mono font-extrabold text-slate-900">
                 CREA/SC: 105.402-1
               </div>
-            </div>
-            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-slate-950 text-3xl font-black text-amber-400">
-              R
             </div>
           </div>
 
@@ -1244,7 +1253,7 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
             <div className="flex flex-col sm:flex-row items-center justify-between gap-10">
               <div className="text-center w-72">
                 <div className="border-b-2 border-slate-900 pb-1 mb-1 font-black text-xs text-slate-950 uppercase">
-                  Renovar Engenharia Diagnóstica
+                  RenovarSC — Soluções Prediais
                 </div>
                 <div className="text-[10px] text-slate-800 font-bold font-mono">
                   Engenheiro Civil Responsável Técnico • CREA Ativo

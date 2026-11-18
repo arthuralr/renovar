@@ -476,7 +476,7 @@ export function gerarPlaceholderRegistroTexto(titulo: string, descricao: string)
     <rect x="48" y="48" width="704" height="64" rx="12" fill="#1e293b"/>
     <circle cx="76" cy="80" r="14" fill="#f59e0b"/>
     <text x="76" y="85" fill="#020617" font-family="sans-serif" font-size="14" font-weight="900" text-anchor="middle">R</text>
-    <text x="104" y="78" fill="#ffffff" font-family="monospace" font-size="15" font-weight="bold">RENOVAR ENGENHARIA DIAGNÓSTICA</text>
+    <text x="104" y="78" fill="#ffffff" font-family="monospace" font-size="15" font-weight="bold">RenovarSC — SOLUÇÕES PREDIAIS</text>
     <text x="104" y="96" fill="#94a3b8" font-family="monospace" font-size="11">LAUDO TÉCNICO PERICIAL • REGISTRO DESCRITIVO</text>
     <rect x="48" y="132" width="704" height="280" rx="12" fill="#020617" stroke="#334155" stroke-width="1"/>
     <text x="72" y="172" fill="#f59e0b" font-family="sans-serif" font-size="17" font-weight="bold">${safeTitle}</text>
