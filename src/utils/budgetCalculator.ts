@@ -125,7 +125,9 @@ export function calcularOrcamento(
   materiais: ItemMaterial[],
   equipe: CargoProfissional[],
   mesesObra: number,
-  margemLucroPercentual: number
+  margemLucroPercentual: number,
+  aplicarPericulosidade: boolean = true,
+  aplicarEncargosSociais: boolean = true
 ): CalculosOrcamento {
   const meses = Math.max(0, Number(mesesObra) || 0);
 
@@ -145,11 +147,11 @@ export function calcularOrcamento(
 
   const maoDeObraDireta = salariosMensaisTotal * meses;
 
-  // 3. Periculosidade = 30% sobre o total da Mão de Obra Direta
-  const periculosidade = maoDeObraDireta * 0.30;
+  // 3. Periculosidade = 30% sobre o total da Mão de Obra Direta (se ativado pelo usuário)
+  const periculosidade = aplicarPericulosidade ? maoDeObraDireta * 0.30 : 0;
 
-  // 4. Encargos Sociais = 60% sobre o total da Mão de Obra Direta
-  const encargosSociais = maoDeObraDireta * 0.60;
+  // 4. Encargos Sociais = 60% sobre o total da Mão de Obra Direta (se ativado pelo usuário)
+  const encargosSociais = aplicarEncargosSociais ? maoDeObraDireta * 0.60 : 0;
 
   // 5. Custo Total Direto = Materiais + Mão de Obra Direta + Periculosidade + Encargos
   const custoTotalDireto = custoMateriais + maoDeObraDireta + periculosidade + encargosSociais;
@@ -176,6 +178,8 @@ export function calcularOrcamento(
     margemLucroPercentual: pctLucro,
     valorMargemLucro,
     valorGlobal,
+    aplicarPericulosidade,
+    aplicarEncargosSociais,
   };
 }
 

@@ -1081,22 +1081,26 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
                       {formatarMoeda(calculos.maoDeObraDireta)}
                     </td>
                   </tr>
-                  <tr>
-                    <td className="py-2 px-3 text-slate-900">
-                      3. Adicional de Periculosidade (30% sobre Mão de Obra Direta)
-                    </td>
-                    <td className="py-2 px-3 text-right font-bold text-amber-900">
-                      {formatarMoeda(calculos.periculosidade)}
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="py-2 px-3 text-slate-900">
-                      4. Encargos Sociais e Trabalhistas (60% sobre Mão de Obra Direta)
-                    </td>
-                    <td className="py-2 px-3 text-right font-bold text-sky-950">
-                      {formatarMoeda(calculos.encargosSociais)}
-                    </td>
-                  </tr>
+                  {calculos.aplicarPericulosidade !== false && calculos.periculosidade > 0 && (
+                    <tr>
+                      <td className="py-2 px-3 text-slate-900">
+                        3. Adicional de Periculosidade (30% sobre Mão de Obra Direta)
+                      </td>
+                      <td className="py-2 px-3 text-right font-bold text-amber-900">
+                        {formatarMoeda(calculos.periculosidade)}
+                      </td>
+                    </tr>
+                  )}
+                  {calculos.aplicarEncargosSociais !== false && calculos.encargosSociais > 0 && (
+                    <tr>
+                      <td className="py-2 px-3 text-slate-900">
+                        {calculos.aplicarPericulosidade !== false && calculos.periculosidade > 0 ? '4.' : '3.'} Encargos Sociais e Trabalhistas (60% sobre Mão de Obra Direta)
+                      </td>
+                      <td className="py-2 px-3 text-right font-bold text-sky-950">
+                        {formatarMoeda(calculos.encargosSociais)}
+                      </td>
+                    </tr>
+                  )}
                   <tr className="bg-slate-100 font-black text-slate-950">
                     <td className="py-2 px-3">SUBTOTAL: CUSTO TOTAL DIRETO</td>
                     <td className="py-2 px-3 text-right">

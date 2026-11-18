@@ -81,13 +81,15 @@ export interface CalculosOrcamento {
   salariosMensaisTotal: number;
   mesesObra: number;
   maoDeObraDireta: number; // (Soma dos salários) * Meses
-  periculosidade: number; // 30% sobre Mão de Obra Direta
-  encargosSociais: number; // 60% sobre Mão de Obra Direta
+  periculosidade: number; // 30% sobre Mão de Obra Direta (quando ativa)
+  encargosSociais: number; // 60% sobre Mão de Obra Direta (quando ativa)
   custoTotalDireto: number; // Materiais + MO + Periculosidade + Encargos
   margemErro: number; // 7% sobre Custo Total Direto
   margemLucroPercentual: number; // % digitado pelo usuário (ex: 20%)
   valorMargemLucro: number;
   valorGlobal: number; // Custo Total Direto + Margem Erro + Margem Lucro
+  aplicarPericulosidade?: boolean; // Controle opcional (padrão: true)
+  aplicarEncargosSociais?: boolean; // Controle opcional (padrão: true)
 }
 
 // Condições Comerciais e Pagamento da Proposta
@@ -121,6 +123,8 @@ export interface OrcamentoSalvo {
   equipe: CargoProfissional[];
   mesesObra: number;
   margemLucroPercentual: number;
+  aplicarPericulosidade?: boolean;
+  aplicarEncargosSociais?: boolean;
   diagnostico: DiagnosticoResponse | null;
   registrosVistoria?: HistoricoInspecao[];
   selectedImage?: string | null;

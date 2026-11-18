@@ -146,6 +146,8 @@ export default function App() {
   const [equipe, setEquipe] = useState<CargoProfissional[]>([]);
   const [mesesObra, setMesesObra] = useState<number>(0);
   const [margemLucroPercentual, setMargemLucroPercentual] = useState<number>(0);
+  const [aplicarPericulosidade, setAplicarPericulosidade] = useState<boolean>(true);
+  const [aplicarEncargosSociais, setAplicarEncargosSociais] = useState<boolean>(true);
 
   const [condicoesComerciais, setCondicoesComerciais] =
     useState<CondicoesComerciais>(CONDICOES_COMERCIAIS_PADRAO);
@@ -157,8 +159,15 @@ export default function App() {
   };
 
   const calculos = useMemo(() => {
-    return calcularOrcamento(materiais, equipe, mesesObra, margemLucroPercentual);
-  }, [materiais, equipe, mesesObra, margemLucroPercentual]);
+    return calcularOrcamento(
+      materiais,
+      equipe,
+      mesesObra,
+      margemLucroPercentual,
+      aplicarPericulosidade,
+      aplicarEncargosSociais
+    );
+  }, [materiais, equipe, mesesObra, margemLucroPercentual, aplicarPericulosidade, aplicarEncargosSociais]);
 
   const [isOrcamentoPdfOpen, setIsOrcamentoPdfOpen] = useState(false);
   const [isJsonModalOpen, setIsJsonModalOpen] = useState(false);
@@ -632,12 +641,14 @@ export default function App() {
       dataAtualizacao: agora,
       status: statusPreservado,
       dadosCliente: { ...dadosCliente },
-      calculos: { ...calculos },
+      calculos: { ...calculos, aplicarPericulosidade, aplicarEncargosSociais },
       condicoesComerciais: { ...condicoesComerciais },
       materiais: materiais.map((m) => ({ ...m })),
       equipe: equipe.map((e) => ({ ...e })),
       mesesObra,
       margemLucroPercentual,
+      aplicarPericulosidade,
+      aplicarEncargosSociais,
       diagnostico: diagnosticoConsolidado,
       registrosVistoria: [...registrosVistoria],
       selectedImage,
@@ -749,6 +760,8 @@ export default function App() {
     setEquipe([]);
     setMesesObra(0);
     setMargemLucroPercentual(0);
+    setAplicarPericulosidade(true);
+    setAplicarEncargosSociais(true);
     setCondicoesComerciais(CONDICOES_COMERCIAIS_PADRAO);
     mudarStepComPersistencia(1);
   };
@@ -906,6 +919,20 @@ export default function App() {
     setEquipe(orcamento.equipe || []);
     setMesesObra(orcamento.mesesObra || 0);
     setMargemLucroPercentual(orcamento.margemLucroPercentual || 0);
+    setAplicarPericulosidade(
+      orcamento.calculos?.aplicarPericulosidade !== undefined
+        ? orcamento.calculos.aplicarPericulosidade
+        : orcamento.aplicarPericulosidade !== undefined
+        ? orcamento.aplicarPericulosidade
+        : true
+    );
+    setAplicarEncargosSociais(
+      orcamento.calculos?.aplicarEncargosSociais !== undefined
+        ? orcamento.calculos.aplicarEncargosSociais
+        : orcamento.aplicarEncargosSociais !== undefined
+        ? orcamento.aplicarEncargosSociais
+        : true
+    );
     setCondicoesComerciais(orcamento.condicoesComerciais || CONDICOES_COMERCIAIS_PADRAO);
     setDiagnostico(orcamento.diagnostico || null);
     setRegistrosVistoria(registros);
@@ -1256,6 +1283,10 @@ export default function App() {
               calculos={calculos}
               condicoesComerciais={condicoesComerciais}
               onUpdateCondicoesComerciais={handleUpdateCondicoesComerciais}
+              aplicarPericulosidade={aplicarPericulosidade}
+              onTogglePericulosidade={setAplicarPericulosidade}
+              aplicarEncargosSociais={aplicarEncargosSociais}
+              onToggleEncargosSociais={setAplicarEncargosSociais}
               onPrev={() => handleMudarEtapaFormulario(2)}
               onNext={() => handleMudarEtapaFormulario(4)}
             />

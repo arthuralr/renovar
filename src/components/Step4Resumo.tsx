@@ -308,27 +308,51 @@ export const Step4Resumo: React.FC<Step4ResumoProps> = ({
               </div>
             </div>
 
-            <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-950/70 border border-slate-800/80">
-              <span className="text-slate-300 flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-orange-500" />
-                3. Periculosidade (30% sobre MO Direta)
-              </span>
-              <div className="text-right">
-                <span className="text-orange-300 font-bold">{formatarMoeda(calculos.periculosidade)}</span>
-                <span className="text-slate-500 text-[10px] ml-2">({pctPericulosidade.toFixed(1)}%)</span>
+            {calculos.aplicarPericulosidade !== false && calculos.periculosidade > 0 ? (
+              <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-950/70 border border-slate-800/80">
+                <span className="text-slate-300 flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-orange-500" />
+                  3. Periculosidade (30% sobre MO Direta)
+                </span>
+                <div className="text-right">
+                  <span className="text-orange-300 font-bold">{formatarMoeda(calculos.periculosidade)}</span>
+                  <span className="text-slate-500 text-[10px] ml-2">({pctPericulosidade.toFixed(1)}%)</span>
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-950/40 border border-slate-800/40 opacity-60">
+                <span className="text-slate-400 flex items-center gap-2 text-xs">
+                  <span className="w-2.5 h-2.5 rounded-full bg-slate-600" />
+                  3. Periculosidade (Opcional)
+                </span>
+                <div className="text-right text-xs">
+                  <span className="text-slate-500 font-mono">Não incidente (R$ 0,00)</span>
+                </div>
+              </div>
+            )}
 
-            <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-950/70 border border-slate-800/80">
-              <span className="text-slate-300 flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-indigo-500" />
-                4. Encargos Sociais (60% sobre MO Direta)
-              </span>
-              <div className="text-right">
-                <span className="text-indigo-300 font-bold">{formatarMoeda(calculos.encargosSociais)}</span>
-                <span className="text-slate-500 text-[10px] ml-2">({pctEncargos.toFixed(1)}%)</span>
+            {calculos.aplicarEncargosSociais !== false && calculos.encargosSociais > 0 ? (
+              <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-950/70 border border-slate-800/80">
+                <span className="text-slate-300 flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-indigo-500" />
+                  4. Encargos Sociais (60% sobre MO Direta)
+                </span>
+                <div className="text-right">
+                  <span className="text-indigo-300 font-bold">{formatarMoeda(calculos.encargosSociais)}</span>
+                  <span className="text-slate-500 text-[10px] ml-2">({pctEncargos.toFixed(1)}%)</span>
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-950/40 border border-slate-800/40 opacity-60">
+                <span className="text-slate-400 flex items-center gap-2 text-xs">
+                  <span className="w-2.5 h-2.5 rounded-full bg-slate-600" />
+                  4. Encargos Sociais (Opcional)
+                </span>
+                <div className="text-right text-xs">
+                  <span className="text-slate-500 font-mono">Não incidente (R$ 0,00)</span>
+                </div>
+              </div>
+            )}
 
             {/* Total Direto Highlight */}
             <div className="flex items-center justify-between p-3 rounded-xl bg-slate-800/60 border border-slate-700 font-bold">

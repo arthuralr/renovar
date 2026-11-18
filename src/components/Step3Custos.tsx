@@ -38,6 +38,10 @@ interface Step3CustosProps {
   calculos: CalculosOrcamento;
   condicoesComerciais: CondicoesComerciais;
   onUpdateCondicoesComerciais: (novasCondicoes: Partial<CondicoesComerciais>) => void;
+  aplicarPericulosidade?: boolean;
+  onTogglePericulosidade?: (ativo: boolean) => void;
+  aplicarEncargosSociais?: boolean;
+  onToggleEncargosSociais?: (ativo: boolean) => void;
   onNext: () => void;
   onPrev: () => void;
 }
@@ -52,6 +56,10 @@ export const Step3Custos: React.FC<Step3CustosProps> = ({
   calculos,
   condicoesComerciais,
   onUpdateCondicoesComerciais,
+  aplicarPericulosidade = true,
+  onTogglePericulosidade,
+  aplicarEncargosSociais = true,
+  onToggleEncargosSociais,
   onNext,
   onPrev,
 }) => {
@@ -447,20 +455,116 @@ export const Step3Custos: React.FC<Step3CustosProps> = ({
             <span className="text-[10px] text-slate-500 block mt-0.5">({mesesObra} meses)</span>
           </div>
 
-          <div className="p-3 rounded-xl bg-slate-950 border border-slate-800">
-            <span className="text-[10px] text-slate-500 uppercase block">3. Periculosidade</span>
-            <span className="text-sm font-bold text-amber-300 block mt-1">
+          {/* Card 3: Periculosidade Opcional */}
+          <div
+            className={`p-3 rounded-xl border transition-all ${
+              aplicarPericulosidade
+                ? 'bg-slate-950 border-amber-500/50 shadow-sm'
+                : 'bg-slate-950/60 border-slate-800 text-slate-500'
+            }`}
+          >
+            <div className="flex items-center justify-between gap-1 mb-1.5">
+              <label
+                htmlFor="toggle-periculosidade"
+                className="text-[10px] uppercase font-bold text-slate-400 cursor-pointer flex items-center gap-1.5"
+              >
+                <input
+                  id="toggle-periculosidade"
+                  type="checkbox"
+                  checked={aplicarPericulosidade}
+                  onChange={(e) => onTogglePericulosidade?.(e.target.checked)}
+                  className="w-3.5 h-3.5 rounded border-slate-700 bg-slate-900 text-amber-500 focus:ring-amber-500 focus:ring-offset-slate-950 cursor-pointer"
+                />
+                <span>3. Periculosidade</span>
+              </label>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={aplicarPericulosidade}
+                aria-label="Ativar ou desativar periculosidade"
+                onClick={() => onTogglePericulosidade?.(!aplicarPericulosidade)}
+                className={`relative inline-flex h-4 w-7 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                  aplicarPericulosidade ? 'bg-amber-500' : 'bg-slate-800'
+                }`}
+              >
+                <span
+                  aria-hidden="true"
+                  className={`pointer-events-none inline-block h-3 w-3 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                    aplicarPericulosidade ? 'translate-x-3' : 'translate-x-0'
+                  }`}
+                />
+              </button>
+            </div>
+            <span
+              className={`text-sm font-bold block mt-1 ${
+                aplicarPericulosidade ? 'text-amber-300' : 'text-slate-500 line-through'
+              }`}
+            >
               {formatarMoeda(calculos.periculosidade)}
             </span>
-            <span className="text-[10px] text-amber-500/80 block mt-0.5">(30% sobre MO)</span>
+            <span
+              className={`text-[10px] block mt-0.5 ${
+                aplicarPericulosidade ? 'text-amber-400/90' : 'text-slate-500'
+              }`}
+            >
+              {aplicarPericulosidade ? '(30% sobre MO)' : '(Desmarcado: R$ 0,00)'}
+            </span>
           </div>
 
-          <div className="p-3 rounded-xl bg-slate-950 border border-slate-800">
-            <span className="text-[10px] text-slate-500 uppercase block">4. Encargos Sociais</span>
-            <span className="text-sm font-bold text-sky-300 block mt-1">
+          {/* Card 4: Encargos Sociais Opcionais */}
+          <div
+            className={`p-3 rounded-xl border transition-all ${
+              aplicarEncargosSociais
+                ? 'bg-slate-950 border-sky-500/50 shadow-sm'
+                : 'bg-slate-950/60 border-slate-800 text-slate-500'
+            }`}
+          >
+            <div className="flex items-center justify-between gap-1 mb-1.5">
+              <label
+                htmlFor="toggle-encargos"
+                className="text-[10px] uppercase font-bold text-slate-400 cursor-pointer flex items-center gap-1.5"
+              >
+                <input
+                  id="toggle-encargos"
+                  type="checkbox"
+                  checked={aplicarEncargosSociais}
+                  onChange={(e) => onToggleEncargosSociais?.(e.target.checked)}
+                  className="w-3.5 h-3.5 rounded border-slate-700 bg-slate-900 text-sky-500 focus:ring-sky-500 focus:ring-offset-slate-950 cursor-pointer"
+                />
+                <span>4. Encargos Sociais</span>
+              </label>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={aplicarEncargosSociais}
+                aria-label="Ativar ou desativar encargos sociais"
+                onClick={() => onToggleEncargosSociais?.(!aplicarEncargosSociais)}
+                className={`relative inline-flex h-4 w-7 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                  aplicarEncargosSociais ? 'bg-sky-500' : 'bg-slate-800'
+                }`}
+              >
+                <span
+                  aria-hidden="true"
+                  className={`pointer-events-none inline-block h-3 w-3 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                    aplicarEncargosSociais ? 'translate-x-3' : 'translate-x-0'
+                  }`}
+                />
+              </button>
+            </div>
+            <span
+              className={`text-sm font-bold block mt-1 ${
+                aplicarEncargosSociais ? 'text-sky-300' : 'text-slate-500 line-through'
+              }`}
+            >
               {formatarMoeda(calculos.encargosSociais)}
             </span>
-            <span className="text-[10px] text-sky-500/80 block mt-0.5">(60% sobre MO)</span>
+            <span
+              className={`text-[10px] block mt-0.5 ${
+                aplicarEncargosSociais ? 'text-sky-400/90' : 'text-slate-500'
+              }`}
+            >
+              {aplicarEncargosSociais ? '(60% sobre MO)' : '(Desmarcado: R$ 0,00)'}
+            </span>
           </div>
 
           <div className="p-3 rounded-xl bg-slate-950 border border-slate-800">
