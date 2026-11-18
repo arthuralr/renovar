@@ -144,7 +144,7 @@ export function gerarMensagemWhatsAppOrcamento(dados: DadosMensagemWhatsApp): st
     `📌 *Status Atual:* *${etapa.titulo.toUpperCase()}*`,
     `💰 *Valor Global:* *${formatarMoeda(calculos.valorGlobal)}*`,
     `⏱️ *Prazo de Execução:* ${calculos.mesesObra} ${calculos.mesesObra === 1 ? 'mês' : 'meses'}`,
-    `💳 *Condições de Pagamento:* Entrada de ${parcelamento.percentualEntrada}% (${formatarMoeda(parcelamento.valorEntradaTotal)}${parcelamento.parcelasEntrada > 1 ? ` em ${parcelamento.parcelasEntrada}x` : ' à vista'}) + Saldo em ${parcelamento.parcelasSaldo}x mensais de ${formatarMoeda(parcelamento.valorParcelaSaldo)} (${condicoesComerciais.formaPagamento})`,
+    `💳 *Condições de Pagamento:* Entrada de ${parcelamento.percentualEntrada}% (${formatarMoeda(parcelamento.valorEntradaTotal)}${parcelamento.parcelasEntrada > 1 ? ` em ${parcelamento.parcelasEntrada}x` : ' à vista'}) + Saldo em ${parcelamento.parcelasSaldo}x ${parcelamento.frequenciaSaldo === 'quinzenal' ? 'quinzenais' : 'mensais'} de ${formatarMoeda(parcelamento.valorParcelaSaldo)} (${condicoesComerciais.formaPagamento})`,
   ];
 
   if (typeof totalPatologias === 'number' && totalPatologias > 0) {

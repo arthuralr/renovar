@@ -1162,7 +1162,7 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
                     {formatarMoeda(parcelamento.valorSaldoTotal)}
                   </span>
                   <span className="text-[10px] text-sky-950 font-bold block mt-0.5">
-                    Em {parcelamento.parcelasSaldo}x mensais de{' '}
+                    Em {parcelamento.parcelasSaldo}x {parcelamento.frequenciaSaldo === 'quinzenal' ? 'quinzenais' : 'mensais'} de{' '}
                     {formatarMoeda(parcelamento.valorParcelaSaldo)}
                   </span>
                 </div>
@@ -1187,7 +1187,7 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
                 </div>
                 <p className="leading-relaxed whitespace-pre-line text-slate-900 font-medium">
                   {condicoesComerciais.observacoesFaturamento?.trim() ||
-                    `Sinal de ${parcelamento.percentualEntrada}% (${formatarMoeda(parcelamento.valorEntradaTotal)}) na assinatura do contrato para compra antecipada de materiais e mobilização inicial. O saldo remanescente de ${parcelamento.percentualSaldo}% (${formatarMoeda(parcelamento.valorSaldoTotal)}) será faturado em ${parcelamento.parcelasSaldo} parcelas mensais de ${formatarMoeda(parcelamento.valorParcelaSaldo)} vinculadas aos laudos de medição de evolução física aprovados pela gestão condominial.`}
+                    `Sinal de ${parcelamento.percentualEntrada}% (${formatarMoeda(parcelamento.valorEntradaTotal)}) na assinatura do contrato para compra antecipada de materiais e mobilização inicial. O saldo remanescente de ${parcelamento.percentualSaldo}% (${formatarMoeda(parcelamento.valorSaldoTotal)}) será faturado em ${parcelamento.parcelasSaldo} parcelas ${parcelamento.frequenciaSaldo === 'quinzenal' ? 'quinzenais (vencimentos a cada 15 dias)' : 'mensais (vencimentos a cada 30 dias)'} de ${formatarMoeda(parcelamento.valorParcelaSaldo)} vinculadas aos laudos de medição de evolução física aprovados pela gestão condominial.`}
                 </p>
               </div>
             </div>

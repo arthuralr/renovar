@@ -92,11 +92,15 @@ export interface CalculosOrcamento {
   aplicarEncargosSociais?: boolean; // Controle opcional (padrão: true)
 }
 
+// Frequência de Parcelamento do Saldo Restante
+export type FrequenciaSaldo = 'mensal' | 'quinzenal';
+
 // Condições Comerciais e Pagamento da Proposta
 export interface CondicoesComerciais {
   percentualEntrada: number; // ex: 20 (%)
   parcelasEntrada: number; // ex: 1 (à vista) ou mais parcelas de entrada
-  parcelasSaldo: number; // ex: 4 parcelas mensais do saldo restante
+  parcelasSaldo: number; // ex: 4 parcelas do saldo restante
+  frequenciaSaldo?: FrequenciaSaldo; // 'mensal' (padrão) ou 'quinzenal'
   formaPagamento: string; // ex: 'Boleto Bancário Registrado / PIX / TED'
   prazoValidadeDias: number; // ex: 30 dias
   observacoesFaturamento: string; // Observações customizadas de faturamento e medição

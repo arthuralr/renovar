@@ -4,10 +4,11 @@ export const CONDICOES_COMERCIAIS_PADRAO: CondicoesComerciais = {
   percentualEntrada: 20,
   parcelasEntrada: 1,
   parcelasSaldo: 4,
+  frequenciaSaldo: 'mensal',
   formaPagamento: 'Boleto Bancário Registrado / PIX Corporativo / Transferência TED',
   prazoValidadeDias: 30,
   observacoesFaturamento:
-    'Sinal na assinatura do contrato para compra antecipada de materiais e mobilização inicial de canteiro e equipamentos. O saldo remanescente será faturado em parcelas mensais mediante emissão de Nota Fiscal Eletrônica (NF-e), vinculadas aos laudos de medição de evolução física quinzenal aprovados pela administração e comissão de obras.',
+    'Sinal na assinatura do contrato para compra antecipada de materiais e mobilização inicial de canteiro e equipamentos. O saldo remanescente será faturado em parcelas mensais mediante emissão de Nota Fiscal Eletrônica (NF-e), vinculadas aos laudos de medição de evolução física aprovados pela administração e comissão de obras.',
 };
 
 export function calcularParcelamentoComercial(
@@ -18,6 +19,7 @@ export function calcularParcelamentoComercial(
   const pctEntrada = Math.min(100, Math.max(0, Number(condicoes.percentualEntrada) || 0));
   const qtdParcelasEntrada = Math.max(1, Math.round(Number(condicoes.parcelasEntrada) || 1));
   const qtdParcelasSaldo = Math.max(1, Math.round(Number(condicoes.parcelasSaldo) || 1));
+  const frequenciaSaldo = condicoes.frequenciaSaldo === 'quinzenal' ? 'quinzenal' : 'mensal';
 
   const valorEntradaTotal = total * (pctEntrada / 100);
   const valorParcelaEntrada = valorEntradaTotal / qtdParcelasEntrada;
@@ -25,6 +27,10 @@ export function calcularParcelamentoComercial(
   const percentualSaldo = Math.max(0, 100 - pctEntrada);
   const valorSaldoTotal = Math.max(0, total - valorEntradaTotal);
   const valorParcelaSaldo = pctEntrada >= 100 ? 0 : valorSaldoTotal / qtdParcelasSaldo;
+
+  const periodicidadeDias = frequenciaSaldo === 'quinzenal' ? 15 : 30;
+  const periodicidadeTexto = frequenciaSaldo === 'quinzenal' ? 'quinzenais' : 'mensais';
+  const periodicidadeSingular = frequenciaSaldo === 'quinzenal' ? 'quinzenal' : 'mensal';
 
   return {
     percentualEntrada: pctEntrada,
@@ -35,6 +41,10 @@ export function calcularParcelamentoComercial(
     parcelasSaldo: qtdParcelasSaldo,
     valorSaldoTotal,
     valorParcelaSaldo,
+    frequenciaSaldo,
+    periodicidadeDias,
+    periodicidadeTexto,
+    periodicidadeSingular,
   };
 }
 

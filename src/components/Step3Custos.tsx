@@ -664,16 +664,42 @@ export const Step3Custos: React.FC<Step3CustosProps> = ({
             </div>
           </div>
 
-          {/* Parcelas Mensais do Saldo Restante */}
+          {/* Parcelas do Saldo Restante com seletor de Frequência (Mensal / Quinzenal) */}
           <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-1.5">
-            <label className="block font-semibold text-slate-300">
-              Parcelas Mensais do Saldo ({parcelamento.percentualSaldo}%):
-            </label>
+            <div className="flex items-center justify-between gap-1">
+              <label className="block font-semibold text-slate-300 text-xs">
+                Parcelas {condicoesComerciais.frequenciaSaldo === 'quinzenal' ? 'Quinzenais' : 'Mensais'} do Saldo ({parcelamento.percentualSaldo}%):
+              </label>
+              <div className="flex items-center bg-slate-900 border border-slate-700 p-0.5 rounded-lg text-[10px] font-mono shrink-0">
+                <button
+                  type="button"
+                  onClick={() => onUpdateCondicoesComerciais({ frequenciaSaldo: 'mensal' })}
+                  className={`px-2 py-0.5 rounded font-bold transition cursor-pointer ${
+                    condicoesComerciais.frequenciaSaldo !== 'quinzenal'
+                      ? 'bg-amber-500 text-slate-950 shadow-xs'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  Mensal
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onUpdateCondicoesComerciais({ frequenciaSaldo: 'quinzenal' })}
+                  className={`px-2 py-0.5 rounded font-bold transition cursor-pointer ${
+                    condicoesComerciais.frequenciaSaldo === 'quinzenal'
+                      ? 'bg-amber-500 text-slate-950 shadow-xs'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  Quinzenal
+                </button>
+              </div>
+            </div>
             <div className="flex items-center gap-2">
               <input
                 type="number"
                 min="1"
-                max="60"
+                max={condicoesComerciais.frequenciaSaldo === 'quinzenal' ? 120 : 60}
                 step="1"
                 value={condicoesComerciais.parcelasSaldo}
                 onChange={(e) =>
@@ -683,10 +709,12 @@ export const Step3Custos: React.FC<Step3CustosProps> = ({
                 }
                 className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 font-mono font-bold text-sky-400 focus:outline-none focus:border-amber-400"
               />
-              <span className="font-mono text-slate-400">meses</span>
+              <span className="font-mono text-slate-400 text-xs shrink-0">
+                {condicoesComerciais.frequenciaSaldo === 'quinzenal' ? 'quinzenas (15d)' : 'meses (30d)'}
+              </span>
             </div>
             <div className="text-[11px] font-mono text-slate-400">
-              {parcelamento.parcelasSaldo}x de{' '}
+              {parcelamento.parcelasSaldo}x {condicoesComerciais.frequenciaSaldo === 'quinzenal' ? 'quinzenais' : 'mensais'} de{' '}
               <strong className="text-sky-300">{formatarMoeda(parcelamento.valorParcelaSaldo)}</strong>
             </div>
           </div>
