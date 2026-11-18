@@ -1,4 +1,10 @@
-import { ItemMaterial, CargoProfissional, CalculosOrcamento, CondicoesComerciais } from '../types';
+import {
+  ItemMaterial,
+  CargoProfissional,
+  CalculosOrcamento,
+  CondicoesComerciais,
+  UnidadePrazoObra,
+} from '../types';
 
 export interface TagCondicaoEspecial {
   id: string;
@@ -176,15 +182,30 @@ export const MATERIAIS_PADRAO: ItemMaterial[] = [
   },
 ];
 
+export function formatarPrazoObra(
+  prazo?: number,
+  unidade: UnidadePrazoObra = 'meses'
+): string {
+  const qtd = Number(prazo) || 0;
+  if (unidade === 'dias') {
+    return `${qtd} ${qtd === 1 ? 'dia' : 'dias'}`;
+  }
+  return `${qtd} ${qtd === 1 ? 'mês' : 'meses'}`;
+}
+
 export function calcularOrcamento(
   materiais: ItemMaterial[],
   equipe: CargoProfissional[],
-  mesesObra: number,
+  prazoObra: number,
   margemLucroPercentual: number,
   aplicarPericulosidade: boolean = true,
-  aplicarEncargosSociais: boolean = true
+  aplicarEncargosSociais: boolean = true,
+  unidadePrazoObra: UnidadePrazoObra = 'meses'
 ): CalculosOrcamento {
-  const meses = Math.max(0, Number(mesesObra) || 0);
+  const prazo = Math.max(0, Number(prazoObra) || 0);
+  const unidade = unidadePrazoObra === 'dias' ? 'dias' : 'meses';
+  // Fator proporcional em meses: se dias, converte pelo mês comercial (30 dias)
+  const fatorMeses = unidade === 'dias' ? prazo / 30 : prazo;
 
   // 1. Custo de Materiais = Soma de (Quantidade * Preço Unitário)
   const custoMateriais = materiais.reduce((acc, item) => {
@@ -193,14 +214,14 @@ export function calcularOrcamento(
     return acc + qtd * preco;
   }, 0);
 
-  // 2. Mão de Obra Direta = (Soma dos salários base dos profissionais preenchidos) * Meses de obra
+  // 2. Mão de Obra Direta = (Soma dos salários base dos profissionais) * Fator de prazo
   const salariosMensaisTotal = equipe.reduce((acc, prof) => {
     const qtd = Math.max(0, Number(prof.quantidade) || 0);
     const salario = Number(prof.salarioBase) || 0;
     return acc + qtd * salario;
   }, 0);
 
-  const maoDeObraDireta = salariosMensaisTotal * meses;
+  const maoDeObraDireta = salariosMensaisTotal * fatorMeses;
 
   // 3. Periculosidade = 30% sobre o total da Mão de Obra Direta (se ativado pelo usuário)
   const periculosidade = aplicarPericulosidade ? maoDeObraDireta * 0.30 : 0;
@@ -224,7 +245,9 @@ export function calcularOrcamento(
   return {
     custoMateriais,
     salariosMensaisTotal,
-    mesesObra: meses,
+    prazoObra: prazo,
+    unidadePrazoObra: unidade,
+    mesesObra: fatorMeses,
     maoDeObraDireta,
     periculosidade,
     encargosSociais,

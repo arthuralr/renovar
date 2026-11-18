@@ -9,6 +9,7 @@ import {
   formatarMoeda,
   calcularParcelamentoComercial,
   CONDICOES_COMERCIAIS_PADRAO,
+  formatarPrazoObra,
 } from './budgetCalculator';
 
 export const ORCAMENTOS_STORAGE_KEY = 'patologias_orcamentos_salvos_v1';
@@ -143,7 +144,7 @@ export function gerarMensagemWhatsAppOrcamento(dados: DadosMensagemWhatsApp): st
     `🏢 *Cliente / Condomínio:* ${nomeCondominio}${dadosCliente.cnpj ? ` (CNPJ: ${dadosCliente.cnpj})` : ''}`,
     `📌 *Status Atual:* *${etapa.titulo.toUpperCase()}*`,
     `💰 *Valor Global:* *${formatarMoeda(calculos.valorGlobal)}*`,
-    `⏱️ *Prazo de Execução:* ${calculos.mesesObra} ${calculos.mesesObra === 1 ? 'mês' : 'meses'}`,
+    `⏱️ *Prazo de Execução:* ${formatarPrazoObra(calculos.prazoObra, calculos.unidadePrazoObra)}`,
     `💳 *Condições de Pagamento:* Entrada de ${parcelamento.percentualEntrada}% (${formatarMoeda(parcelamento.valorEntradaTotal)}${parcelamento.parcelasEntrada > 1 ? ` em ${parcelamento.parcelasEntrada}x` : ' à vista'}) + Saldo em ${parcelamento.parcelasSaldo}x ${parcelamento.frequenciaSaldo === 'quinzenal' ? 'quinzenais' : 'mensais'} de ${formatarMoeda(parcelamento.valorParcelaSaldo)} (1º vencimento em ${parcelamento.carenciaPrimeiraParcelaDias ?? 30} dias • ${condicoesComerciais.formaPagamento})`,
   ];
 

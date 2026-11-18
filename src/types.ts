@@ -75,12 +75,17 @@ export interface CargoProfissional {
   descricaoFuncao?: string;
 }
 
+// Unidade de Prazo de Execução da Obra
+export type UnidadePrazoObra = 'meses' | 'dias';
+
 // Wizard Step 4: Cálculos Financeiros (Backoffice rígido)
 export interface CalculosOrcamento {
   custoMateriais: number;
   salariosMensaisTotal: number;
-  mesesObra: number;
-  maoDeObraDireta: number; // (Soma dos salários) * Meses
+  prazoObra: number; // Quantidade na unidade definida (ex: 2 meses ou 15 dias)
+  unidadePrazoObra: UnidadePrazoObra; // 'meses' (padrão) ou 'dias'
+  mesesObra: number; // Equivalência em meses (ex: 15 dias = 0.5 meses) para retrocompatibilidade
+  maoDeObraDireta: number; // (Soma dos salários) * Fator de prazo
   periculosidade: number; // 30% sobre Mão de Obra Direta (quando ativa)
   encargosSociais: number; // 60% sobre Mão de Obra Direta (quando ativa)
   custoTotalDireto: number; // Materiais + MO + Periculosidade + Encargos
@@ -126,6 +131,8 @@ export interface OrcamentoSalvo {
   condicoesComerciais: CondicoesComerciais;
   materiais: ItemMaterial[];
   equipe: CargoProfissional[];
+  prazoObra?: number;
+  unidadePrazoObra?: UnidadePrazoObra;
   mesesObra: number;
   margemLucroPercentual: number;
   aplicarPericulosidade?: boolean;

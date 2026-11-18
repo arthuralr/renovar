@@ -12,6 +12,7 @@ import {
   calcularParcelamentoComercial,
   formatarMoeda,
   CONDICOES_COMERCIAIS_PADRAO,
+  formatarPrazoObra,
 } from '../utils/budgetCalculator';
 
 export const N8N_WEBHOOK_URL = 'https://n8n.ia01.online/webhook-test/renovar-proposta';
@@ -108,6 +109,12 @@ export function montarPayloadOrcamentoWebhook(params: EnviarOrcamentoWebhookPara
       subtotalFormatado: formatarMoeda(m.quantidade * m.precoUnitario),
     }));
 
+  const prazoFormatado = formatarPrazoObra(calculos.prazoObra, calculos.unidadePrazoObra);
+  const fatorPrazoMeses =
+    calculos.unidadePrazoObra === 'dias'
+      ? (Number(calculos.prazoObra) || 0) / 30
+      : (Number(calculos.prazoObra ?? calculos.mesesObra) || 0);
+
   const equipeAtiva = equipe
     .filter((p) => p.quantidade > 0)
     .map((p) => ({
@@ -115,17 +122,17 @@ export function montarPayloadOrcamentoWebhook(params: EnviarOrcamentoWebhookPara
       tipo: 'mao_de_obra',
       cargo: p.cargo,
       nome: p.cargo,
-      descricao: `${p.cargo} (${calculos.mesesObra} meses)`,
-      unidade: 'mês',
+      descricao: `${p.cargo} (${prazoFormatado})`,
+      unidade: calculos.unidadePrazoObra || 'mês',
       quantidadePessoas: p.quantidade,
-      quantidade: p.quantidade * calculos.mesesObra,
+      quantidade: p.quantidade * fatorPrazoMeses,
       custoMensalUnitario: p.salarioBase,
       precoUnitario: p.salarioBase,
       subtotalMensal: p.quantidade * p.salarioBase,
-      subtotalPeriodoObra: p.quantidade * p.salarioBase * calculos.mesesObra,
-      subtotal: p.quantidade * p.salarioBase * calculos.mesesObra,
+      subtotalPeriodoObra: p.quantidade * p.salarioBase * fatorPrazoMeses,
+      subtotal: p.quantidade * p.salarioBase * fatorPrazoMeses,
       subtotalPeriodoFormatado: formatarMoeda(
-        p.quantidade * p.salarioBase * calculos.mesesObra
+        p.quantidade * p.salarioBase * fatorPrazoMeses
       ),
     }));
 
@@ -142,9 +149,9 @@ export function montarPayloadOrcamentoWebhook(params: EnviarOrcamentoWebhookPara
     })),
     ...equipeAtiva.map((e) => ({
       categoria: 'Mão de Obra / Equipe',
-      item: `${e.cargo} (${e.quantidadePessoas} prof. x ${calculos.mesesObra} meses)`,
-      unidade: 'mês',
-      quantidade: e.quantidadePessoas * calculos.mesesObra,
+      item: `${e.cargo} (${e.quantidadePessoas} prof. x ${prazoFormatado})`,
+      unidade: calculos.unidadePrazoObra || 'mês',
+      quantidade: e.quantidadePessoas * fatorPrazoMeses,
       valorUnitario: e.custoMensalUnitario,
       valorTotal: e.subtotalPeriodoObra,
       valorTotalFormatado: e.subtotalPeriodoFormatado,
@@ -185,6 +192,9 @@ export function montarPayloadOrcamentoWebhook(params: EnviarOrcamentoWebhookPara
     valorGlobal: calculos.valorGlobal,
     valor_global: calculos.valorGlobal,
     valorGlobalFormatado: formatarMoeda(calculos.valorGlobal),
+    prazoObra: calculos.prazoObra,
+    unidadePrazoObra: calculos.unidadePrazoObra,
+    prazoFormatado,
     mesesObra: calculos.mesesObra,
     itens: itensProposta,
 
@@ -201,6 +211,9 @@ export function montarPayloadOrcamentoWebhook(params: EnviarOrcamentoWebhookPara
       email,
     },
     resumoFinanceiro: {
+      prazoObra: calculos.prazoObra,
+      unidadePrazoObra: calculos.unidadePrazoObra,
+      prazoFormatado,
       mesesObra: calculos.mesesObra,
       custoMateriais: calculos.custoMateriais,
       custoMateriaisFormatado: formatarMoeda(calculos.custoMateriais),

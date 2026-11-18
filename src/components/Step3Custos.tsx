@@ -23,12 +23,14 @@ import {
   CargoProfissional,
   CalculosOrcamento,
   CondicoesComerciais,
+  UnidadePrazoObra,
 } from '../types';
 import {
   formatarMoeda,
   MATERIAIS_PADRAO,
   calcularParcelamentoComercial,
   TAGS_CONDICOES_ESPECIAIS,
+  formatarPrazoObra,
 } from '../utils/budgetCalculator';
 
 interface Step3CustosProps {
@@ -36,8 +38,12 @@ interface Step3CustosProps {
   setMateriais: React.Dispatch<React.SetStateAction<ItemMaterial[]>>;
   equipe: CargoProfissional[];
   setEquipe: React.Dispatch<React.SetStateAction<CargoProfissional[]>>;
-  mesesObra: number;
-  setMesesObra: React.Dispatch<React.SetStateAction<number>>;
+  prazoObra?: number;
+  setPrazoObra?: React.Dispatch<React.SetStateAction<number>>;
+  unidadePrazoObra?: UnidadePrazoObra;
+  setUnidadePrazoObra?: React.Dispatch<React.SetStateAction<UnidadePrazoObra>>;
+  mesesObra?: number;
+  setMesesObra?: React.Dispatch<React.SetStateAction<number>>;
   calculos: CalculosOrcamento;
   condicoesComerciais: CondicoesComerciais;
   onUpdateCondicoesComerciais: (novasCondicoes: Partial<CondicoesComerciais>) => void;
@@ -54,7 +60,11 @@ export const Step3Custos: React.FC<Step3CustosProps> = ({
   setMateriais,
   equipe,
   setEquipe,
-  mesesObra,
+  prazoObra: prazoProp,
+  setPrazoObra: setPrazoProp,
+  unidadePrazoObra = 'meses',
+  setUnidadePrazoObra,
+  mesesObra = 0,
   setMesesObra,
   calculos,
   condicoesComerciais,
@@ -66,6 +76,9 @@ export const Step3Custos: React.FC<Step3CustosProps> = ({
   onNext,
   onPrev,
 }) => {
+  const prazoEfetivo = prazoProp !== undefined ? prazoProp : mesesObra;
+  const setPrazoEfetivo = setPrazoProp || setMesesObra || (() => {});
+  const fatorPrazo = unidadePrazoObra === 'dias' ? prazoEfetivo / 30 : prazoEfetivo;
   const parcelamento = calcularParcelamentoComercial(calculos.valorGlobal, condicoesComerciais);
 
   const handleToggleTagObservacao = (textoTag: string) => {
@@ -320,26 +333,49 @@ export const Step3Custos: React.FC<Step3CustosProps> = ({
             </div>
           </div>
 
-          {/* Duração em Meses de Obra */}
-          <div className="flex items-center gap-3 bg-slate-950 p-2.5 rounded-xl border border-slate-800">
-            <Calendar className="w-4 h-4 text-amber-400" />
-            <label className="text-xs font-semibold text-slate-300">Prazo de Obra:</label>
+          {/* Prazo e Unidade de Obra */}
+          <div className="flex flex-wrap items-center gap-2.5 bg-slate-950 p-2.5 rounded-xl border border-slate-800">
+            <Calendar className="w-4 h-4 text-amber-400 shrink-0" />
+            <label className="text-xs font-semibold text-slate-300 shrink-0">Prazo de Obra:</label>
             <div className="flex items-center gap-1.5">
               <input
                 type="number"
-                min="0"
-                max="36"
-                value={mesesObra || ''}
-                onChange={(e) => setMesesObra(Math.max(0, Number(e.target.value)))}
+                min="1"
+                max={unidadePrazoObra === 'dias' ? 730 : 60}
+                value={prazoEfetivo || ''}
+                onChange={(e) => setPrazoEfetivo(Math.max(0, Number(e.target.value)))}
                 placeholder="0"
                 className="w-16 bg-slate-900 border border-slate-700 rounded-lg px-2 py-1 text-center font-mono font-bold text-sm text-amber-400 focus:outline-none focus:border-amber-400"
               />
-              <span className="text-xs text-slate-400 font-medium">meses</span>
+              <div className="flex items-center bg-slate-900 border border-slate-700 p-0.5 rounded-lg text-xs font-mono shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setUnidadePrazoObra?.('meses')}
+                  className={`px-2 py-0.5 rounded font-bold transition cursor-pointer ${
+                    unidadePrazoObra !== 'dias'
+                      ? 'bg-amber-500 text-slate-950 shadow-xs'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  meses
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setUnidadePrazoObra?.('dias')}
+                  className={`px-2 py-0.5 rounded font-bold transition cursor-pointer ${
+                    unidadePrazoObra === 'dias'
+                      ? 'bg-amber-500 text-slate-950 shadow-xs'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  dias
+                </button>
+              </div>
             </div>
             <button
               type="button"
               onClick={handleAddProfissional}
-              className="flex items-center gap-1.5 px-3 py-2 bg-sky-500/15 hover:bg-sky-500/25 text-sky-300 border border-sky-500/40 font-bold text-xs rounded-xl transition cursor-pointer"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-sky-500/15 hover:bg-sky-500/25 text-sky-300 border border-sky-500/40 font-bold text-xs rounded-xl transition cursor-pointer shrink-0 ml-1"
             >
               <Plus className="w-4 h-4" />
               <span>Adicionar Profissional</span>
@@ -356,7 +392,7 @@ export const Step3Custos: React.FC<Step3CustosProps> = ({
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
           {equipe.map((prof) => {
             const subtotalMensal = prof.salarioBase * prof.quantidade;
-            const subtotalObra = subtotalMensal * mesesObra;
+            const subtotalObra = subtotalMensal * fatorPrazo;
 
             return (
               <div
@@ -414,7 +450,7 @@ export const Step3Custos: React.FC<Step3CustosProps> = ({
 
                 <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between">
                   <div className="text-[11px] font-mono">
-                    <span className="text-slate-500 block">Total ({mesesObra}m):</span>
+                    <span className="text-slate-500 block">Total ({formatarPrazoObra(prazoEfetivo, unidadePrazoObra)}):</span>
                     <span className="text-amber-400 font-bold">{formatarMoeda(subtotalObra)}</span>
                   </div>
 
@@ -468,7 +504,9 @@ export const Step3Custos: React.FC<Step3CustosProps> = ({
             <span className="text-sm font-bold text-slate-200 block mt-1">
               {formatarMoeda(calculos.maoDeObraDireta)}
             </span>
-            <span className="text-[10px] text-slate-500 block mt-0.5">({mesesObra} meses)</span>
+            <span className="text-[10px] text-slate-500 block mt-0.5">
+              ({formatarPrazoObra(calculos.prazoObra, calculos.unidadePrazoObra)})
+            </span>
           </div>
 
           {/* Card 3: Periculosidade Opcional */}

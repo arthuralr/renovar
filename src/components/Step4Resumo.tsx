@@ -36,6 +36,7 @@ import {
   calcularParcelamentoComercial,
   CONDICOES_COMERCIAIS_PADRAO,
   TAGS_CONDICOES_ESPECIAIS,
+  formatarPrazoObra,
 } from '../utils/budgetCalculator';
 import { gerarLinkWhatsAppOrcamento } from '../utils/orcamentoKanbanUtils';
 import { downloadProposalPdf } from '../utils/pdfGenerator';
@@ -167,7 +168,7 @@ export const Step4Resumo: React.FC<Step4ResumoProps> = ({
                 Valor Global da Proposta
               </span>
               <span className="text-xs font-mono text-slate-400">
-                Prazo: {calculos.mesesObra} {calculos.mesesObra === 1 ? 'mês' : 'meses'}
+                Prazo: {formatarPrazoObra(calculos.prazoObra, calculos.unidadePrazoObra)}
               </span>
             </div>
 
@@ -319,7 +320,7 @@ export const Step4Resumo: React.FC<Step4ResumoProps> = ({
             <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-950/70 border border-slate-800/80">
               <span className="text-slate-300 flex items-center gap-2">
                 <span className="w-2.5 h-2.5 rounded-full bg-sky-500" />
-                2. Mão de Obra Direta ({calculos.mesesObra} meses)
+                2. Mão de Obra Direta ({formatarPrazoObra(calculos.prazoObra, calculos.unidadePrazoObra)})
               </span>
               <div className="text-right">
                 <span className="text-white font-bold">{formatarMoeda(calculos.maoDeObraDireta)}</span>
@@ -493,10 +494,11 @@ export const Step4Resumo: React.FC<Step4ResumoProps> = ({
             <button
               type="button"
               onClick={() => {
+                const mesesEquivalentes = Math.max(0.5, calculos.mesesObra);
                 const sugerido =
                   condicoesComerciais.frequenciaSaldo === 'quinzenal'
-                    ? Math.max(1, calculos.mesesObra * 2)
-                    : Math.max(1, calculos.mesesObra);
+                    ? Math.max(1, Math.round(mesesEquivalentes * 2))
+                    : Math.max(1, Math.round(mesesEquivalentes));
                 onUpdateCondicoesComerciais({ parcelasSaldo: sugerido });
               }}
               className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium border border-slate-700 transition cursor-pointer flex items-center gap-1.5"
@@ -504,11 +506,7 @@ export const Step4Resumo: React.FC<Step4ResumoProps> = ({
             >
               <Calendar className="w-3.5 h-3.5 text-amber-400" />
               <span>
-                Usar Prazo da Obra (
-                {condicoesComerciais.frequenciaSaldo === 'quinzenal'
-                  ? `${Math.max(1, calculos.mesesObra * 2)}x quinzenais`
-                  : `${Math.max(1, calculos.mesesObra)}x mensais`}
-                )
+                Usar Prazo da Obra ({formatarPrazoObra(calculos.prazoObra, calculos.unidadePrazoObra)})
               </span>
             </button>
 

@@ -50,6 +50,7 @@ import {
   formatarMoeda,
   calcularParcelamentoComercial,
   CONDICOES_COMERCIAIS_PADRAO,
+  formatarPrazoObra,
 } from '../utils/budgetCalculator';
 import { downloadProposalPdf } from '../utils/pdfGenerator';
 import { enviarOrcamentoWebhook } from '../services/webhookService';
@@ -97,6 +98,16 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
     () => calcularParcelamentoComercial(calculos.valorGlobal, condicoesComerciais),
     [calculos.valorGlobal, condicoesComerciais]
   );
+  const prazoFormatado = useMemo(
+    () => formatarPrazoObra(calculos.prazoObra, calculos.unidadePrazoObra),
+    [calculos.prazoObra, calculos.unidadePrazoObra, calculos.mesesObra]
+  );
+  const fatorPrazo = useMemo(() => {
+    if (calculos.unidadePrazoObra === 'dias') {
+      return (Number(calculos.prazoObra) || 0) / 30;
+    }
+    return Number(calculos.prazoObra ?? calculos.mesesObra) || 0;
+  }, [calculos.prazoObra, calculos.unidadePrazoObra, calculos.mesesObra]);
   const validadeDias = 30;
 
   const fallbackOrcamentoId = useMemo(
@@ -461,7 +472,7 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
                 <span className="font-extrabold text-slate-950">Validade:</span> 30 dias
               </div>
               <div>
-                <span className="font-extrabold text-slate-950">Prazo estimado:</span> {calculos.mesesObra} {calculos.mesesObra === 1 ? 'mês' : 'meses'}
+                <span className="font-extrabold text-slate-950">Prazo estimado:</span> {prazoFormatado}
               </div>
             </div>
           </div>
@@ -1011,7 +1022,7 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
             <div className="mb-6 avoid-break">
               <h3 className="text-xs font-black uppercase tracking-wider bg-slate-100 text-slate-950 px-3 py-1.5 rounded border-l-4 border-slate-900 mb-2 font-mono flex items-center justify-between border border-slate-200">
                 <span>2. Dimensionamento da Equipe Técnica Especializada</span>
-                <span className="text-slate-800 font-bold">Cronograma: {calculos.mesesObra} Meses de Obra</span>
+                <span className="text-slate-800 font-bold">Cronograma: {prazoFormatado} de Obra</span>
               </h3>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 text-xs font-mono">
@@ -1030,7 +1041,7 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
                       Salário Base: {formatarMoeda(prof.salarioBase)}/mês
                     </div>
                     <div className="text-slate-800 font-semibold mt-0.5 text-[10px]">
-                      Total período: {formatarMoeda(prof.salarioBase * prof.quantidade * calculos.mesesObra)}
+                      Total período: {formatarMoeda(prof.salarioBase * prof.quantidade * fatorPrazo)}
                     </div>
                   </div>
                 ))}
@@ -1039,7 +1050,7 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
 
             <div className="p-3.5 bg-white border border-slate-300 rounded-xl flex items-center justify-between font-mono text-xs shadow-xs">
               <span className="font-black text-slate-950">
-                Total Acumulado de Mão de Obra Direta ({calculos.mesesObra} meses):
+                Total Acumulado de Mão de Obra Direta ({prazoFormatado}):
               </span>
               <span className="font-black text-slate-950 text-sm">
                 {formatarMoeda(calculos.maoDeObraDireta)}
@@ -1075,7 +1086,7 @@ export const OrcamentoPdfModal: React.FC<OrcamentoPdfModalProps> = ({
                   </tr>
                   <tr>
                     <td className="py-2 px-3 text-slate-900">
-                      2. Mão de Obra Direta ({calculos.mesesObra} meses de contrato)
+                      2. Mão de Obra Direta ({prazoFormatado} de contrato)
                     </td>
                     <td className="py-2 px-3 text-right font-bold text-slate-950">
                       {formatarMoeda(calculos.maoDeObraDireta)}

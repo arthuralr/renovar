@@ -29,6 +29,7 @@ import {
   OrcamentoSalvo,
   StatusOrcamentoKanban,
   WizardStep,
+  UnidadePrazoObra,
 } from './types';
 import {
   calcularOrcamento,
@@ -144,6 +145,8 @@ export default function App() {
 
   const [materiais, setMateriais] = useState<ItemMaterial[]>([]);
   const [equipe, setEquipe] = useState<CargoProfissional[]>([]);
+  const [prazoObra, setPrazoObra] = useState<number>(0);
+  const [unidadePrazoObra, setUnidadePrazoObra] = useState<UnidadePrazoObra>('meses');
   const [mesesObra, setMesesObra] = useState<number>(0);
   const [margemLucroPercentual, setMargemLucroPercentual] = useState<number>(0);
   const [aplicarPericulosidade, setAplicarPericulosidade] = useState<boolean>(true);
@@ -162,12 +165,21 @@ export default function App() {
     return calcularOrcamento(
       materiais,
       equipe,
-      mesesObra,
+      prazoObra,
       margemLucroPercentual,
       aplicarPericulosidade,
-      aplicarEncargosSociais
+      aplicarEncargosSociais,
+      unidadePrazoObra
     );
-  }, [materiais, equipe, mesesObra, margemLucroPercentual, aplicarPericulosidade, aplicarEncargosSociais]);
+  }, [
+    materiais,
+    equipe,
+    prazoObra,
+    margemLucroPercentual,
+    aplicarPericulosidade,
+    aplicarEncargosSociais,
+    unidadePrazoObra,
+  ]);
 
   const [isOrcamentoPdfOpen, setIsOrcamentoPdfOpen] = useState(false);
   const [isJsonModalOpen, setIsJsonModalOpen] = useState(false);
@@ -645,7 +657,9 @@ export default function App() {
       condicoesComerciais: { ...condicoesComerciais },
       materiais: materiais.map((m) => ({ ...m })),
       equipe: equipe.map((e) => ({ ...e })),
-      mesesObra,
+      prazoObra,
+      unidadePrazoObra,
+      mesesObra: calculos.mesesObra,
       margemLucroPercentual,
       aplicarPericulosidade,
       aplicarEncargosSociais,
@@ -758,6 +772,8 @@ export default function App() {
     setErrorMessage(null);
     setMateriais([]);
     setEquipe([]);
+    setPrazoObra(0);
+    setUnidadePrazoObra('meses');
     setMesesObra(0);
     setMargemLucroPercentual(0);
     setAplicarPericulosidade(true);
@@ -917,6 +933,15 @@ export default function App() {
     setDadosCliente(orcamento.dadosCliente);
     setMateriais(orcamento.materiais || []);
     setEquipe(orcamento.equipe || []);
+    const unidadeCarregada = orcamento.unidadePrazoObra || orcamento.calculos?.unidadePrazoObra || 'meses';
+    const prazoCarregado =
+      orcamento.prazoObra ??
+      orcamento.calculos?.prazoObra ??
+      orcamento.mesesObra ??
+      orcamento.calculos?.mesesObra ??
+      0;
+    setPrazoObra(prazoCarregado);
+    setUnidadePrazoObra(unidadeCarregada);
     setMesesObra(orcamento.mesesObra || 0);
     setMargemLucroPercentual(orcamento.margemLucroPercentual || 0);
     setAplicarPericulosidade(
@@ -1278,6 +1303,10 @@ export default function App() {
               setMateriais={setMateriais}
               equipe={equipe}
               setEquipe={setEquipe}
+              prazoObra={prazoObra}
+              setPrazoObra={setPrazoObra}
+              unidadePrazoObra={unidadePrazoObra}
+              setUnidadePrazoObra={setUnidadePrazoObra}
               mesesObra={mesesObra}
               setMesesObra={setMesesObra}
               calculos={calculos}
